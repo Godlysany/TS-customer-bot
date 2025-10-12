@@ -47,8 +47,8 @@ app.post("/send", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("✅ HTTP server running to keep Railway alive");
+app.listen(process.env.PORT || 3000, "localhost", () => {
+  console.log(`✅ HTTP server running on port ${process.env.PORT || 3000}`);
 });
 
 async function transcribeVoice(filePath) {
@@ -130,7 +130,7 @@ async function textToSpeech(text) {
 
     // Convert to WhatsApp-compatible OGG (libopus, mono, 16kHz)
     execSync(
-      `./ffmpeg -y -i "${tempRawPath}" -ar 16000 -ac 1 -c:a libopus "${finalOggPath}"`
+      `ffmpeg -y -i "${tempRawPath}" -ar 16000 -ac 1 -c:a libopus "${finalOggPath}"`
     );
     
 
