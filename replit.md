@@ -95,3 +95,57 @@ The Supabase database includes tables for:
 - **SendGrid**: For email notifications (booking confirmations, cancellations, reminders, secretary notifications).
 - **Deepgram** (optional): Voice transcription.
 - **ElevenLabs** (optional): Text-to-speech capabilities.
+
+## Deployment Instructions
+
+### Database Setup (Automated via GitHub Actions)
+
+The database schema is automatically applied when you push to the `main` branch:
+
+1. **Add Supabase secrets to GitHub:**
+   - Go to your GitHub repo → Settings → Secrets and variables → Actions
+   - Add these secrets:
+     - `SUPABASE_PROJECT_ID` - Your Supabase project reference ID
+     - `SUPABASE_DB_PASSWORD` - Your Supabase database password
+     - `SUPABASE_ACCESS_TOKEN` - Your Supabase access token
+
+2. **Trigger deployment:**
+   ```bash
+   git add .
+   git commit -m "Apply database schema"
+   git push origin main
+   ```
+
+The GitHub Actions workflow (`.github/workflows/deploy-supabase.yml`) will automatically:
+- Install PostgreSQL client
+- Apply `supabase-schema.sql` to your Supabase database
+- Create all 18+ tables needed for the dentist CRM
+
+### Railway Deployment
+
+**Port Configuration:**
+- **Replit Development**: Frontend on port 5000, Backend on 8080
+- **Railway Production**: Both configurable via `PORT` environment variable (default: 8080)
+
+**Railway Environment Variables:**
+```bash
+PORT=8080
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+WHATSAPP_REPLY_MODE=text
+RESET_AUTH=false
+```
+
+**Build Configuration** (`railway.json`):
+- Builds both backend and frontend admin panel
+- Starts backend API server
+- Frontend served via Vite preview mode on same port
+
+### Post-Deployment Configuration
+
+After deployment, configure via CRM Settings page:
+1. **SendGrid**: Add API key and from email
+2. **Secretary Email**: Set email address for notifications
+3. **Cancellation Policy**: Set hours and penalty amounts
+4. **Daily Summary Time**: Configure time in CET timezone
+5. **OpenAI**: Add API key for GPT features

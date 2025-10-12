@@ -157,7 +157,7 @@ export class EmailService {
     const html = `
       <h2>How was your visit?</h2>
       <p>Dear ${reviewDetails.contactName},</p>
-      <p>Thank you for visiting us! We'd love to hear about your experience.</p>
+      <p>Thank you for visiting us! We would love to hear about your experience.</p>
       <p>Please take a moment to share your feedback:</p>
       <div style="text-align: center; margin: 20px 0;">
         <a href="${reviewDetails.reviewLink}" style="background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Leave a Review</a>
@@ -167,7 +167,7 @@ export class EmailService {
 
     await this.sendEmail({
       to: contactEmail,
-      subject: "We'd love your feedback!",
+      subject: "We would love your feedback!",
       html,
       bookingId,
       contactId: reviewDetails.contactId,
