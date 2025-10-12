@@ -47,7 +47,7 @@ app.post("/send", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, "localhost", () => {
+app.listen(process.env.PORT || 3000, "0.0.0.0", () => {
   console.log(`✅ HTTP server running on port ${process.env.PORT || 3000}`);
 });
 
