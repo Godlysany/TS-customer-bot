@@ -26,11 +26,19 @@ export class SettingsService {
     return toCamelCaseArray(data || []);
   }
 
-  async updateSetting(key: string, value: string): Promise<void> {
+  async updateSetting(key: string, value: string, category?: string, description?: string): Promise<void> {
     const { error } = await supabase
       .from('settings')
-      .update({ value, updated_at: new Date().toISOString() })
-      .eq('key', key);
+      .upsert(
+        { 
+          key, 
+          value, 
+          category: category || 'general',
+          description: description || '',
+          updated_at: new Date().toISOString() 
+        },
+        { onConflict: 'key' }
+      );
 
     if (error) throw error;
   }
