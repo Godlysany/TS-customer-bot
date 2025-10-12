@@ -18,6 +18,10 @@ author = "agent"
 task = "workflow.run"
 args = "WhatsApp Bot"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "CRM Frontend"
+
 [[workflows.workflow]]
 name = "WhatsApp Bot"
 author = "agent"
@@ -29,6 +33,18 @@ args = "npm start"
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow]]
+name = "CRM Frontend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd admin && npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
@@ -36,3 +52,7 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 45705
+externalPort = 3001
