@@ -9,6 +9,9 @@ import conversationService from '../core/ConversationService';
 import messageService from '../core/MessageService';
 import aiService from '../core/AIService';
 import bookingService from '../core/BookingService';
+import settingsService from '../core/SettingsService';
+import conversationTakeoverService from '../core/ConversationTakeoverService';
+import customerAnalyticsService from '../core/CustomerAnalyticsService';
 
 const debounceTimers = new Map();
 const messageBuffers = new Map();
@@ -115,6 +118,12 @@ async function handleMessage(msg: WAMessage) {
     return;
   }
 
+  const botEnabled = await settingsService.getBotEnabled();
+  if (!botEnabled) {
+    console.log('🤖 Bot is disabled globally, ignoring message');
+    return;
+  }
+
   let text: string;
   let isVoice = false;
   let messageType: 'text' | 'voice' | 'image' | 'file' = 'text';
@@ -151,6 +160,12 @@ async function handleMessage(msg: WAMessage) {
     });
 
     const messageHistory = await messageService.getConversationMessages(conversation.id);
+
+    const canBotReply = await conversationTakeoverService.canBotReply(conversation.id);
+    if (!canBotReply) {
+      console.log('👤 Agent has taken over conversation, bot will not reply');
+      return;
+    }
 
     const intent = await aiService.detectIntent(text);
     console.log('🎯 Intent detected:', intent);
@@ -208,6 +223,10 @@ async function handleMessage(msg: WAMessage) {
     } catch (e) {
       console.warn('⚠️ Failed to mark as read');
     }
+
+    customerAnalyticsService.updateCustomerAnalytics(contact.id).catch(err =>
+      console.warn('⚠️ Analytics update failed:', err)
+    );
   } catch (err: any) {
     console.error('❌ Message handling error:', err);
   }
@@ -252,12 +271,14 @@ async function startSock() {
     if (connection === 'open') {
       console.log('✅ Connected to WhatsApp!');
       clearTimeout(qrTimeout);
+      await settingsService.setWhatsAppConnected(true);
     }
 
     if (connection === 'close') {
       const reason = (lastDisconnect?.error as any)?.output?.statusCode;
       const shouldReconnect = reason !== DisconnectReason.loggedOut;
       console.log(`🔌 Connection closed (reason ${reason}). Reconnect? ${shouldReconnect}`);
+      await settingsService.setWhatsAppConnected(false);
       if (shouldReconnect) {
         isStarting = false;
         setTimeout(startSock, 3000);
