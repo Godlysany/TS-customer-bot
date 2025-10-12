@@ -19,9 +19,9 @@ export class EmailService {
 
   async sendEmail(options: EmailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
-      const sendgridKey = await this.settingsService.get('sendgrid_api_key');
-      const fromEmail = await this.settingsService.get('sendgrid_from_email');
-      const fromName = await this.settingsService.get('sendgrid_from_name');
+      const sendgridKey = await this.settingsService.getSetting('sendgrid_api_key');
+      const fromEmail = await this.settingsService.getSetting('sendgrid_from_email');
+      const fromName = await this.settingsService.getSetting('sendgrid_from_name');
 
       if (!sendgridKey || !fromEmail) {
         console.log('SendGrid not configured, skipping email');
@@ -167,7 +167,7 @@ export class EmailService {
 
     await this.sendEmail({
       to: contactEmail,
-      subject: 'We'd love your feedback!',
+      subject: "We'd love your feedback!",
       html,
       bookingId,
       contactId: reviewDetails.contactId,
@@ -176,7 +176,7 @@ export class EmailService {
   }
 
   async sendDailySummaryToSecretary(summaryData: any): Promise<void> {
-    const secretaryEmail = await this.settingsService.get('secretary_email');
+    const secretaryEmail = await this.settingsService.getSetting('secretary_email');
     
     if (!secretaryEmail) {
       console.log('Secretary email not configured');
@@ -214,7 +214,7 @@ export class EmailService {
   }
 
   async sendSecretaryBookingNotification(booking: any, type: 'new' | 'cancelled' | 'changed'): Promise<void> {
-    const secretaryEmail = await this.settingsService.get('secretary_email');
+    const secretaryEmail = await this.settingsService.getSetting('secretary_email');
     
     if (!secretaryEmail) {
       return;

@@ -22,7 +22,7 @@ export class ReminderService {
   }
 
   async scheduleAppointmentReminder(bookingId: string, contactId: string, appointmentTime: Date): Promise<Reminder> {
-    const reminderHours = parseInt(await this.settingsService.get('reminder_hours_before') || '24');
+    const reminderHours = parseInt(await this.settingsService.getSetting('reminder_hours_before') || '24');
     
     const scheduledFor = new Date(appointmentTime);
     scheduledFor.setHours(scheduledFor.getHours() - reminderHours);

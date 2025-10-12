@@ -130,9 +130,9 @@ export class BookingService {
 
     const booking = toCamelCase(bookingData);
 
-    const policyHours = parseInt(await this.settingsService.get('cancellation_policy_hours') || '24');
-    const penaltyType = await this.settingsService.get('late_cancellation_penalty_type') || 'fixed';
-    const penaltyAmount = parseFloat(await this.settingsService.get('late_cancellation_penalty_amount') || '50');
+    const policyHours = parseInt(await this.settingsService.getSetting('cancellation_policy_hours') || '24');
+    const penaltyType = await this.settingsService.getSetting('late_cancellation_penalty_type') || 'fixed';
+    const penaltyAmount = parseFloat(await this.settingsService.getSetting('late_cancellation_penalty_amount') || '50');
 
     const hoursUntilAppointment = (new Date(booking.startTime).getTime() - new Date().getTime()) / (1000 * 60 * 60);
     

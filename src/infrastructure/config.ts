@@ -12,5 +12,15 @@ export const config = {
   
   whatsapp: {
     resetAuth: process.env.RESET_AUTH === 'true',
+    replyMode: process.env.WHATSAPP_REPLY_MODE || 'text',
+  },
+  
+  deepgram: {
+    apiKey: process.env.DEEPGRAM_API_KEY || '',
+  },
+  
+  elevenlabs: {
+    apiKey: process.env.ELEVENLABS_API_KEY || '',
+    voiceId: process.env.ELEVENLABS_VOICE_ID || '',
   },
 };

@@ -49,7 +49,7 @@ export class ReviewService {
 
     if (!booking) return;
 
-    const reviewDelayHours = parseInt(await this.settingsService.get('review_request_delay_hours') || '24');
+    const reviewDelayHours = parseInt(await this.settingsService.getSetting('review_request_delay_hours') || '24');
     const appointmentTime = new Date(booking.start_time);
     const now = new Date();
     
@@ -102,7 +102,7 @@ export class ReviewService {
   }
 
   async getPendingReviews(): Promise<Review[]> {
-    const reviewDelayHours = parseInt(await this.settingsService.get('review_request_delay_hours') || '24');
+    const reviewDelayHours = parseInt(await this.settingsService.getSetting('review_request_delay_hours') || '24');
     const cutoffTime = new Date();
     cutoffTime.setHours(cutoffTime.getHours() - reviewDelayHours);
 

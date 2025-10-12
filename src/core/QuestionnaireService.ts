@@ -118,7 +118,7 @@ export class QuestionnaireService {
   async generateConversationalQuestion(
     questionnaire: Questionnaire, 
     currentQuestionIndex: number
-  ): string {
+  ): Promise<string> {
     const question = questionnaire.questions[currentQuestionIndex];
     
     let message = `📋 ${question.text}`;

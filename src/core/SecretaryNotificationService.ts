@@ -13,7 +13,7 @@ export class SecretaryNotificationService {
   }
 
   async sendDailySummary(): Promise<void> {
-    const enabled = await this.settingsService.get('daily_summary_enabled');
+    const enabled = await this.settingsService.getSetting('daily_summary_enabled');
     if (enabled !== 'true') return;
 
     const today = new Date();
@@ -110,11 +110,11 @@ export class SecretaryNotificationService {
   }
 
   async shouldSendDailySummary(): Promise<boolean> {
-    const enabled = await this.settingsService.get('daily_summary_enabled');
+    const enabled = await this.settingsService.getSetting('daily_summary_enabled');
     if (enabled !== 'true') return false;
 
-    const summaryTime = await this.settingsService.get('daily_summary_time') || '09:00';
-    const timezone = await this.settingsService.get('timezone') || 'Europe/Berlin';
+    const summaryTime = await this.settingsService.getSetting('daily_summary_time') || '09:00';
+    const timezone = await this.settingsService.getSetting('timezone') || 'Europe/Berlin';
     
     const now = new Date();
     const currentTime = now.toLocaleTimeString('en-US', { 

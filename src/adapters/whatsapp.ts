@@ -1,5 +1,7 @@
 import makeWASocket, { useMultiFileAuthState, downloadMediaMessage, DisconnectReason, WAMessage } from '@whiskeysockets/baileys';
+// @ts-ignore
 import qrcode from 'qrcode-terminal';
+// @ts-ignore
 import QRCode from 'qrcode';
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -243,7 +245,7 @@ async function startSock() {
     getMessage: async () => undefined,
   });
 
-  global.sock = sock;
+  (global as any).sock = sock;
   sock.ev.on('creds.update', saveCreds);
 
   let lastQrTimestamp = 0;
