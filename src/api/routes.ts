@@ -293,4 +293,159 @@ router.get('/api/whatsapp/qr', async (req, res) => {
   }
 });
 
+// Dashboard Stats
+router.get('/api/dashboard/stats', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const bookingStats = await bookingService.getBookingStats(
+      startDate ? new Date(startDate as string) : undefined,
+      endDate ? new Date(endDate as string) : undefined
+    );
+    res.json(bookingStats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Waitlist Management
+router.post('/api/waitlist', async (req, res) => {
+  try {
+    const { WaitlistService } = await import('../core/WaitlistService');
+    const waitlistService = new WaitlistService();
+    const entry = await waitlistService.addToWaitlist(req.body);
+    res.json(entry);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/waitlist', async (req, res) => {
+  try {
+    const { WaitlistService } = await import('../core/WaitlistService');
+    const waitlistService = new WaitlistService();
+    const entries = await waitlistService.getActiveWaitlist();
+    res.json(entries);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/waitlist/:id/cancel', async (req, res) => {
+  try {
+    const { WaitlistService } = await import('../core/WaitlistService');
+    const waitlistService = new WaitlistService();
+    await waitlistService.cancelWaitlistEntry(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Questionnaires
+router.post('/api/questionnaires', async (req, res) => {
+  try {
+    const { QuestionnaireService } = await import('../core/QuestionnaireService');
+    const questionnaireService = new QuestionnaireService();
+    const questionnaire = await questionnaireService.createQuestionnaire(req.body);
+    res.json(questionnaire);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/questionnaires', async (req, res) => {
+  try {
+    const { QuestionnaireService } = await import('../core/QuestionnaireService');
+    const questionnaireService = new QuestionnaireService();
+    const questionnaires = await questionnaireService.getActiveQuestionnaires(req.query.triggerType as string);
+    res.json(questionnaires);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/questionnaires/responses', async (req, res) => {
+  try {
+    const { QuestionnaireService } = await import('../core/QuestionnaireService');
+    const questionnaireService = new QuestionnaireService();
+    const response = await questionnaireService.saveResponse(req.body);
+    res.json(response);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/contacts/:id/questionnaires', async (req, res) => {
+  try {
+    const { QuestionnaireService } = await import('../core/QuestionnaireService');
+    const questionnaireService = new QuestionnaireService();
+    const responses = await questionnaireService.getContactResponses(req.params.id);
+    res.json(responses);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reviews
+router.get('/api/reviews/stats', async (req, res) => {
+  try {
+    const { ReviewService } = await import('../core/ReviewService');
+    const reviewService = new ReviewService();
+    const { startDate, endDate } = req.query;
+    const stats = await reviewService.getReviewStats(
+      startDate ? new Date(startDate as string) : undefined,
+      endDate ? new Date(endDate as string) : undefined
+    );
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/reviews/:bookingId/feedback', async (req, res) => {
+  try {
+    const { ReviewService } = await import('../core/ReviewService');
+    const reviewService = new ReviewService();
+    await reviewService.recordReviewFeedback({
+      bookingId: req.params.bookingId,
+      ...req.body,
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Penalty Policies
+router.get('/api/policies/cancellation', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('cancellation_policies')
+      .select('*')
+      .eq('is_active', true)
+      .single();
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/api/policies/cancellation/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('cancellation_policies')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
