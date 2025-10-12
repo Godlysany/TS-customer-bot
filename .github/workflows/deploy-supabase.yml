@@ -29,16 +29,35 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
           # Install PostgreSQL client
-          sudo apt-get update && sudo apt-get install -y postgresql-client
+          echo "Installing PostgreSQL client..."
+          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
           
-          # Apply schema directly via psql
-          PGPASSWORD="$SUPABASE_DB_PASSWORD" psql \
-            -h "db.$SUPABASE_PROJECT_ID.supabase.co" \
-            -p 5432 \
-            -U postgres \
-            -d postgres \
+          # Create .pgpass file for password (safer than PGPASSWORD env var)
+          echo "db.${SUPABASE_PROJECT_ID}.supabase.co:5432:postgres:postgres:${SUPABASE_DB_PASSWORD}" > ~/.pgpass
+          chmod 600 ~/.pgpass
+          
+          # Test connection
+          echo "Testing database connection..."
+          psql \
+            "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
+            -c "SELECT version();" || {
+              echo "❌ Connection failed. Check your secrets:"
+              echo "   - SUPABASE_PROJECT_ID should be the project ref (e.g., 'abcdefghijklmnop')"
+              echo "   - SUPABASE_DB_PASSWORD is your database password"
+              exit 1
+            }
+          
+          # Apply schema
+          echo "Applying database schema..."
+          psql \
+            "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
             -f supabase-schema.sql
+          
+          # Clean up
+          rm ~/.pgpass
 
       - name: Verify deployment
         run: |
           echo "✅ Database schema applied successfully!"
+          echo "   Tables created: contacts, agents, conversations, messages, bookings, settings,"
+          echo "   customer_analytics, waitlist, questionnaires, reviews, and more."
