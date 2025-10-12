@@ -37,9 +37,11 @@ A professional B2B customer service platform built with WhatsApp, Supabase, Open
 2. Fill in your credentials:
    ```bash
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # Found in Project Settings → API → service_role key
    OPENAI_API_KEY=sk-your-openai-api-key
    ```
+
+   ⚠️ **Important**: Use the `service_role` key (not the `anon` key) for server-side operations to bypass Row Level Security.
 
 ### 3. Install Dependencies
 
