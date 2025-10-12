@@ -65,3 +65,30 @@ export const promptsApi = {
   create: (data: any) => api.post('/prompts', data),
   activate: (id: string) => api.put(`/prompts/${id}/activate`),
 };
+
+export const dashboardApi = {
+  getStats: (startDate?: string, endDate?: string) => 
+    api.get('/dashboard/stats', { params: { startDate, endDate } }),
+};
+
+export const waitlistApi = {
+  getAll: () => api.get('/waitlist'),
+  add: (data: any) => api.post('/waitlist', data),
+  cancel: (id: string) => api.post(`/waitlist/${id}/cancel`),
+};
+
+export const questionnaireApi = {
+  getAll: (triggerType?: string) => 
+    api.get('/questionnaires', { params: { triggerType } }),
+  create: (data: any) => api.post('/questionnaires', data),
+  getResponses: (contactId: string) => 
+    api.get(`/contacts/${contactId}/questionnaires`),
+  saveResponse: (data: any) => api.post('/questionnaires/responses', data),
+};
+
+export const reviewApi = {
+  getStats: (startDate?: string, endDate?: string) => 
+    api.get('/reviews/stats', { params: { startDate, endDate } }),
+  saveFeedback: (bookingId: string, data: any) => 
+    api.post(`/reviews/${bookingId}/feedback`, data),
+};

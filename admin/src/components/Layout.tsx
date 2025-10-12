@@ -1,12 +1,13 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { MessageSquare, Settings, BarChart3, Mail, Calendar } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar } from 'lucide-react';
 
 const Layout = () => {
   const location = useLocation();
   
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || (path === '/' && location.pathname === '/');
   
   const navItems = [
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/conversations', label: 'Conversations', icon: MessageSquare },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/marketing', label: 'Marketing', icon: Mail },
