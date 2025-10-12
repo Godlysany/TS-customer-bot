@@ -70,6 +70,15 @@ CREATE TABLE IF NOT EXISTS bookings (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+    cancellation_reason TEXT,
+    cancelled_at TIMESTAMP WITH TIME ZONE,
+    penalty_fee DECIMAL(10,2) DEFAULT 0,
+    penalty_applied BOOLEAN DEFAULT false,
+    discount_code VARCHAR(100),
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    promo_voucher VARCHAR(100),
+    email_sent BOOLEAN DEFAULT false,
+    reminder_sent BOOLEAN DEFAULT false,
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -156,6 +165,102 @@ CREATE TABLE IF NOT EXISTS marketing_campaigns (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Waitlist table for appointment queue management
+CREATE TABLE IF NOT EXISTS waitlist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    preferred_dates JSONB, -- Array of preferred date ranges
+    service_type VARCHAR(255),
+    priority VARCHAR(50) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'matched', 'expired', 'cancelled')),
+    matched_booking_id UUID REFERENCES bookings(id),
+    notified_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Questionnaires table for anamnesis/profiling
+CREATE TABLE IF NOT EXISTS questionnaires (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    questions JSONB NOT NULL, -- Array of question objects with type, options, required
+    is_active BOOLEAN DEFAULT true,
+    trigger_type VARCHAR(100), -- 'new_contact', 'first_booking', 'manual'
+    created_by UUID REFERENCES agents(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Questionnaire responses
+CREATE TABLE IF NOT EXISTS questionnaire_responses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    questionnaire_id UUID NOT NULL REFERENCES questionnaires(id) ON DELETE CASCADE,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    conversation_id UUID REFERENCES conversations(id),
+    responses JSONB NOT NULL, -- Question ID mapped to answer
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Reviews and feedback
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    feedback_text TEXT,
+    review_link VARCHAR(500), -- Google/external review link
+    review_submitted BOOLEAN DEFAULT false,
+    reminder_sent_at TIMESTAMP WITH TIME ZONE,
+    collected_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Email logs
+CREATE TABLE IF NOT EXISTS email_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    booking_id UUID REFERENCES bookings(id),
+    email_type VARCHAR(100) NOT NULL, -- 'booking_confirmation', 'cancellation', 'reminder', 'daily_summary'
+    recipient_email VARCHAR(255) NOT NULL,
+    subject VARCHAR(500),
+    body TEXT,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed', 'bounced')),
+    sendgrid_message_id VARCHAR(255),
+    error_message TEXT,
+    sent_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Reminder logs
+CREATE TABLE IF NOT EXISTS reminder_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    reminder_type VARCHAR(100) NOT NULL, -- 'appointment', 'upsell', 'review'
+    message_content TEXT,
+    scheduled_for TIMESTAMP WITH TIME ZONE,
+    sent_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'sent', 'failed', 'cancelled')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Cancellation policies
+CREATE TABLE IF NOT EXISTS cancellation_policies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    hours_before_appointment INTEGER NOT NULL, -- Minimum hours for free cancellation
+    penalty_type VARCHAR(50) CHECK (penalty_type IN ('fixed', 'percentage')),
+    penalty_amount DECIMAL(10,2),
+    penalty_percentage INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_timestamp ON messages(timestamp DESC);
@@ -164,7 +269,17 @@ CREATE INDEX idx_conversations_status ON conversations(status);
 CREATE INDEX idx_conversations_assigned_agent_id ON conversations(assigned_agent_id);
 CREATE INDEX idx_bookings_contact_id ON bookings(contact_id);
 CREATE INDEX idx_bookings_start_time ON bookings(start_time);
+CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX idx_contacts_phone_number ON contacts(phone_number);
+CREATE INDEX idx_waitlist_contact_id ON waitlist(contact_id);
+CREATE INDEX idx_waitlist_status ON waitlist(status);
+CREATE INDEX idx_questionnaire_responses_contact_id ON questionnaire_responses(contact_id);
+CREATE INDEX idx_reviews_booking_id ON reviews(booking_id);
+CREATE INDEX idx_reviews_contact_id ON reviews(contact_id);
+CREATE INDEX idx_email_logs_contact_id ON email_logs(contact_id);
+CREATE INDEX idx_email_logs_booking_id ON email_logs(booking_id);
+CREATE INDEX idx_reminder_logs_booking_id ON reminder_logs(booking_id);
+CREATE INDEX idx_reminder_logs_scheduled_for ON reminder_logs(scheduled_for);
 
 -- Insert default admin agent
 INSERT INTO agents (name, email, role, is_active) 
@@ -190,7 +305,19 @@ INSERT INTO settings (key, value, category, description, is_secret) VALUES
     ('calendar_provider', 'google', 'integrations', 'Calendar provider type (google, outlook, caldav)', false),
     ('calendar_ical_url', '', 'integrations', 'Google Calendar iCal URL or API endpoint', false),
     ('whatsapp_connected', 'false', 'bot_control', 'WhatsApp connection status', false),
-    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription (configure in CRM)', true)
+    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription (configure in CRM)', true),
+    ('sendgrid_api_key', '', 'integrations', 'SendGrid API key for email notifications', true),
+    ('sendgrid_from_email', '', 'integrations', 'Default sender email address for SendGrid', false),
+    ('sendgrid_from_name', '', 'integrations', 'Default sender name for SendGrid', false),
+    ('secretary_email', '', 'notifications', 'Secretary email for booking notifications', false),
+    ('daily_summary_enabled', 'true', 'notifications', 'Enable daily summary emails to secretary', false),
+    ('daily_summary_time', '09:00', 'notifications', 'Time to send daily summary (24h format in CET)', false),
+    ('timezone', 'Europe/Berlin', 'general', 'Business timezone (CET/CEST)', false),
+    ('cancellation_policy_hours', '24', 'policies', 'Hours before appointment for free cancellation', false),
+    ('late_cancellation_penalty_type', 'fixed', 'policies', 'Penalty type: fixed or percentage', false),
+    ('late_cancellation_penalty_amount', '50.00', 'policies', 'Penalty amount for late cancellations', false),
+    ('review_request_delay_hours', '24', 'reviews', 'Hours after appointment to request review', false),
+    ('reminder_hours_before', '24', 'reminders', 'Hours before appointment to send reminder', false)
 ON CONFLICT (key) DO NOTHING;
 
 -- Function to auto-update updated_at timestamp
@@ -213,3 +340,11 @@ CREATE TRIGGER update_escalations_updated_at BEFORE UPDATE ON escalations FOR EA
 CREATE TRIGGER update_settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customer_analytics_updated_at BEFORE UPDATE ON customer_analytics FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_marketing_campaigns_updated_at BEFORE UPDATE ON marketing_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_waitlist_updated_at BEFORE UPDATE ON waitlist FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_questionnaires_updated_at BEFORE UPDATE ON questionnaires FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_cancellation_policies_updated_at BEFORE UPDATE ON cancellation_policies FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default cancellation policy
+INSERT INTO cancellation_policies (name, hours_before_appointment, penalty_type, penalty_amount, is_active)
+VALUES ('Default 24h Policy', 24, 'fixed', 50.00, true)
+ON CONFLICT DO NOTHING;
