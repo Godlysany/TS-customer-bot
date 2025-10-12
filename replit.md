@@ -65,21 +65,14 @@ Run `supabase-schema.sql` in your Supabase project to set up.
 
 ### Required Environment Variables
 ```bash
-# Supabase (Required)
+# Supabase (Required) - Only database credentials needed in env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# OpenAI (Required)
-OPENAI_API_KEY=sk-your-openai-api-key
-
-# Optional: Voice Features
-DEEPGRAM_API_KEY=your-deepgram-api-key
-ELEVENLABS_API_KEY=your-elevenlabs-api-key
-ELEVENLABS_VOICE_ID=your-voice-id
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...  # JWT format, NOT sb_secret_
 
 # WhatsApp
-REPLY_MODE=voice-on-voice  # voice | voice-on-voice | text
 RESET_AUTH=false
+
+# Note: OpenAI and Deepgram are configured via CRM Settings page (not here)
 ```
 
 ### API Endpoints

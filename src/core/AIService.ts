@@ -1,9 +1,11 @@
-import { openai } from '../infrastructure/openai';
+import getOpenAIClient from '../infrastructure/openai';
 import { supabase } from '../infrastructure/supabase';
 import { Message } from '../types';
 
 export class AIService {
   async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string): Promise<string> {
+    const openai = await getOpenAIClient();
+    
     const { data: activePrompt } = await supabase
       .from('prompts')
       .select('*')
@@ -40,6 +42,8 @@ export class AIService {
   }
 
   async detectIntent(message: string): Promise<{ intent: string; confidence: number; entities?: Record<string, any> }> {
+    const openai = await getOpenAIClient();
+    
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [

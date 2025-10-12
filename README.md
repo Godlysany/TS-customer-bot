@@ -34,14 +34,16 @@ A professional B2B customer service platform built with WhatsApp, Supabase, Open
 ### 2. Environment Variables
 
 1. Copy `.env.example` to `.env`
-2. Fill in your credentials:
+2. Add **only** Supabase credentials:
    ```bash
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # Found in Project Settings → API → service_role key
-   OPENAI_API_KEY=sk-your-openai-api-key
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    ```
 
-   ⚠️ **Important**: Use the `service_role` key (not the `anon` key) for server-side operations to bypass Row Level Security.
+   ⚠️ **Important Notes:**
+   - Use the **service_role** key (JWT format, NOT `sb_secret_...`)
+   - Found in: Project Settings → API → Project API keys → service_role (secret)
+   - OpenAI and Deepgram keys are configured via **CRM Settings page** (not here)
 
 ### 3. Install Dependencies
 

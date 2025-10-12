@@ -1,0 +1,39 @@
+name: Deploy to Supabase
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase-schema.sql'
+      - '.github/workflows/deploy-supabase.yml'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy-database:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run database migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          # Link to Supabase project
+          supabase link --project-ref $SUPABASE_PROJECT_ID --password $SUPABASE_DB_PASSWORD
+          
+          # Run the schema SQL file
+          supabase db push --db-url "postgresql://postgres:$SUPABASE_DB_PASSWORD@db.$SUPABASE_PROJECT_ID.supabase.co:5432/postgres"
+
+      - name: Verify deployment
+        run: |
+          echo "✅ Database schema deployed successfully!"

@@ -1,12 +1,14 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
-import { openai } from '../infrastructure/openai';
+import getOpenAIClient from '../infrastructure/openai';
 
 export class CustomerAnalyticsService {
   async analyzeCustomerSentiment(contactId: string, recentMessages: string[]): Promise<number> {
     const messagesText = recentMessages.join('\n');
     
     try {
+      const openai = await getOpenAIClient();
+      
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [

@@ -1,8 +1,20 @@
 import OpenAI from 'openai';
-import { config } from './config';
+import settingsService from '../core/SettingsService';
 
-export const openai = new OpenAI({
-  apiKey: config.openai.apiKey,
-});
+let openaiClient: OpenAI | null = null;
 
-export default openai;
+export async function getOpenAIClient(): Promise<OpenAI> {
+  const apiKey = await settingsService.getOpenAIKey();
+  
+  if (!apiKey) {
+    throw new Error('OpenAI API key not configured. Please set it in CRM settings.');
+  }
+
+  if (!openaiClient || openaiClient.apiKey !== apiKey) {
+    openaiClient = new OpenAI({ apiKey });
+  }
+
+  return openaiClient;
+}
+
+export default getOpenAIClient;

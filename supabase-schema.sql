@@ -186,14 +186,11 @@ ON CONFLICT DO NOTHING;
 -- Insert default settings
 INSERT INTO settings (key, value, category, description, is_secret) VALUES
     ('bot_enabled', 'true', 'bot_control', 'Enable/disable the WhatsApp bot globally', false),
-    ('openai_api_key', '', 'integrations', 'OpenAI API key for GPT responses', true),
+    ('openai_api_key', '', 'integrations', 'OpenAI API key for GPT responses (configure in CRM)', true),
     ('calendar_provider', 'google', 'integrations', 'Calendar provider type (google, outlook, caldav)', false),
     ('calendar_ical_url', '', 'integrations', 'Google Calendar iCal URL or API endpoint', false),
     ('whatsapp_connected', 'false', 'bot_control', 'WhatsApp connection status', false),
-    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription (optional)', true),
-    ('elevenlabs_api_key', '', 'integrations', 'ElevenLabs API key for text-to-speech (optional)', true),
-    ('elevenlabs_voice_id', '', 'integrations', 'ElevenLabs voice ID', false),
-    ('reply_mode', 'voice-on-voice', 'bot_control', 'Reply mode: voice, voice-on-voice, text', false)
+    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription (configure in CRM)', true)
 ON CONFLICT (key) DO NOTHING;
 
 -- Function to auto-update updated_at timestamp

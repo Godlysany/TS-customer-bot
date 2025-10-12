@@ -56,6 +56,10 @@ export class SettingsService {
     return this.getSetting('openai_api_key');
   }
 
+  async getDeepgramKey(): Promise<string | null> {
+    return this.getSetting('deepgram_api_key');
+  }
+
   async getCalendarConfig(): Promise<{ provider: string; icalUrl: string }> {
     const [provider, icalUrl] = await Promise.all([
       this.getSetting('calendar_provider'),
