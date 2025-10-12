@@ -175,6 +175,23 @@ export class BookingService {
       cancellation_reason: reason,
     });
 
+    const { WaitlistService } = await import('./WaitlistService');
+    const waitlistService = new WaitlistService();
+    
+    const sendMessage = async (phone: string, message: string) => {
+      try {
+        const whatsappModule = await import('../adapters/whatsapp');
+        const sock = whatsappModule.default;
+        if (sock) {
+          await sock.sendMessage(phone, { text: message });
+        }
+      } catch (error) {
+        console.error('Failed to send waitlist notification:', error);
+      }
+    };
+    
+    await waitlistService.notifyWaitlistMatches(booking, sendMessage);
+
     return {
       penaltyApplied: isLateCancellation,
       penaltyFee,
