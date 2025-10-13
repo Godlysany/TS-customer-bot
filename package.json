@@ -7,8 +7,7 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "whatsapp": "tsx src/adapters/whatsapp.ts",
-    "legacy": "node index.js"
+    "whatsapp": "tsx src/adapters/whatsapp.ts"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -3,7 +3,21 @@
 ## Overview
 This project is a professional B2B customer service platform integrating WhatsApp for communication, Supabase as its database, and OpenAI GPT for intelligent replies. It includes a robust CRM, calendar booking capabilities, and advanced features for customer analytics and marketing. The system aims to be a self-contained, scalable solution, transforming customer service operations. Its ambition is to provide comprehensive control over customer interactions, intelligent automation, and deep insights, targeting businesses that require efficient and professional client management.
 
-## Recent Changes (October 12, 2025)
+## Recent Changes (October 13, 2025)
+
+### Database Deployment Automation ✅
+- **GitHub Actions workflow** successfully deploying schema via Supavisor pooler (IPv4-compatible)
+- Fixed IPv6 network issues - uses `aws-1-eu-west-1.pooler.supabase.com:6543`
+- All 18+ database tables deployed and verified
+- Handles special characters in passwords via `PGPASSWORD` env var
+
+### Railway Deployment Ready ✅
+- Fixed TypeScript build error (removed unused import)
+- Dual-port configuration: 5000 (Replit), 8080 (Railway)
+- Build pipeline optimized: backend + frontend in single command
+- All environment variables documented
+
+## Previous Changes (October 12, 2025)
 
 ### Dentist CRM Complete Implementation
 **6 New Services Built:**
