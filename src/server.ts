@@ -21,9 +21,7 @@ console.log('✅ Environment variables validated');
 const app = express();
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : ['http://localhost:5000', 'http://127.0.0.1:5000'],
+  origin: true, // Allow all origins (frontend served from same domain on Railway)
   credentials: true,
 }));
 app.use(express.json());
