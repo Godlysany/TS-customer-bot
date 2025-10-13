@@ -10,6 +10,15 @@ const path_1 = __importDefault(require("path"));
 const config_1 = require("./infrastructure/config");
 const routes_1 = __importDefault(require("./api/routes"));
 const auth_1 = __importDefault(require("./api/auth"));
+// Validate critical environment variables
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+    console.error('❌ FATAL: Missing required environment variables:', missingEnvVars.join(', '));
+    console.error('   Server cannot start without these. Please check Railway environment settings.');
+    process.exit(1);
+}
+console.log('✅ Environment variables validated');
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
     origin: process.env.NODE_ENV === 'production'
@@ -31,15 +40,28 @@ app.get('*', (req, res) => {
         res.sendFile(path_1.default.join(adminDistPath, 'index.html'));
     }
 });
+console.log(`🚀 Starting server on ${config_1.config.host}:${config_1.config.port}...`);
 const server = app.listen(config_1.config.port, config_1.config.host, () => {
     console.log(`✅ CRM API server running on ${config_1.config.host}:${config_1.config.port}`);
     console.log(`📱 Frontend served from ${adminDistPath}`);
+    console.log(`🔗 Health check: http://${config_1.config.host}:${config_1.config.port}/health`);
+    console.log(`🔑 Auth endpoint: http://${config_1.config.host}:${config_1.config.port}/api/auth/login`);
+});
+server.on('error', (error) => {
+    console.error('❌ Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+        console.error(`   Port ${config_1.config.port} is already in use!`);
+    }
+    process.exit(1);
 });
 process.on('uncaughtException', (error) => {
     console.error('❌ Uncaught Exception:', error);
+    console.error('Stack:', error.stack);
+    process.exit(1);
 });
 process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
 });
 process.on('SIGTERM', () => {
     console.log('⚠️  SIGTERM received, closing server...');
