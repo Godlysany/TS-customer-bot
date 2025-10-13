@@ -22,64 +22,24 @@ jobs:
         with:
           version: latest
 
+      - name: Link to Supabase Project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          echo "Linking to Supabase project: ${{ secrets.SUPABASE_PROJECT_ID }}"
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+
       - name: Apply database schema
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          # Install PostgreSQL client and DNS tools
-          echo "Installing PostgreSQL client..."
-          sudo apt-get update -qq && sudo apt-get install -y postgresql-client dnsutils
+          echo "Applying database schema via Supabase CLI..."
+          echo "Note: CLI automatically handles IPv4/IPv6 compatibility via Supavisor"
           
-          # Debug: Show what we have
-          echo "DEBUG: SUPABASE_PROJECT_ID = ${SUPABASE_PROJECT_ID}"
-          echo "DEBUG: Full hostname = db.${SUPABASE_PROJECT_ID}.supabase.co"
-          
-          # Try to resolve host
-          echo "Attempting DNS resolution..."
-          DB_HOST=$(dig +short "db.${SUPABASE_PROJECT_ID}.supabase.co" A | head -n1)
-          
-          if [ -z "$DB_HOST" ]; then
-            echo "⚠️  IPv4 resolution failed, trying IPv6..."
-            DB_HOST=$(dig +short "db.${SUPABASE_PROJECT_ID}.supabase.co" AAAA | head -n1)
-          fi
-          
-          if [ -z "$DB_HOST" ]; then
-            echo "❌ Failed to resolve db.${SUPABASE_PROJECT_ID}.supabase.co"
-            echo "   This likely means SUPABASE_PROJECT_ID is incorrect"
-            echo "   Current value: ${SUPABASE_PROJECT_ID}"
-            echo "   Expected format: abcdefghijklmnop (16 lowercase chars)"
-            exit 1
-          fi
-          
-          echo "✅ Resolved to: $DB_HOST"
-          
-          # Test connection
-          echo "Testing database connection..."
-          psql \
-            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
-            -p 5432 \
-            -U postgres \
-            -d postgres \
-            -c "SELECT version();" \
-            --set=sslmode=require || {
-              echo "❌ Connection failed. Possible issues:"
-              echo "   - SUPABASE_DB_PASSWORD is incorrect"
-              echo "   - Database is not accessible"
-              exit 1
-            }
-          
-          # Apply schema
-          echo "Applying database schema..."
-          psql \
-            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
-            -p 5432 \
-            -U postgres \
-            -d postgres \
-            -f supabase-schema.sql \
-            --set=sslmode=require
+          # Apply schema using Supabase CLI (handles IPv6 → IPv4 routing automatically)
+          supabase db execute --file supabase-schema.sql --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
 
       - name: Verify deployment
         run: |

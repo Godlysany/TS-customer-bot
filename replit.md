@@ -117,7 +117,7 @@ The database schema is automatically applied when you push to the `main` branch:
    ```
 
 The GitHub Actions workflow (`.github/workflows/deploy-supabase.yml`) will automatically:
-- Install PostgreSQL client
+- Use Supabase CLI (handles IPv6/IPv4 compatibility via Supavisor pooler)
 - Apply `supabase-schema.sql` to your Supabase database
 - Create all 18+ tables needed for the dentist CRM
 

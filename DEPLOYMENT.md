@@ -63,11 +63,13 @@ Check the Actions tab in GitHub:
 |-------|----------|
 | "Connection failed" | Double-check SUPABASE_PROJECT_ID (just the ref ID, no URL) |
 | "Authentication failed" | Verify SUPABASE_DB_PASSWORD is correct |
-| "SSL error" | Fixed in updated workflow (uses `sslmode=require`) |
-| "Invalid percent-encoded token" | ✅ FIXED! Workflow now handles special characters in passwords |
-| "Network is unreachable" (IPv6) | ✅ FIXED! Workflow now forces IPv4 connection |
+| "Network is unreachable" (IPv6) | ✅ FIXED! Now uses Supabase CLI which handles IPv4/IPv6 automatically |
 
-**Note:** Your database password can contain ANY special characters (`@`, `#`, `%`, `!`, etc.) - the workflow handles them correctly!
+**How It Works:**
+- The workflow uses **Supabase CLI** instead of direct PostgreSQL connection
+- CLI v1.136.3+ automatically routes through Supavisor (IPv4-compatible pooler)
+- Works perfectly with GitHub Actions (no IPv6 support needed)
+- Your password can contain ANY special characters - handled securely!
 
 ## Railway Deployment
 
