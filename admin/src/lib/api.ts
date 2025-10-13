@@ -7,6 +7,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 export const conversationsApi = {
@@ -36,6 +37,10 @@ export const settingsApi = {
     api.post('/settings/bot/toggle'),
   getWhatsAppStatus: () => 
     api.get('/settings/whatsapp/status'),
+  connectWhatsApp: () =>
+    api.post('/whatsapp/connect'),
+  disconnectWhatsApp: () =>
+    api.post('/whatsapp/disconnect'),
 };
 
 export const analyticsApi = {
