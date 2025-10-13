@@ -46,6 +46,7 @@ const SecretaryNotificationService_1 = require("./SecretaryNotificationService")
 const SettingsService_1 = require("./SettingsService");
 const DocumentService_1 = require("./DocumentService");
 const NoShowService_1 = __importDefault(require("./NoShowService"));
+const PaymentService_1 = __importDefault(require("./PaymentService"));
 class BookingService {
     calendarProvider = null;
     emailService;
@@ -184,6 +185,18 @@ class BookingService {
         const hoursUntilAppointment = (new Date(booking.startTime).getTime() - new Date().getTime()) / (1000 * 60 * 60);
         const isLateCancellation = hoursUntilAppointment < policyHours;
         const penaltyFee = isLateCancellation ? penaltyAmount : 0;
+        let refunded = false;
+        if (booking.paymentStatus === 'paid' && !isLateCancellation) {
+            try {
+                const refundResult = await PaymentService_1.default.handleCancellationRefund(bookingId);
+                if (refundResult) {
+                    refunded = true;
+                }
+            }
+            catch (error) {
+                console.error('Failed to process refund:', error);
+            }
+        }
         if (this.calendarProvider) {
             await this.calendarProvider.deleteEvent(booking.calendarEventId);
         }
@@ -234,6 +247,7 @@ class BookingService {
         return {
             penaltyApplied: isLateCancellation,
             penaltyFee,
+            refunded,
         };
     }
     async checkBufferedConflicts(actualStartTime, actualEndTime, excludeServiceId) {

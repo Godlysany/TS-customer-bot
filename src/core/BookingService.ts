@@ -8,6 +8,7 @@ import { SecretaryNotificationService } from './SecretaryNotificationService';
 import { SettingsService } from './SettingsService';
 import { DocumentService } from './DocumentService';
 import NoShowService from './NoShowService';
+import PaymentService from './PaymentService';
 
 export class BookingService {
   private calendarProvider: CalendarProvider | null = null;
@@ -168,7 +169,7 @@ export class BookingService {
     if (error) throw error;
   }
 
-  async cancelBooking(bookingId: string, reason?: string): Promise<{ penaltyApplied: boolean; penaltyFee: number }> {
+  async cancelBooking(bookingId: string, reason?: string): Promise<{ penaltyApplied: boolean; penaltyFee: number; refunded: boolean }> {
     const { data: bookingData } = await supabase
       .from('bookings')
       .select('*, contacts(name, email)')
@@ -187,6 +188,18 @@ export class BookingService {
     
     const isLateCancellation = hoursUntilAppointment < policyHours;
     const penaltyFee = isLateCancellation ? penaltyAmount : 0;
+
+    let refunded = false;
+    if (booking.paymentStatus === 'paid' && !isLateCancellation) {
+      try {
+        const refundResult = await PaymentService.handleCancellationRefund(bookingId);
+        if (refundResult) {
+          refunded = true;
+        }
+      } catch (error) {
+        console.error('Failed to process refund:', error);
+      }
+    }
 
     if (this.calendarProvider) {
       await this.calendarProvider.deleteEvent(booking.calendarEventId);
@@ -244,6 +257,7 @@ export class BookingService {
     return {
       penaltyApplied: isLateCancellation,
       penaltyFee,
+      refunded,
     };
   }
 
