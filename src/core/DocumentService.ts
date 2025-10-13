@@ -100,13 +100,28 @@ export class DocumentService {
       return { sent: 0, failed: 0 };
     }
 
+    const { data: existingDeliveries } = await supabase
+      .from('document_deliveries')
+      .select('document_id, status')
+      .eq('booking_id', bookingId)
+      .in('document_id', timingDocs.map(d => d.id))
+      .in('status', ['sent', 'acknowledged']);
+
+    const alreadySentDocIds = new Set(existingDeliveries?.map(d => d.document_id) || []);
+    const docsToSend = timingDocs.filter(doc => !alreadySentDocIds.has(doc.id));
+
+    if (docsToSend.length === 0) {
+      return { sent: 0, failed: 0 };
+    }
+
     let sent = 0;
     let failed = 0;
 
-    for (const doc of timingDocs) {
+    for (const doc of docsToSend) {
+      let deliveryMethod: 'email' | 'whatsapp' | 'both' = 'whatsapp';
       try {
         const contact = booking.contacts as any;
-        const deliveryMethod = this.determineDeliveryMethod(contact);
+        deliveryMethod = this.determineDeliveryMethod(contact);
 
         if (deliveryMethod === 'whatsapp' || deliveryMethod === 'both') {
           await this.sendViaWhatsApp(
@@ -132,7 +147,7 @@ export class DocumentService {
         sent++;
       } catch (error) {
         console.error(`Failed to deliver document ${doc.id}:`, error);
-        await this.trackDelivery(bookingId, doc.id, booking.contact_id, 'whatsapp', 'failed');
+        await this.trackDelivery(bookingId, doc.id, booking.contact_id, deliveryMethod, 'failed');
         failed++;
       }
     }
@@ -261,10 +276,43 @@ export class DocumentService {
 
   async scheduleDocumentDelivery(bookingId: string): Promise<void> {
     await this.deliverDocumentsForBooking(bookingId, 'pre_booking');
+    await this.deliverDocumentsForBooking(bookingId, 'post_booking');
   }
 
   async processPostAppointmentDocuments(bookingId: string): Promise<void> {
     await this.deliverDocumentsForBooking(bookingId, 'post_appointment');
+  }
+
+  async processCompletedAppointmentDocuments(): Promise<{ sent: number; failed: number }> {
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const { data: completedBookings } = await supabase
+      .from('bookings')
+      .select('id, service_id, end_time')
+      .eq('status', 'confirmed')
+      .gte('end_time', yesterday.toISOString())
+      .lt('end_time', now.toISOString())
+      .not('service_id', 'is', null);
+
+    if (!completedBookings || completedBookings.length === 0) {
+      return { sent: 0, failed: 0 };
+    }
+
+    let totalSent = 0;
+    let totalFailed = 0;
+
+    for (const booking of completedBookings) {
+      const { sent, failed } = await this.deliverDocumentsForBooking(
+        booking.id,
+        'post_appointment'
+      );
+      totalSent += sent;
+      totalFailed += failed;
+    }
+
+    return { sent: totalSent, failed: totalFailed };
   }
 
   async processPreAppointmentDocuments(): Promise<{ sent: number; failed: number }> {

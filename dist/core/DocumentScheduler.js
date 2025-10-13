@@ -32,10 +32,15 @@ class DocumentScheduler {
         }
     }
     async processDocuments() {
-        console.log('📄 Processing pre-appointment documents...');
+        console.log('📄 Processing scheduled document deliveries...');
         try {
-            const { sent, failed } = await this.documentService.processPreAppointmentDocuments();
-            console.log(`📄 Document processing complete: ${sent} sent, ${failed} failed`);
+            const preResults = await this.documentService.processPreAppointmentDocuments();
+            console.log(`📄 Pre-appointment documents: ${preResults.sent} sent, ${preResults.failed} failed`);
+            const postResults = await this.documentService.processCompletedAppointmentDocuments();
+            console.log(`📄 Post-appointment documents: ${postResults.sent} sent, ${postResults.failed} failed`);
+            const totalSent = preResults.sent + postResults.sent;
+            const totalFailed = preResults.failed + postResults.failed;
+            console.log(`📄 Total document processing: ${totalSent} sent, ${totalFailed} failed`);
         }
         catch (error) {
             console.error('❌ Error processing documents:', error);
