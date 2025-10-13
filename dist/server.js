@@ -32,9 +32,23 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', auth_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
-app.use(express_1.default.static(adminDistPath));
+// Serve static files with no-cache headers to prevent Railway CDN caching
+app.use(express_1.default.static(adminDistPath, {
+    setHeaders: (res, path) => {
+        // Prevent caching of HTML and JS files
+        if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 app.get('*', (req, res) => {
     if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
+        // Force no-cache on index.html
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.sendFile(path_1.default.join(adminDistPath, 'index.html'));
     }
 });
