@@ -22,24 +22,23 @@ jobs:
         with:
           version: latest
 
-      - name: Link to Supabase Project
+      - name: Apply database schema via Supavisor (IPv4-compatible)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          echo "Linking to Supabase project: ${{ secrets.SUPABASE_PROJECT_ID }}"
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
-
-      - name: Apply database schema
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          echo "Applying database schema via Supabase CLI..."
-          echo "Note: CLI automatically handles IPv4/IPv6 compatibility via Supavisor"
+          # Install PostgreSQL client
+          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
           
-          # Apply schema using Supabase CLI (handles IPv6 → IPv4 routing automatically)
-          supabase db execute --file supabase-schema.sql --password "${{ secrets.SUPABASE_DB_PASSWORD }}"
+          echo "Connecting via Supavisor pooler (IPv4-compatible)..."
+          
+          # Use Supavisor pooler connection (bypasses IPv6 issue)
+          # Port 6543 = Transaction mode pooler
+          psql \
+            "postgresql://postgres.${SUPABASE_PROJECT_ID}:${SUPABASE_DB_PASSWORD}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres" \
+            -f supabase-schema.sql
 
       - name: Verify deployment
         run: |

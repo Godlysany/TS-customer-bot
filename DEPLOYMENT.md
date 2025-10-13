@@ -66,9 +66,9 @@ Check the Actions tab in GitHub:
 | "Network is unreachable" (IPv6) | ✅ FIXED! Now uses Supabase CLI which handles IPv4/IPv6 automatically |
 
 **How It Works:**
-- The workflow uses **Supabase CLI** instead of direct PostgreSQL connection
-- CLI v1.136.3+ automatically routes through Supavisor (IPv4-compatible pooler)
-- Works perfectly with GitHub Actions (no IPv6 support needed)
+- The workflow connects via **Supavisor pooler** (IPv4-compatible connection pooler)
+- Uses `aws-0-eu-west-1.pooler.supabase.com:6543` (transaction mode)
+- Bypasses IPv6 issues completely - works perfectly with GitHub Actions
 - Your password can contain ANY special characters - handled securely!
 
 ## Railway Deployment
