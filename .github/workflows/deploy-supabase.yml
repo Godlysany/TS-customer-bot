@@ -33,10 +33,21 @@ jobs:
           echo "Installing PostgreSQL client..."
           sudo apt-get update -qq && sudo apt-get install -y postgresql-client
           
-          # Test connection (using separate params to avoid URL encoding issues)
+          # Get IPv4 address (force IPv4, avoid IPv6 issues)
+          echo "Resolving Supabase host to IPv4..."
+          DB_HOST=$(getent ahostsv4 "db.${SUPABASE_PROJECT_ID}.supabase.co" | head -n1 | awk '{print $1}')
+          
+          if [ -z "$DB_HOST" ]; then
+            echo "❌ Failed to resolve host. Check SUPABASE_PROJECT_ID"
+            exit 1
+          fi
+          
+          echo "Connecting to: $DB_HOST"
+          
+          # Test connection (using IPv4 address)
           echo "Testing database connection..."
           psql \
-            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
+            -h "$DB_HOST" \
             -p 5432 \
             -U postgres \
             -d postgres \
@@ -48,10 +59,10 @@ jobs:
               exit 1
             }
           
-          # Apply schema (password passed via PGPASSWORD env var, no URL encoding needed)
+          # Apply schema (using IPv4 address)
           echo "Applying database schema..."
           psql \
-            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
+            -h "$DB_HOST" \
             -p 5432 \
             -U postgres \
             -d postgres \

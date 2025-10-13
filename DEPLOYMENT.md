@@ -65,6 +65,7 @@ Check the Actions tab in GitHub:
 | "Authentication failed" | Verify SUPABASE_DB_PASSWORD is correct |
 | "SSL error" | Fixed in updated workflow (uses `sslmode=require`) |
 | "Invalid percent-encoded token" | ✅ FIXED! Workflow now handles special characters in passwords |
+| "Network is unreachable" (IPv6) | ✅ FIXED! Workflow now forces IPv4 connection |
 
 **Note:** Your database password can contain ANY special characters (`@`, `#`, `%`, `!`, etc.) - the workflow handles them correctly!
 
