@@ -9,7 +9,9 @@ import botConfigRoutes from './api/bot-config';
 import customersRoutes from './api/customers';
 import questionnaireResponsesRoutes from './api/questionnaire-responses';
 import servicesRoutes from './api/services';
+import engagementRoutes from './api/engagement';
 import { reminderScheduler } from './core/ReminderScheduler';
+import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -52,6 +54,7 @@ app.use('/api/bot-config', botConfigRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/questionnaire-responses', questionnaireResponsesRoutes);
 app.use('/api/services', servicesRoutes);
+app.use('/api/engagement', engagementRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
@@ -106,6 +109,9 @@ const server = app.listen(config.port, config.host, () => {
 
   // Start reminder scheduler (checks every 5 minutes)
   reminderScheduler.start(5);
+  
+  // Start engagement scheduler (checks every 60 minutes)
+  startEngagementScheduler(60);
 });
 
 server.on('error', (error: any) => {
@@ -130,6 +136,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('SIGTERM', () => {
   console.log('⚠️  SIGTERM received, closing server...');
   reminderScheduler.stop();
+  stopEngagementScheduler();
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);

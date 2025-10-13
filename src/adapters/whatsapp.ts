@@ -365,5 +365,39 @@ async function startSock() {
   isStarting = false;
 }
 
+export async function sendProactiveMessage(
+  phoneNumber: string,
+  message: string,
+  contactId: string
+): Promise<boolean> {
+  try {
+    if (!sock) {
+      console.error('❌ WhatsApp not connected');
+      return false;
+    }
+
+    const formattedNumber = phoneNumber.includes('@s.whatsapp.net')
+      ? phoneNumber
+      : `${phoneNumber}@s.whatsapp.net`;
+
+    await sock.sendMessage(formattedNumber, { text: message });
+
+    const { conversation } = await conversationService.getOrCreateConversation(phoneNumber);
+    await messageService.createMessage({
+      conversationId: conversation.id,
+      content: message,
+      messageType: 'text',
+      direction: 'outbound',
+      sender: 'bot',
+    });
+
+    console.log(`📤 Proactive message sent to ${phoneNumber}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Error sending proactive message to ${phoneNumber}:`, error);
+    return false;
+  }
+}
+
 export { startSock };
 export default sock;

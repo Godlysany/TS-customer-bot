@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearQrCode = exports.getQrCode = void 0;
+exports.sendProactiveMessage = sendProactiveMessage;
 exports.startSock = startSock;
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 // @ts-ignore
@@ -347,5 +348,31 @@ async function startSock() {
         }, 30000));
     });
     isStarting = false;
+}
+async function sendProactiveMessage(phoneNumber, message, contactId) {
+    try {
+        if (!sock) {
+            console.error('❌ WhatsApp not connected');
+            return false;
+        }
+        const formattedNumber = phoneNumber.includes('@s.whatsapp.net')
+            ? phoneNumber
+            : `${phoneNumber}@s.whatsapp.net`;
+        await sock.sendMessage(formattedNumber, { text: message });
+        const { conversation } = await ConversationService_1.default.getOrCreateConversation(phoneNumber);
+        await MessageService_1.default.createMessage({
+            conversationId: conversation.id,
+            content: message,
+            messageType: 'text',
+            direction: 'outbound',
+            sender: 'bot',
+        });
+        console.log(`📤 Proactive message sent to ${phoneNumber}`);
+        return true;
+    }
+    catch (error) {
+        console.error(`❌ Error sending proactive message to ${phoneNumber}:`, error);
+        return false;
+    }
 }
 exports.default = sock;

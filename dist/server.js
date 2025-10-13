@@ -14,7 +14,9 @@ const bot_config_1 = __importDefault(require("./api/bot-config"));
 const customers_1 = __importDefault(require("./api/customers"));
 const questionnaire_responses_1 = __importDefault(require("./api/questionnaire-responses"));
 const services_1 = __importDefault(require("./api/services"));
+const engagement_1 = __importDefault(require("./api/engagement"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
+const EngagementScheduler_1 = require("./core/EngagementScheduler");
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -50,6 +52,7 @@ app.use('/api/bot-config', bot_config_1.default);
 app.use('/api/customers', customers_1.default);
 app.use('/api/questionnaire-responses', questionnaire_responses_1.default);
 app.use('/api/services', services_1.default);
+app.use('/api/engagement', engagement_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching
@@ -98,6 +101,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     }
     // Start reminder scheduler (checks every 5 minutes)
     ReminderScheduler_1.reminderScheduler.start(5);
+    // Start engagement scheduler (checks every 60 minutes)
+    (0, EngagementScheduler_1.startEngagementScheduler)(60);
 });
 server.on('error', (error) => {
     console.error('❌ Server error:', error);
@@ -118,6 +123,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('SIGTERM', () => {
     console.log('⚠️  SIGTERM received, closing server...');
     ReminderScheduler_1.reminderScheduler.stop();
+    (0, EngagementScheduler_1.stopEngagementScheduler)();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
