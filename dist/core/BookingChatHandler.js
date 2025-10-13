@@ -7,12 +7,15 @@ exports.BookingChatHandler = void 0;
 const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
 const BookingService_1 = require("./BookingService");
+const MultiServiceBookingService_1 = require("./MultiServiceBookingService");
 const openai_1 = __importDefault(require("../infrastructure/openai"));
 class BookingChatHandler {
     bookingService;
+    multiServiceService;
     contexts = new Map();
     constructor() {
         this.bookingService = new BookingService_1.BookingService();
+        this.multiServiceService = new MultiServiceBookingService_1.MultiServiceBookingService();
     }
     /**
      * Check if a conversation has an active booking context
@@ -270,8 +273,38 @@ class BookingChatHandler {
         return response;
     }
     async handleNewBooking(context, message, messageHistory) {
-        // For now, provide information about booking process
-        return "I'd love to help you book an appointment! To ensure I find the perfect time for you, could you please let me know:\n\n1. Which service you're interested in?\n2. Your preferred date and time?\n\nOnce I have this information, I'll check availability for you.";
+        const { data: services } = await supabase_1.supabase
+            .from('services')
+            .select('id, name')
+            .eq('is_active', true);
+        const serviceMentioned = services?.find(s => message.toLowerCase().includes(s.name.toLowerCase()));
+        if (serviceMentioned) {
+            const recommendations = await this.multiServiceService.getServiceRecommendations(context.contactId, serviceMentioned.id);
+            let response = `Great choice! I can help you book a ${serviceMentioned.name} appointment.\n\n`;
+            if (recommendations.length > 0) {
+                response += await this.multiServiceService.formatRecommendationsMessage(recommendations);
+                response += '\n\n';
+            }
+            response += 'What date and time works best for you?';
+            this.clearContext(context.conversationId);
+            return response;
+        }
+        const recommendations = await this.multiServiceService.getServiceRecommendations(context.contactId);
+        let response = "I'd love to help you book an appointment! ";
+        if (services && services.length > 0) {
+            response += "Here are our available services:\n\n";
+            services.slice(0, 5).forEach((s, i) => {
+                response += `${i + 1}. ${s.name}\n`;
+            });
+            response += '\n';
+        }
+        if (recommendations.length > 0) {
+            response += await this.multiServiceService.formatRecommendationsMessage(recommendations);
+            response += '\n\n';
+        }
+        response += 'Which service interests you, and when would you like to come in?';
+        this.clearContext(context.conversationId);
+        return response;
     }
     async suggestRebooking(context, serviceName) {
         // Smart follow-up: suggest rebooking based on the cancelled service

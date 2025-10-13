@@ -16,6 +16,7 @@ const questionnaire_responses_1 = __importDefault(require("./api/questionnaire-r
 const services_1 = __importDefault(require("./api/services"));
 const engagement_1 = __importDefault(require("./api/engagement"));
 const recurring_1 = __importDefault(require("./api/recurring"));
+const multi_service_1 = __importDefault(require("./api/multi-service"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
@@ -56,6 +57,7 @@ app.use('/api/questionnaire-responses', questionnaire_responses_1.default);
 app.use('/api/services', services_1.default);
 app.use('/api/engagement', engagement_1.default);
 app.use('/api/recurring', recurring_1.default);
+app.use('/api/multi-service', multi_service_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching

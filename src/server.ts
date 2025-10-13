@@ -11,6 +11,7 @@ import questionnaireResponsesRoutes from './api/questionnaire-responses';
 import servicesRoutes from './api/services';
 import engagementRoutes from './api/engagement';
 import recurringRoutes from './api/recurring';
+import multiServiceRoutes from './api/multi-service';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
@@ -58,6 +59,7 @@ app.use('/api/questionnaire-responses', questionnaireResponsesRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/engagement', engagementRoutes);
 app.use('/api/recurring', recurringRoutes);
+app.use('/api/multi-service', multiServiceRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
