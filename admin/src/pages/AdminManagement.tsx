@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { Plus, Edit2, Trash2, Shield, User, CheckCircle, XCircle } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL || '',
   withCredentials: true,
 });
 

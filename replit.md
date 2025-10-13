@@ -12,6 +12,12 @@ This project is a professional B2B customer service platform integrating WhatsAp
 - Login works correctly with admin@crm.local / admin123
 - Railway deployments will now function properly
 
+**Frontend API Path Fix:**
+- Changed from hardcoded `http://localhost:8080` to relative paths
+- Frontend now connects to same domain as deployment (Railway/production)
+- Fixed in: api.ts, AdminManagement.tsx, AuthContext.tsx
+- Production login now works correctly
+
 **Database Manual Fix Applied:**
 - Ran SQL to add missing `password_hash`, `reset_token`, `reset_token_expires` columns
 - Updated role constraint from ('admin','agent') to ('master','support')
