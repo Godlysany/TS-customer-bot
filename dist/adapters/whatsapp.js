@@ -36,6 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.startSock = startSock;
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 // @ts-ignore
 const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
@@ -263,8 +264,11 @@ async function startSock() {
             clearTimeout(qrTimeout);
             qrTimeout = setTimeout(() => {
                 if (!sock.user) {
-                    console.log('❌ QR scan timeout. Restarting...');
-                    process.exit(0);
+                    console.log('❌ QR scan timeout. Stopping connection attempt...');
+                    isStarting = false;
+                    if (sock) {
+                        sock.end(undefined);
+                    }
                 }
             }, 180000);
         }
@@ -275,12 +279,16 @@ async function startSock() {
         }
         if (connection === 'close') {
             const reason = lastDisconnect?.error?.output?.statusCode;
-            const shouldReconnect = reason !== baileys_1.DisconnectReason.loggedOut;
+            const shouldReconnect = reason !== baileys_1.DisconnectReason.loggedOut && reason !== 405;
             console.log(`🔌 Connection closed (reason ${reason}). Reconnect? ${shouldReconnect}`);
             await SettingsService_1.default.setWhatsAppConnected(false);
             if (shouldReconnect) {
                 isStarting = false;
                 setTimeout(startSock, 3000);
+            }
+            else if (reason === 405) {
+                console.log('⚠️ WhatsApp connection blocked (405). Manual restart required via CRM.');
+                isStarting = false;
             }
         }
     });
@@ -319,5 +327,4 @@ async function startSock() {
     });
     isStarting = false;
 }
-startSock();
 exports.default = sock;

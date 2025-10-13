@@ -107,6 +107,33 @@ Once deployed, configure via CRM Settings page:
 3. **Secretary Email** - For daily summaries
 4. **Cancellation Policy** - Hours and penalty fees
 5. **Daily Summary Time** - In CET timezone
+6. **WhatsApp Connection** - Connect manually (see below)
+
+### WhatsApp Connection (Manual Start)
+
+⚠️ **Important:** WhatsApp does NOT auto-connect on server start. This prevents crashes from connection issues.
+
+**To connect WhatsApp:**
+
+```bash
+# Method 1: Via API
+curl -X POST https://your-app.railway.app/api/whatsapp/connect
+
+# Method 2: Via CRM Settings page (recommended)
+# A "Connect WhatsApp" button will be added to the Settings page
+```
+
+**Why Manual Start?**
+- Prevents Railway deployment crashes from WhatsApp WebSocket errors (405)
+- Allows server to start successfully even without WhatsApp connection
+- You can connect WhatsApp only when ready (after QR scan setup)
+- Production-safe: Server runs independently of WhatsApp status
+
+**To disconnect WhatsApp:**
+
+```bash
+curl -X POST https://your-app.railway.app/api/whatsapp/disconnect
+```
 
 ## Testing the Deployment
 
@@ -158,7 +185,7 @@ Should show: contacts, agents, conversations, messages, bookings, settings, wait
 - [ ] Frontend accessible at Railway URL
 - [ ] Dashboard loads and shows stats
 - [ ] Settings page allows API key configuration
-- [ ] WhatsApp bot can connect (QR code appears)
+- [ ] WhatsApp connection can be initiated manually via API
 
 ---
 

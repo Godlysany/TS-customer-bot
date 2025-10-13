@@ -5,6 +5,22 @@ This project is a professional B2B customer service platform integrating WhatsAp
 
 ## Recent Changes (October 13, 2025)
 
+### Railway Production Fix ✅
+**WhatsApp Connection Made Optional:**
+- Removed auto-connect on server start (prevents crashes from 405 WebSocket errors)
+- Added manual connection control via API: `/api/whatsapp/connect` and `/api/whatsapp/disconnect`
+- Server now starts successfully even without WhatsApp connection
+- Added 405 error handling to prevent reconnect loops
+- QR timeout no longer kills server process
+- Frontend static files now served by Express backend for Railway deployment
+- Added Procfile to ensure Railway uses correct start command
+
+**Why This Matters:**
+- Railway deployments no longer crash due to WhatsApp connection issues
+- Server runs independently of WhatsApp status (production-safe)
+- WhatsApp connection can be initiated when ready (after scanning QR code)
+- Enables true separation of concerns: API server vs. WhatsApp bot
+
 ### Database Deployment Automation ✅
 - **GitHub Actions workflow** successfully deploying schema via Supavisor pooler (IPv4-compatible)
 - Fixed IPv6 network issues - uses `aws-1-eu-west-1.pooler.supabase.com:6543`

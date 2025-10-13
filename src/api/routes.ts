@@ -283,11 +283,36 @@ router.get('/api/marketing/campaigns', async (req, res) => {
   }
 });
 
-// WhatsApp QR code endpoint (will be implemented)
+// WhatsApp connection control
+router.post('/api/whatsapp/connect', async (req, res) => {
+  try {
+    const { startSock } = await import('../adapters/whatsapp');
+    await startSock();
+    res.json({ success: true, message: 'WhatsApp connection initiated' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/whatsapp/disconnect', async (req, res) => {
+  try {
+    const whatsappModule = await import('../adapters/whatsapp');
+    const sock = whatsappModule.default;
+    if (sock) {
+      await sock.end(undefined);
+      await settingsService.setWhatsAppConnected(false);
+      res.json({ success: true, message: 'WhatsApp disconnected' });
+    } else {
+      res.json({ success: true, message: 'WhatsApp not connected' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/api/whatsapp/qr', async (req, res) => {
   try {
-    // TODO: Implement QR code generation and streaming
-    res.json({ message: 'QR code endpoint - to be implemented' });
+    res.json({ message: 'QR code endpoint - scan via terminal or use connect endpoint' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

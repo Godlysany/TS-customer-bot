@@ -264,8 +264,11 @@ async function startSock() {
       clearTimeout(qrTimeout);
       qrTimeout = setTimeout(() => {
         if (!sock.user) {
-          console.log('❌ QR scan timeout. Restarting...');
-          process.exit(0);
+          console.log('❌ QR scan timeout. Stopping connection attempt...');
+          isStarting = false;
+          if (sock) {
+            sock.end(undefined);
+          }
         }
       }, 180000);
     }
@@ -278,12 +281,15 @@ async function startSock() {
 
     if (connection === 'close') {
       const reason = (lastDisconnect?.error as any)?.output?.statusCode;
-      const shouldReconnect = reason !== DisconnectReason.loggedOut;
+      const shouldReconnect = reason !== DisconnectReason.loggedOut && reason !== 405;
       console.log(`🔌 Connection closed (reason ${reason}). Reconnect? ${shouldReconnect}`);
       await settingsService.setWhatsAppConnected(false);
       if (shouldReconnect) {
         isStarting = false;
         setTimeout(startSock, 3000);
+      } else if (reason === 405) {
+        console.log('⚠️ WhatsApp connection blocked (405). Manual restart required via CRM.');
+        isStarting = false;
       }
     }
   });
@@ -329,6 +335,5 @@ async function startSock() {
   isStarting = false;
 }
 
-startSock();
-
+export { startSock };
 export default sock;
