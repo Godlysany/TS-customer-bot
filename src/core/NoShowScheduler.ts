@@ -36,8 +36,8 @@ export class NoShowScheduler {
     console.log('🚫 Processing no-show detection...');
 
     try {
-      const { detected, failed } = await NoShowService.processAutoDetection();
-      console.log(`🚫 No-show processing complete: ${detected} detected, ${failed} failed`);
+      const { detected, failed, recovered } = await NoShowService.processAutoDetection();
+      console.log(`🚫 No-show processing complete: ${detected} detected, ${recovered} recovered, ${failed} failed`);
     } catch (error) {
       console.error('❌ Error processing no-shows:', error);
     }

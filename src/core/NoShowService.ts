@@ -55,15 +55,6 @@ export class NoShowService {
         : penaltyAmount;
     }
 
-    await supabase
-      .from('bookings')
-      .update({
-        status: 'no_show',
-        penalty_applied: penaltyEnabled,
-        penalty_fee: penaltyFee,
-      })
-      .eq('id', bookingId);
-
     const totalStrikes = await this.getContactStrikeCount(contact.id);
     const strikeLimit = parseInt(await this.settingsService.getSetting('no_show_strike_limit') || '3');
     const suspensionDays = parseInt(await this.settingsService.getSetting('no_show_suspension_days') || '30');
@@ -77,7 +68,7 @@ export class NoShowService {
       suspensionUntil.setDate(suspensionUntil.getDate() + suspensionDays);
     }
 
-    const { data: tracking, error } = await supabase
+    const { data: tracking, error: trackingError } = await supabase
       .from('no_show_tracking')
       .insert(toSnakeCase({
         contactId: contact.id,
@@ -92,7 +83,24 @@ export class NoShowService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (trackingError) throw trackingError;
+
+    const { error: bookingError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'no_show',
+        penalty_applied: penaltyEnabled,
+        penalty_fee: penaltyFee,
+      })
+      .eq('id', bookingId);
+
+    if (bookingError) {
+      await supabase
+        .from('no_show_tracking')
+        .delete()
+        .eq('id', tracking.id);
+      throw bookingError;
+    }
 
     const followUpEnabled = (await this.settingsService.getSetting('no_show_follow_up_enabled')) === 'true';
     if (followUpEnabled) {
@@ -148,7 +156,7 @@ export class NoShowService {
     return data ? data.map(d => toCamelCase(d) as NoShowTracking) : [];
   }
 
-  async processAutoDetection(): Promise<{ detected: number; failed: number }> {
+  async processAutoDetection(): Promise<{ detected: number; failed: number; recovered: number }> {
     const detectionHours = parseInt(await this.settingsService.getSetting('no_show_detection_hours') || '2');
     
     const cutoffTime = new Date();
@@ -156,28 +164,54 @@ export class NoShowService {
 
     const { data: potentialNoShows } = await supabase
       .from('bookings')
-      .select('id, start_time, contact_id')
+      .select('id, start_time, contact_id, status')
       .eq('status', 'confirmed')
       .lt('start_time', cutoffTime.toISOString());
 
+    const { data: orphanedNoShows } = await supabase
+      .from('bookings')
+      .select('id, start_time, contact_id, status')
+      .eq('status', 'no_show')
+      .lt('start_time', cutoffTime.toISOString());
+
     if (!potentialNoShows || potentialNoShows.length === 0) {
-      return { detected: 0, failed: 0 };
+      if (!orphanedNoShows || orphanedNoShows.length === 0) {
+        return { detected: 0, failed: 0, recovered: 0 };
+      }
     }
 
     let detected = 0;
     let failed = 0;
+    let recovered = 0;
 
-    for (const booking of potentialNoShows) {
+    const allToProcess = [...(potentialNoShows || []), ...(orphanedNoShows || [])];
+
+    for (const booking of allToProcess) {
       try {
+        const { data: existingTracking } = await supabase
+          .from('no_show_tracking')
+          .select('id')
+          .eq('booking_id', booking.id)
+          .limit(1);
+
+        if (existingTracking && existingTracking.length > 0) {
+          continue;
+        }
+
         await this.markAsNoShow(booking.id, 'Auto-detected no-show');
-        detected++;
+        
+        if (booking.status === 'no_show') {
+          recovered++;
+        } else {
+          detected++;
+        }
       } catch (error) {
         console.error(`Failed to mark booking ${booking.id} as no-show:`, error);
         failed++;
       }
     }
 
-    return { detected, failed };
+    return { detected, failed, recovered };
   }
 
   private async sendFollowUp(

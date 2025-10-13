@@ -32,14 +32,6 @@ class NoShowService {
                 ? (booking.total_cost || 0) * (penaltyAmount / 100)
                 : penaltyAmount;
         }
-        await supabase_1.supabase
-            .from('bookings')
-            .update({
-            status: 'no_show',
-            penalty_applied: penaltyEnabled,
-            penalty_fee: penaltyFee,
-        })
-            .eq('id', bookingId);
         const totalStrikes = await this.getContactStrikeCount(contact.id);
         const strikeLimit = parseInt(await this.settingsService.getSetting('no_show_strike_limit') || '3');
         const suspensionDays = parseInt(await this.settingsService.getSetting('no_show_suspension_days') || '30');
@@ -50,7 +42,7 @@ class NoShowService {
             suspensionUntil = new Date();
             suspensionUntil.setDate(suspensionUntil.getDate() + suspensionDays);
         }
-        const { data: tracking, error } = await supabase_1.supabase
+        const { data: tracking, error: trackingError } = await supabase_1.supabase
             .from('no_show_tracking')
             .insert((0, mapper_1.toSnakeCase)({
             contactId: contact.id,
@@ -64,8 +56,23 @@ class NoShowService {
         }))
             .select()
             .single();
-        if (error)
-            throw error;
+        if (trackingError)
+            throw trackingError;
+        const { error: bookingError } = await supabase_1.supabase
+            .from('bookings')
+            .update({
+            status: 'no_show',
+            penalty_applied: penaltyEnabled,
+            penalty_fee: penaltyFee,
+        })
+            .eq('id', bookingId);
+        if (bookingError) {
+            await supabase_1.supabase
+                .from('no_show_tracking')
+                .delete()
+                .eq('id', tracking.id);
+            throw bookingError;
+        }
         const followUpEnabled = (await this.settingsService.getSetting('no_show_follow_up_enabled')) === 'true';
         if (followUpEnabled) {
             await this.sendFollowUp(bookingId, contact, penaltyFee, isSuspended, suspensionUntil);
@@ -119,25 +126,47 @@ class NoShowService {
         cutoffTime.setHours(cutoffTime.getHours() - detectionHours);
         const { data: potentialNoShows } = await supabase_1.supabase
             .from('bookings')
-            .select('id, start_time, contact_id')
+            .select('id, start_time, contact_id, status')
             .eq('status', 'confirmed')
             .lt('start_time', cutoffTime.toISOString());
+        const { data: orphanedNoShows } = await supabase_1.supabase
+            .from('bookings')
+            .select('id, start_time, contact_id, status')
+            .eq('status', 'no_show')
+            .lt('start_time', cutoffTime.toISOString());
         if (!potentialNoShows || potentialNoShows.length === 0) {
-            return { detected: 0, failed: 0 };
+            if (!orphanedNoShows || orphanedNoShows.length === 0) {
+                return { detected: 0, failed: 0, recovered: 0 };
+            }
         }
         let detected = 0;
         let failed = 0;
-        for (const booking of potentialNoShows) {
+        let recovered = 0;
+        const allToProcess = [...(potentialNoShows || []), ...(orphanedNoShows || [])];
+        for (const booking of allToProcess) {
             try {
+                const { data: existingTracking } = await supabase_1.supabase
+                    .from('no_show_tracking')
+                    .select('id')
+                    .eq('booking_id', booking.id)
+                    .limit(1);
+                if (existingTracking && existingTracking.length > 0) {
+                    continue;
+                }
                 await this.markAsNoShow(booking.id, 'Auto-detected no-show');
-                detected++;
+                if (booking.status === 'no_show') {
+                    recovered++;
+                }
+                else {
+                    detected++;
+                }
             }
             catch (error) {
                 console.error(`Failed to mark booking ${booking.id} as no-show:`, error);
                 failed++;
             }
         }
-        return { detected, failed };
+        return { detected, failed, recovered };
     }
     async sendFollowUp(bookingId, contact, penaltyFee, isSuspended, suspensionUntil) {
         const { data: booking } = await supabase_1.supabase
