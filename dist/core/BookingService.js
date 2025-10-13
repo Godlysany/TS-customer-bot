@@ -32,6 +32,9 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingService = void 0;
 const supabase_1 = require("../infrastructure/supabase");
@@ -42,6 +45,7 @@ const ReviewService_1 = require("./ReviewService");
 const SecretaryNotificationService_1 = require("./SecretaryNotificationService");
 const SettingsService_1 = require("./SettingsService");
 const DocumentService_1 = require("./DocumentService");
+const NoShowService_1 = __importDefault(require("./NoShowService"));
 class BookingService {
     calendarProvider = null;
     emailService;
@@ -50,6 +54,7 @@ class BookingService {
     secretaryService;
     settingsService;
     documentService;
+    noShowService;
     constructor() {
         this.emailService = new EmailService_1.EmailService();
         this.reminderService = new ReminderService_1.ReminderService();
@@ -57,6 +62,7 @@ class BookingService {
         this.secretaryService = new SecretaryNotificationService_1.SecretaryNotificationService();
         this.settingsService = new SettingsService_1.SettingsService();
         this.documentService = new DocumentService_1.DocumentService();
+        this.noShowService = NoShowService_1.default;
     }
     setCalendarProvider(provider) {
         this.calendarProvider = provider;
@@ -64,6 +70,10 @@ class BookingService {
     async createBooking(contactId, conversationId, event, options) {
         if (!this.calendarProvider) {
             throw new Error('Calendar provider not initialized');
+        }
+        const suspension = await this.noShowService.isContactSuspended(contactId);
+        if (suspension.suspended && suspension.until) {
+            throw new Error(`Booking privileges suspended until ${suspension.until.toLocaleDateString()}. Please contact us for assistance.`);
         }
         let bufferTimeBefore = 0;
         let bufferTimeAfter = 0;

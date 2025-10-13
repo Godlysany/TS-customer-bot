@@ -13,10 +13,12 @@ import engagementRoutes from './api/engagement';
 import recurringRoutes from './api/recurring';
 import multiServiceRoutes from './api/multi-service';
 import documentsRoutes from './api/documents';
+import noShowRoutes from './api/no-show';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
 import documentScheduler from './core/DocumentScheduler';
+import noShowScheduler from './core/NoShowScheduler';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -63,6 +65,7 @@ app.use('/api/engagement', engagementRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/multi-service', multiServiceRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/no-show', noShowRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
@@ -126,6 +129,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start document scheduler (checks every 60 minutes)
   documentScheduler.start(60);
+  
+  // Start no-show scheduler (checks every 60 minutes)
+  noShowScheduler.start(60);
 });
 
 server.on('error', (error: any) => {

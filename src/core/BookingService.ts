@@ -7,6 +7,7 @@ import { ReviewService } from './ReviewService';
 import { SecretaryNotificationService } from './SecretaryNotificationService';
 import { SettingsService } from './SettingsService';
 import { DocumentService } from './DocumentService';
+import NoShowService from './NoShowService';
 
 export class BookingService {
   private calendarProvider: CalendarProvider | null = null;
@@ -16,6 +17,7 @@ export class BookingService {
   private secretaryService: SecretaryNotificationService;
   private settingsService: SettingsService;
   private documentService: DocumentService;
+  private noShowService: typeof NoShowService;
 
   constructor() {
     this.emailService = new EmailService();
@@ -24,6 +26,7 @@ export class BookingService {
     this.secretaryService = new SecretaryNotificationService();
     this.settingsService = new SettingsService();
     this.documentService = new DocumentService();
+    this.noShowService = NoShowService;
   }
 
   setCalendarProvider(provider: CalendarProvider) {
@@ -43,6 +46,11 @@ export class BookingService {
   ): Promise<Booking> {
     if (!this.calendarProvider) {
       throw new Error('Calendar provider not initialized');
+    }
+
+    const suspension = await this.noShowService.isContactSuspended(contactId);
+    if (suspension.suspended && suspension.until) {
+      throw new Error(`Booking privileges suspended until ${suspension.until.toLocaleDateString()}. Please contact us for assistance.`);
     }
 
     let bufferTimeBefore = 0;

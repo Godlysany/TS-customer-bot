@@ -18,10 +18,12 @@ const engagement_1 = __importDefault(require("./api/engagement"));
 const recurring_1 = __importDefault(require("./api/recurring"));
 const multi_service_1 = __importDefault(require("./api/multi-service"));
 const documents_1 = __importDefault(require("./api/documents"));
+const no_show_1 = __importDefault(require("./api/no-show"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
 const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"));
+const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -61,6 +63,7 @@ app.use('/api/engagement', engagement_1.default);
 app.use('/api/recurring', recurring_1.default);
 app.use('/api/multi-service', multi_service_1.default);
 app.use('/api/documents', documents_1.default);
+app.use('/api/no-show', no_show_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching
@@ -115,6 +118,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     (0, RecurringAppointmentScheduler_1.startRecurringScheduler)(1440);
     // Start document scheduler (checks every 60 minutes)
     DocumentScheduler_1.default.start(60);
+    // Start no-show scheduler (checks every 60 minutes)
+    NoShowScheduler_1.default.start(60);
 });
 server.on('error', (error) => {
     console.error('❌ Server error:', error);
