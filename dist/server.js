@@ -19,6 +19,9 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 app.use('/auth', auth_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
@@ -28,8 +31,21 @@ app.get('*', (req, res) => {
         res.sendFile(path_1.default.join(adminDistPath, 'index.html'));
     }
 });
-app.listen(config_1.config.port, config_1.config.host, () => {
+const server = app.listen(config_1.config.port, config_1.config.host, () => {
     console.log(`✅ CRM API server running on ${config_1.config.host}:${config_1.config.port}`);
     console.log(`📱 Frontend served from ${adminDistPath}`);
+});
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('SIGTERM', () => {
+    console.log('⚠️  SIGTERM received, closing server...');
+    server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+    });
 });
 exports.default = app;
