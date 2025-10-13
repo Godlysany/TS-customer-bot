@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { botConfigApi } from '../lib/api';
 import { Bot, Brain, MessageSquare, Shield, Plus, Trash2, Save } from 'lucide-react';
@@ -56,6 +56,21 @@ const BusinessContextSection = () => {
   const [businessInfo, setBusinessInfo] = useState('');
   const [faqItems, setFaqItems] = useState<{ question: string; answer: string }[]>([]);
   const [newFaq, setNewFaq] = useState({ question: '', answer: '' });
+
+  const { data: context } = useQuery({
+    queryKey: ['bot-context'],
+    queryFn: async () => {
+      const res = await botConfigApi.getContext();
+      return res.data;
+    },
+  });
+
+  useEffect(() => {
+    if (context) {
+      setBusinessInfo(context.businessInfo || '');
+      setFaqItems(context.faqItems || []);
+    }
+  }, [context]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => botConfigApi.saveContext(data),
@@ -165,6 +180,23 @@ const PromptConfigSection = () => {
   const [escalationTriggers, setEscalationTriggers] = useState<string[]>([]);
   const [newTrigger, setNewTrigger] = useState('');
   const [responseStyle, setResponseStyle] = useState('concise');
+
+  const { data: promptConfig } = useQuery({
+    queryKey: ['bot-prompts'],
+    queryFn: async () => {
+      const res = await botConfigApi.getPrompts();
+      return res.data;
+    },
+  });
+
+  useEffect(() => {
+    if (promptConfig) {
+      setSystemPrompt(promptConfig.systemPrompt || '');
+      setToneOfVoice(promptConfig.toneOfVoice || 'professional');
+      setEscalationTriggers(promptConfig.escalationTriggers || []);
+      setResponseStyle(promptConfig.responseStyle || 'concise');
+    }
+  }, [promptConfig]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => botConfigApi.savePrompts(data),
@@ -502,6 +534,20 @@ const AdvancedControlsSection = () => {
     enableFallback: true,
     fallbackMessage: "I'm not sure about that. Let me connect you with a team member who can help.",
   });
+
+  const { data: controlsData } = useQuery({
+    queryKey: ['bot-controls'],
+    queryFn: async () => {
+      const res = await botConfigApi.getControls();
+      return res.data;
+    },
+  });
+
+  useEffect(() => {
+    if (controlsData) {
+      setControls(controlsData);
+    }
+  }, [controlsData]);
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => botConfigApi.saveControls(data),

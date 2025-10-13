@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { supabase } from '../infrastructure/supabase';
+import { authMiddleware, requireRole } from '../middleware/auth';
 
 const router = Router();
+
+// All bot-config routes require master role
+router.use(authMiddleware);
+router.use(requireRole('master'));
 
 router.get('/context', async (req, res) => {
   try {
