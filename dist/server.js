@@ -13,6 +13,7 @@ const auth_1 = __importDefault(require("./api/auth"));
 const bot_config_1 = __importDefault(require("./api/bot-config"));
 const customers_1 = __importDefault(require("./api/customers"));
 const questionnaire_responses_1 = __importDefault(require("./api/questionnaire-responses"));
+const services_1 = __importDefault(require("./api/services"));
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -47,6 +48,7 @@ app.use('/api/auth', auth_1.default);
 app.use('/api/bot-config', bot_config_1.default);
 app.use('/api/customers', customers_1.default);
 app.use('/api/questionnaire-responses', questionnaire_responses_1.default);
+app.use('/api/services', services_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching

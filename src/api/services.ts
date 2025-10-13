@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../infrastructure/supabase';
 import { authMiddleware, requireRole } from '../middleware/auth';
-import { toCamelCase, toSnakeCase } from '../utils/caseConverter';
+import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 
 const router = Router();
 
