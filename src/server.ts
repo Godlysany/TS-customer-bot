@@ -5,6 +5,7 @@ import path from 'path';
 import { config } from './infrastructure/config';
 import routes from './api/routes';
 import authRoutes from './api/auth';
+import botConfigRoutes from './api/bot-config';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -43,6 +44,7 @@ app.get('/api/version', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/bot-config', botConfigRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
