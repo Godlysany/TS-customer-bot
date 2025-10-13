@@ -1,4 +1,5 @@
 -- WhatsApp CRM Bot - Supabase Database Schema
+-- Production deployment: October 13, 2025
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
