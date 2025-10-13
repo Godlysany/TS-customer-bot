@@ -401,6 +401,21 @@ CREATE TABLE IF NOT EXISTS service_documents (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Document deliveries tracking
+CREATE TABLE IF NOT EXISTS document_deliveries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    document_id UUID NOT NULL REFERENCES service_documents(id) ON DELETE CASCADE,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    delivery_method VARCHAR(20) CHECK (delivery_method IN ('email', 'whatsapp', 'both')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed', 'acknowledged')),
+    sent_at TIMESTAMP WITH TIME ZONE,
+    acknowledged_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Service follow-up rules (automatic booking sequences)
 CREATE TABLE IF NOT EXISTS service_follow_up_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -532,6 +547,7 @@ WHERE buffer_time_after IS NULL;
 -- Triggers for new tables
 CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_service_documents_updated_at BEFORE UPDATE ON service_documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_document_deliveries_updated_at BEFORE UPDATE ON document_deliveries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_service_follow_up_rules_updated_at BEFORE UPDATE ON service_follow_up_rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_customer_routines_updated_at BEFORE UPDATE ON customer_routines FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_recurring_appointments_updated_at BEFORE UPDATE ON recurring_appointments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
