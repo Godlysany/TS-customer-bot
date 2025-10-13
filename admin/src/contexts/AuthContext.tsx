@@ -38,7 +38,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post('/auth/refresh');
+        await api.post('/api/auth/refresh');
         processQueue();
         return api(originalRequest);
       } catch (refreshError) {
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get('/api/auth/me');
       setAgent(response.data.agent);
     } catch (error) {
       setAgent(null);
@@ -93,12 +93,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post('/api/auth/login', { email, password });
     setAgent(response.data.agent);
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
+    await api.post('/api/auth/logout');
     setAgent(null);
   };
 

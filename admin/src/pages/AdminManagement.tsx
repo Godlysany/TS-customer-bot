@@ -34,13 +34,13 @@ const AdminManagement = () => {
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: async () => {
-      const res = await api.get('/auth/agents');
+      const res = await api.get('/api/auth/agents');
       return res.data;
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof formData) => api.post('/auth/agents', data),
+    mutationFn: (data: typeof formData) => api.post('/api/auth/agents', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setShowModal(false);
@@ -50,7 +50,7 @@ const AdminManagement = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<typeof formData> }) =>
-      api.put(`/auth/agents/${id}`, data),
+      api.put(`/api/auth/agents/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setShowModal(false);
@@ -59,7 +59,7 @@ const AdminManagement = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/auth/agents/${id}`),
+    mutationFn: (id: string) => api.delete(`/api/auth/agents/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
     },
@@ -67,7 +67,7 @@ const AdminManagement = () => {
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      api.post(`/auth/agents/${id}/${isActive ? 'deactivate' : 'activate'}`),
+      api.post(`/api/auth/agents/${id}/${isActive ? 'deactivate' : 'activate'}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
     },
