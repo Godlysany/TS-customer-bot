@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Layout = () => {
@@ -16,6 +16,7 @@ const Layout = () => {
     { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
+    { path: '/services', label: 'Services', icon: Briefcase, roles: ['master'] },
     { path: '/bot-config', label: 'Bot Configuration', icon: Settings, roles: ['master'] },
     { path: '/marketing', label: 'Marketing', icon: Mail, roles: ['master'] },
     { path: '/admin', label: 'Admin Management', icon: Users, roles: ['master'] },

@@ -8,6 +8,7 @@ import authRoutes from './api/auth';
 import botConfigRoutes from './api/bot-config';
 import customersRoutes from './api/customers';
 import questionnaireResponsesRoutes from './api/questionnaire-responses';
+import servicesRoutes from './api/services';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -49,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bot-config', botConfigRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/questionnaire-responses', questionnaireResponsesRoutes);
+app.use('/api/services', servicesRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');

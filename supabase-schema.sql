@@ -359,6 +359,186 @@ CREATE TRIGGER update_waitlist_updated_at BEFORE UPDATE ON waitlist FOR EACH ROW
 CREATE TRIGGER update_questionnaires_updated_at BEFORE UPDATE ON questionnaires FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_cancellation_policies_updated_at BEFORE UPDATE ON cancellation_policies FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- Services table (master configuration for all bookable services)
+CREATE TABLE IF NOT EXISTS services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    duration_minutes INTEGER NOT NULL, -- How long the service takes
+    cost DECIMAL(10,2) DEFAULT 0, -- Base price
+    buffer_time_before INTEGER DEFAULT 0, -- Minutes needed before appointment
+    buffer_time_after INTEGER DEFAULT 0, -- Minutes needed after appointment
+    color VARCHAR(50) DEFAULT '#3B82F6', -- UI color code
+    is_active BOOLEAN DEFAULT true,
+    requires_payment BOOLEAN DEFAULT false, -- Require payment upfront
+    deposit_amount DECIMAL(10,2) DEFAULT 0, -- Deposit required
+    max_advance_booking_days INTEGER DEFAULT 90, -- How far ahead can book
+    cancellation_policy_hours INTEGER DEFAULT 24, -- Override default policy
+    cancellation_penalty_amount DECIMAL(10,2), -- Override default penalty
+    cancellation_penalty_type VARCHAR(20) DEFAULT 'fixed' CHECK (cancellation_penalty_type IN ('fixed', 'percentage')),
+    metadata JSONB, -- Extra configuration
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service documents (documents associated with services)
+CREATE TABLE IF NOT EXISTS service_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    file_url TEXT, -- Link to document storage
+    document_type VARCHAR(50) DEFAULT 'pdf' CHECK (document_type IN ('pdf', 'image', 'link', 'text')),
+    send_timing VARCHAR(50) NOT NULL CHECK (send_timing IN ('pre_booking', 'post_booking', 'pre_appointment', 'post_appointment')),
+    is_required BOOLEAN DEFAULT false, -- Must customer acknowledge/sign?
+    order_position INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Service follow-up rules (automatic booking sequences)
+CREATE TABLE IF NOT EXISTS service_follow_up_rules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    follow_up_service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    sequence_number INTEGER NOT NULL, -- Order in the sequence
+    days_after INTEGER NOT NULL, -- Days after previous appointment
+    is_required BOOLEAN DEFAULT false, -- Must be booked or optional
+    auto_book BOOLEAN DEFAULT false, -- Automatically book or suggest
+    reminder_message TEXT, -- Custom message for reminder
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Customer routines (recurring patterns per customer)
+CREATE TABLE IF NOT EXISTS customer_routines (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    routine_name VARCHAR(255) NOT NULL, -- e.g., "Monthly Checkup", "Quarterly Cleaning"
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    frequency_type VARCHAR(50) NOT NULL CHECK (frequency_type IN ('daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom')),
+    frequency_value INTEGER DEFAULT 1, -- e.g., every 2 weeks
+    preferred_day_of_week INTEGER, -- 0=Sunday, 6=Saturday
+    preferred_time_of_day VARCHAR(5), -- HH:MM format
+    last_booking_date TIMESTAMP WITH TIME ZONE,
+    next_suggested_date TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true,
+    auto_book BOOLEAN DEFAULT false, -- Auto-book or just remind
+    created_by VARCHAR(50) DEFAULT 'bot' CHECK (created_by IN ('bot', 'agent', 'customer')),
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Recurring appointments (actual scheduled recurring series)
+CREATE TABLE IF NOT EXISTS recurring_appointments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    routine_id UUID REFERENCES customer_routines(id) ON DELETE SET NULL,
+    recurrence_pattern VARCHAR(50) NOT NULL CHECK (recurrence_pattern IN ('daily', 'weekly', 'biweekly', 'monthly', 'custom')),
+    recurrence_interval INTEGER DEFAULT 1,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE, -- NULL = indefinite
+    occurrences_count INTEGER, -- Total number of occurrences
+    occurrences_completed INTEGER DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'cancelled')),
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Payment transactions (Stripe integration)
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    stripe_payment_intent_id VARCHAR(255),
+    stripe_charge_id VARCHAR(255),
+    amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'EUR',
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'refunded', 'cancelled')),
+    payment_type VARCHAR(50) DEFAULT 'booking' CHECK (payment_type IN ('booking', 'deposit', 'penalty', 'full_payment')),
+    payment_method VARCHAR(50), -- card, bank_transfer, etc.
+    failure_reason TEXT,
+    refund_amount DECIMAL(10,2) DEFAULT 0,
+    metadata JSONB,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Reminder logs (track all reminders sent)
+CREATE TABLE IF NOT EXISTS reminder_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    reminder_type VARCHAR(50) NOT NULL CHECK (reminder_type IN ('email', 'whatsapp', 'sms')),
+    timing VARCHAR(50) NOT NULL, -- '24h_before', '2h_before', 'custom'
+    message_content TEXT,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed', 'cancelled')),
+    scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
+    sent_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Proactive engagement campaigns (reactivation, check-ins)
+CREATE TABLE IF NOT EXISTS proactive_campaigns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    campaign_type VARCHAR(50) NOT NULL CHECK (campaign_type IN ('reactivation', 'routine_reminder', 'birthday', 'follow_up', 'custom')),
+    target_criteria JSONB, -- Who to target (days since last booking, service type, etc.)
+    message_template TEXT NOT NULL,
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    trigger_days INTEGER, -- Days after last interaction
+    is_active BOOLEAN DEFAULT true,
+    last_run_at TIMESTAMP WITH TIME ZONE,
+    next_run_at TIMESTAMP WITH TIME ZONE,
+    total_sent INTEGER DEFAULT 0,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Update bookings table to link to services
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_id UUID REFERENCES services(id) ON DELETE SET NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS recurring_appointment_id UUID REFERENCES recurring_appointments(id) ON DELETE SET NULL;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'not_required' CHECK (payment_status IN ('not_required', 'pending', 'paid', 'refunded'));
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_transaction_id UUID REFERENCES payment_transactions(id) ON DELETE SET NULL;
+
+-- Triggers for new tables
+CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_service_documents_updated_at BEFORE UPDATE ON service_documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_service_follow_up_rules_updated_at BEFORE UPDATE ON service_follow_up_rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_customer_routines_updated_at BEFORE UPDATE ON customer_routines FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_recurring_appointments_updated_at BEFORE UPDATE ON recurring_appointments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_payment_transactions_updated_at BEFORE UPDATE ON payment_transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_proactive_campaigns_updated_at BEFORE UPDATE ON proactive_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default services for demonstration
+INSERT INTO services (name, description, duration_minutes, cost, buffer_time_after, is_active)
+VALUES 
+    ('General Consultation', 'Standard consultation appointment', 30, 50.00, 15, true),
+    ('Deep Cleaning', 'Professional deep cleaning session', 60, 120.00, 20, true),
+    ('Follow-up Visit', 'Follow-up check after treatment', 20, 30.00, 10, true)
+ON CONFLICT DO NOTHING;
+
+-- Insert default settings for new features
+INSERT INTO settings (key, value, category, description, is_secret)
+VALUES 
+    ('stripe_api_key', '', 'payments', 'Stripe API Secret Key', true),
+    ('stripe_publishable_key', '', 'payments', 'Stripe Publishable Key', false),
+    ('payments_enabled', 'false', 'payments', 'Enable payment collection', false),
+    ('whatsapp_reminders_enabled', 'true', 'reminders', 'Send WhatsApp reminders', false),
+    ('whatsapp_reminder_timing', '24,2', 'reminders', 'Hours before appointment to send WhatsApp reminders (comma-separated)', false),
+    ('email_reminder_timing', '48,24', 'reminders', 'Hours before appointment to send email reminders (comma-separated)', false),
+    ('proactive_engagement_enabled', 'true', 'engagement', 'Enable proactive customer engagement', false),
+    ('reactivation_days', '90', 'engagement', 'Days of inactivity before reactivation message', false)
+ON CONFLICT (key) DO NOTHING;
+
 -- Insert default cancellation policy
 INSERT INTO cancellation_policies (name, hours_before_appointment, penalty_type, penalty_amount, is_active)
 VALUES ('Default 24h Policy', 24, 'fixed', 50.00, true)

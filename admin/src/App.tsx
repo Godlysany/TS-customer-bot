@@ -15,6 +15,7 @@ import BotConfiguration from './pages/BotConfiguration';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import QuestionnaireResponses from './pages/QuestionnaireResponses';
+import Services from './pages/Services';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,14 @@ function App() {
               <Route path="questionnaires" element={<QuestionnaireResponses />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="bookings" element={<Bookings />} />
+              <Route
+                path="services"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <Services />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="bot-config"
                 element={
