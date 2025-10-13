@@ -2,6 +2,28 @@
 
 ## Recent Changes (October 13, 2025)
 
+### Feature 7: Document Sharing ✅ COMPLETE
+**Automated Document Delivery System:**
+- **DocumentService**: Complete CRUD operations for service-specific documents
+  - Document types: PDF, image, link, or text
+  - Timing options: pre_booking, post_booking, pre_appointment, post_appointment
+  - Delivery methods: WhatsApp, email, or both (auto-detected from customer contact info)
+- **DocumentScheduler**: Automated delivery at 60-minute intervals
+  - Pre-appointment: Delivers 24h before appointment
+  - Post-appointment: Delivers within 24h after completion
+  - Idempotency protection: Prevents duplicate deliveries on re-runs
+- **API Endpoints**: /api/documents (GET/POST/PUT/DELETE)
+  - Master-only access for document management
+  - Full CRUD with order position support
+- **Booking Integration**: Auto-schedules documents on booking creation
+  - Pre-booking documents delivered immediately
+  - Post-booking documents delivered immediately
+  - Pre/post-appointment handled by scheduler
+- **Delivery Tracking**: document_deliveries table monitors all sends
+  - Status tracking: pending, sent, failed, acknowledged
+  - Accurate delivery method recording on success and failure
+  - Database indexes on booking_id and sent_at for performance
+
 ### CRM Enhancement: Customers & Questionnaire Views ✅
 **Complete Customer Relationship Management:**
 - **Customers Page**: Full customer list with search, sentiment tracking, interaction counts
