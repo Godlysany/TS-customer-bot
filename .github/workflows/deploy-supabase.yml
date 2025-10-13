@@ -33,11 +33,15 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y postgresql-client
           
           echo "Connecting via Supavisor pooler (IPv4-compatible)..."
+          echo "Using separate params to avoid URL encoding issues with special characters"
           
-          # Use Supavisor pooler connection (bypasses IPv6 issue)
+          # Use Supavisor pooler with separate parameters (no URL encoding needed!)
           # Port 6543 = Transaction mode pooler
           psql \
-            "postgresql://postgres.${SUPABASE_PROJECT_ID}:${SUPABASE_DB_PASSWORD}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres" \
+            -h "aws-0-eu-west-1.pooler.supabase.com" \
+            -p 6543 \
+            -U "postgres.${SUPABASE_PROJECT_ID}" \
+            -d postgres \
             -f supabase-schema.sql
 
       - name: Verify deployment
