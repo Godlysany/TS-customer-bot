@@ -27,34 +27,36 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           # Install PostgreSQL client
           echo "Installing PostgreSQL client..."
           sudo apt-get update -qq && sudo apt-get install -y postgresql-client
           
-          # Create .pgpass file for password (safer than PGPASSWORD env var)
-          echo "db.${SUPABASE_PROJECT_ID}.supabase.co:5432:postgres:postgres:${SUPABASE_DB_PASSWORD}" > ~/.pgpass
-          chmod 600 ~/.pgpass
-          
-          # Test connection
+          # Test connection (using separate params to avoid URL encoding issues)
           echo "Testing database connection..."
           psql \
-            "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
-            -c "SELECT version();" || {
+            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
+            -p 5432 \
+            -U postgres \
+            -d postgres \
+            -c "SELECT version();" \
+            --set=sslmode=require || {
               echo "❌ Connection failed. Check your secrets:"
               echo "   - SUPABASE_PROJECT_ID should be the project ref (e.g., 'abcdefghijklmnop')"
-              echo "   - SUPABASE_DB_PASSWORD is your database password"
+              echo "   - SUPABASE_DB_PASSWORD is your database password (can contain special characters)"
               exit 1
             }
           
-          # Apply schema
+          # Apply schema (password passed via PGPASSWORD env var, no URL encoding needed)
           echo "Applying database schema..."
           psql \
-            "postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_ID}.supabase.co:5432/postgres?sslmode=require" \
-            -f supabase-schema.sql
-          
-          # Clean up
-          rm ~/.pgpass
+            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
+            -p 5432 \
+            -U postgres \
+            -d postgres \
+            -f supabase-schema.sql \
+            --set=sslmode=require
 
       - name: Verify deployment
         run: |
