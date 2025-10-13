@@ -5,6 +5,46 @@ This project is a professional B2B customer service platform integrating WhatsAp
 
 ## Recent Changes (October 13, 2025)
 
+### Admin Authentication System & Functional Settings ✅
+**Complete Authentication System Implemented:**
+- JWT-based authentication with bcrypt password hashing (10 rounds)
+- HttpOnly, secure cookies for session management (access token: 15min, refresh token: 7 days)
+- Automatic token refresh via axios interceptor (prevents session expiration)
+- Login page with email/password form
+- Role-based access control: **Master** (full access) vs. **Support** (limited to conversations, bookings, analytics, dashboard)
+- Protected routes enforce authentication and role permissions
+- Admin Management page (master only) to create/edit/delete agents and assign roles
+
+**Functional Settings Page:**
+- WhatsApp connection controls (connect/disconnect buttons that actually work)
+- API key inputs for: OpenAI, Deepgram, SendGrid (with from email), ElevenLabs
+- Calendar settings with iCal URL input and provider selection
+- Secretary email and daily summary time configuration
+- Cancellation policy settings (hours and penalty fees)
+- Bot enable/disable toggle
+- All inputs save to database via API, masked secret fields
+- Toast notifications for success/error feedback
+
+**Database Changes:**
+- Added `password_hash`, `reset_token`, `reset_token_expires` columns to agents table
+- Changed role enum from ('admin', 'agent') to ('master', 'support')
+- Added default settings for all API keys and configuration options
+- Migration script provided for existing databases
+
+**Security Features:**
+- Production-ready authentication flow
+- Password reset functionality with token expiration
+- Role-based API route protection
+- No exposed secrets or tokens
+- Environment variable JWT_SECRET required for production
+
+**Default Credentials:**
+- Email: `admin@crm.local`
+- Password: `admin123`
+- ⚠️ **Change immediately after first login!**
+
+## Recent Changes (October 13, 2025)
+
 ### Railway Production Fix ✅
 **WhatsApp Connection Made Optional:**
 - Removed auto-connect on server start (prevents crashes from 405 WebSocket errors)
@@ -67,14 +107,18 @@ This project is a professional B2B customer service platform integrating WhatsAp
 - Navigation updated with Dashboard as home page
 
 ## User Preferences
-- **OpenAI**: Own API key (configurable via CRM settings, not Replit integration)
-- **Calendar**: Google iCal as default, system prepared for other API providers
+- **Authentication**: Role-based access (Master/Support) with secure JWT sessions
+- **OpenAI**: Own API key (configurable via CRM settings UI)
+- **Calendar**: Google iCal as default, system prepared for other API providers (configurable via UI)
 - **CRM Control**: All settings manageable from admin interface (no code changes)
-- **Bot Management**: On/off switch and WhatsApp QR connection in CRM settings
+- **Bot Management**: On/off switch and WhatsApp connection controls in CRM settings
 - **Manual Intervention**: Agent takeover with pause, write-between, or full control modes
-- **Marketing**: Smart filters based on intent, interaction, appointments, sentiment
+- **Marketing**: Smart filters based on intent, interaction, appointments, sentiment (Master only)
 - **Customer Insights**: Enhanced profiles with sentiment, keywords, upsell potential
 - **Focus**: B2B customer service with professional CRM requirements
+- **User Roles**:
+  - **Master**: Full access to all features including settings, marketing, and admin management
+  - **Support**: Limited to conversations, bookings, analytics, and dashboard
 
 ## System Architecture
 
