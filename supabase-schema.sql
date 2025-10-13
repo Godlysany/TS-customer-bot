@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     actual_end_time TIMESTAMP WITH TIME ZONE,
     buffer_time_before INTEGER DEFAULT 0,
     buffer_time_after INTEGER DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled', 'no_show', 'completed')),
     cancellation_reason TEXT,
     cancelled_at TIMESTAMP WITH TIME ZONE,
     penalty_fee DECIMAL(10,2) DEFAULT 0,
@@ -573,6 +573,44 @@ VALUES
     ('email_reminder_timing', '48,24', 'reminders', 'Hours before appointment to send email reminders (comma-separated)', false),
     ('proactive_engagement_enabled', 'true', 'engagement', 'Enable proactive customer engagement', false),
     ('reactivation_days', '90', 'engagement', 'Days of inactivity before reactivation message', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- No-show tracking table
+CREATE TABLE IF NOT EXISTS no_show_tracking (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    no_show_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    penalty_applied BOOLEAN DEFAULT false,
+    penalty_fee DECIMAL(10,2) DEFAULT 0,
+    follow_up_sent BOOLEAN DEFAULT false,
+    follow_up_sent_at TIMESTAMP WITH TIME ZONE,
+    strike_count INTEGER DEFAULT 1,
+    suspension_until TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for no_show_tracking
+CREATE INDEX IF NOT EXISTS idx_no_show_tracking_contact ON no_show_tracking(contact_id);
+CREATE INDEX IF NOT EXISTS idx_no_show_tracking_booking ON no_show_tracking(booking_id);
+CREATE INDEX IF NOT EXISTS idx_no_show_tracking_date ON no_show_tracking(no_show_date);
+CREATE INDEX IF NOT EXISTS idx_no_show_tracking_suspension ON no_show_tracking(suspension_until) WHERE suspension_until IS NOT NULL;
+
+-- Add trigger for no_show_tracking updated_at
+CREATE TRIGGER update_no_show_tracking_updated_at BEFORE UPDATE ON no_show_tracking FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default settings for no-show protection
+INSERT INTO settings (key, value, category, description, is_secret)
+VALUES 
+    ('no_show_detection_hours', '2', 'no_show', 'Hours after appointment start to auto-detect no-show', false),
+    ('no_show_penalty_enabled', 'true', 'no_show', 'Enable penalty fees for no-shows', false),
+    ('no_show_penalty_type', 'fixed', 'no_show', 'Penalty type: fixed or percentage', false),
+    ('no_show_penalty_amount', '75', 'no_show', 'Penalty amount for no-shows', false),
+    ('no_show_strike_limit', '3', 'no_show', 'Number of no-shows before suspension', false),
+    ('no_show_suspension_days', '30', 'no_show', 'Days to suspend booking privileges after strike limit', false),
+    ('no_show_follow_up_enabled', 'true', 'no_show', 'Send follow-up message after no-show', false)
 ON CONFLICT (key) DO NOTHING;
 
 -- Insert default cancellation policy
