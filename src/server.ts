@@ -72,10 +72,28 @@ app.get('*', (req, res) => {
 console.log(`🚀 Starting server on ${config.host}:${config.port}...`);
 
 const server = app.listen(config.port, config.host, () => {
+  const fs = require('fs');
   console.log(`✅ CRM API server running on ${config.host}:${config.port}`);
   console.log(`📱 Frontend served from ${adminDistPath}`);
   console.log(`🔗 Health check: http://${config.host}:${config.port}/health`);
   console.log(`🔑 Auth endpoint: http://${config.host}:${config.port}/api/auth/login`);
+  
+  // Debug: Check what files exist in admin/dist
+  try {
+    const distExists = fs.existsSync(adminDistPath);
+    console.log(`📂 Admin dist exists: ${distExists}`);
+    if (distExists) {
+      const files = fs.readdirSync(adminDistPath);
+      console.log(`📄 Files in admin/dist:`, files);
+      const assetsPath = path.join(adminDistPath, 'assets');
+      if (fs.existsSync(assetsPath)) {
+        const assets = fs.readdirSync(assetsPath);
+        console.log(`📦 Assets in admin/dist/assets:`, assets);
+      }
+    }
+  } catch (err) {
+    console.error(`❌ Error checking admin/dist:`, err);
+  }
 });
 
 server.on('error', (error: any) => {
