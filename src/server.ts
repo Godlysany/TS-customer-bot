@@ -21,14 +21,14 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
 app.use(express.static(adminDistPath));
 
 app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api') && !req.path.startsWith('/health') && !req.path.startsWith('/auth')) {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
     res.sendFile(path.join(adminDistPath, 'index.html'));
   }
 });

@@ -5,6 +5,24 @@ This project is a professional B2B customer service platform integrating WhatsAp
 
 ## Recent Changes (October 13, 2025)
 
+### Critical Auth Route Fix ✅
+**Fixed Login 404 Error:**
+- Corrected auth routes mounting from `/auth` to `/api/auth` (frontend expects `/api/auth/login`)
+- Server now properly handles authentication requests
+- Login works correctly with admin@crm.local / admin123
+- Railway deployments will now function properly
+
+**Database Manual Fix Applied:**
+- Ran SQL to add missing `password_hash`, `reset_token`, `reset_token_expires` columns
+- Updated role constraint from ('admin','agent') to ('master','support')
+- Created admin account with bcrypt password hash
+- Settings table configured with all required keys
+
+**GitHub Action Issue Identified:**
+- GitHub Action creates tables but fails silently on ALTER TABLE statements
+- Manual SQL fix applied to Supabase to complete schema deployment
+- Database fully operational with all required columns and constraints
+
 ### Admin Authentication System & Functional Settings ✅
 **Complete Authentication System Implemented:**
 - JWT-based authentication with bcrypt password hashing (10 rounds)

@@ -22,12 +22,12 @@ app.use((0, cookie_parser_1.default)());
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-app.use('/auth', auth_1.default);
+app.use('/api/auth', auth_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 app.use(express_1.default.static(adminDistPath));
 app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api') && !req.path.startsWith('/health') && !req.path.startsWith('/auth')) {
+    if (!req.path.startsWith('/api') && !req.path.startsWith('/health')) {
         res.sendFile(path_1.default.join(adminDistPath, 'index.html'));
     }
 });
