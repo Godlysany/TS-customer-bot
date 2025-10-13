@@ -2,6 +2,34 @@
 
 ## Recent Changes (October 13, 2025)
 
+### Feature 8: No-Show Protection ✅ COMPLETE
+**Automated No-Show Detection & Penalty System:**
+- **NoShowService**: Complete detection, tracking, and penalty management
+  - Auto-detection: 2 hours after appointment start (configurable)
+  - Strike system: 3 strikes = 30-day suspension (configurable)
+  - Penalty fees: Fixed or percentage-based (configurable)
+  - Transaction-safe: Tracking insert before booking update with rollback
+- **NoShowScheduler**: Automated processing at 60-minute intervals
+  - Detects confirmed bookings past detection window
+  - Recovers orphaned no-show bookings (idempotency protection)
+  - Reports: detected, recovered, failed counts
+- **API Endpoints**: /api/no-show/* (mark, history, status, lift, reset)
+  - Manual no-show marking with notes
+  - Contact no-show history and strike count
+  - Master-only suspension override and strike reset
+- **Booking Integration**: Pre-booking suspension check
+  - Blocks booking creation for suspended customers
+  - Clear error message with suspension end date
+  - Prevents abuse from repeat offenders
+- **Follow-up System**: Automated re-engagement messages
+  - WhatsApp + Email delivery (auto-detected from contact info)
+  - Personalized messages with penalty information
+  - Rebooking options for non-suspended customers
+- **Database**: no_show_tracking table with proper indexes
+  - Strike counting across multiple no-shows
+  - Suspension date tracking
+  - Penalty and follow-up status
+
 ### Feature 7: Document Sharing ✅ COMPLETE
 **Automated Document Delivery System:**
 - **DocumentService**: Complete CRUD operations for service-specific documents
