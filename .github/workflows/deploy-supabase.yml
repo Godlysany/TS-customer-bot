@@ -29,40 +29,52 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          # Install PostgreSQL client
+          # Install PostgreSQL client and DNS tools
           echo "Installing PostgreSQL client..."
-          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          sudo apt-get update -qq && sudo apt-get install -y postgresql-client dnsutils
           
-          # Get IPv4 address (force IPv4, avoid IPv6 issues)
-          echo "Resolving Supabase host to IPv4..."
-          DB_HOST=$(getent ahostsv4 "db.${SUPABASE_PROJECT_ID}.supabase.co" | head -n1 | awk '{print $1}')
+          # Debug: Show what we have
+          echo "DEBUG: SUPABASE_PROJECT_ID = ${SUPABASE_PROJECT_ID}"
+          echo "DEBUG: Full hostname = db.${SUPABASE_PROJECT_ID}.supabase.co"
+          
+          # Try to resolve host
+          echo "Attempting DNS resolution..."
+          DB_HOST=$(dig +short "db.${SUPABASE_PROJECT_ID}.supabase.co" A | head -n1)
           
           if [ -z "$DB_HOST" ]; then
-            echo "❌ Failed to resolve host. Check SUPABASE_PROJECT_ID"
+            echo "⚠️  IPv4 resolution failed, trying IPv6..."
+            DB_HOST=$(dig +short "db.${SUPABASE_PROJECT_ID}.supabase.co" AAAA | head -n1)
+          fi
+          
+          if [ -z "$DB_HOST" ]; then
+            echo "❌ Failed to resolve db.${SUPABASE_PROJECT_ID}.supabase.co"
+            echo "   This likely means SUPABASE_PROJECT_ID is incorrect"
+            echo "   Current value: ${SUPABASE_PROJECT_ID}"
+            echo "   Expected format: abcdefghijklmnop (16 lowercase chars)"
             exit 1
           fi
           
-          echo "Connecting to: $DB_HOST"
+          echo "✅ Resolved to: $DB_HOST"
           
-          # Test connection (using IPv4 address)
+          # Test connection
           echo "Testing database connection..."
           psql \
-            -h "$DB_HOST" \
+            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
             -p 5432 \
             -U postgres \
             -d postgres \
             -c "SELECT version();" \
             --set=sslmode=require || {
-              echo "❌ Connection failed. Check your secrets:"
-              echo "   - SUPABASE_PROJECT_ID should be the project ref (e.g., 'abcdefghijklmnop')"
-              echo "   - SUPABASE_DB_PASSWORD is your database password (can contain special characters)"
+              echo "❌ Connection failed. Possible issues:"
+              echo "   - SUPABASE_DB_PASSWORD is incorrect"
+              echo "   - Database is not accessible"
               exit 1
             }
           
-          # Apply schema (using IPv4 address)
+          # Apply schema
           echo "Applying database schema..."
           psql \
-            -h "$DB_HOST" \
+            -h "db.${SUPABASE_PROJECT_ID}.supabase.co" \
             -p 5432 \
             -U postgres \
             -d postgres \
