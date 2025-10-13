@@ -45,11 +45,12 @@ const CustomerAnalyticsService_1 = __importDefault(require("../core/CustomerAnal
 const ConversationTakeoverService_1 = __importDefault(require("../core/ConversationTakeoverService"));
 const MarketingService_1 = __importDefault(require("../core/MarketingService"));
 const supabase_1 = require("../infrastructure/supabase");
+const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'WhatsApp CRM Bot' });
 });
-router.get('/api/conversations', async (req, res) => {
+router.get('/api/conversations', auth_1.authMiddleware, async (req, res) => {
     try {
         const { data, error } = await supabase_1.supabase
             .from('conversations')
@@ -67,7 +68,7 @@ router.get('/api/conversations', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.get('/api/conversations/:id/messages', async (req, res) => {
+router.get('/api/conversations/:id/messages', auth_1.authMiddleware, async (req, res) => {
     try {
         const messages = await MessageService_1.default.getConversationMessages(req.params.id);
         res.json(messages);
@@ -76,7 +77,7 @@ router.get('/api/conversations/:id/messages', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/conversations/:id/messages', async (req, res) => {
+router.post('/api/conversations/:id/messages', auth_1.authMiddleware, async (req, res) => {
     try {
         const { content } = req.body;
         const message = await MessageService_1.default.createMessage({
@@ -192,7 +193,7 @@ router.post('/api/bookings/:id/cancel', async (req, res) => {
     }
 });
 // Settings endpoints
-router.get('/api/settings', async (req, res) => {
+router.get('/api/settings', auth_1.authMiddleware, async (req, res) => {
     try {
         const category = req.query.category;
         const settings = await SettingsService_1.default.getAllSettings(category);
@@ -202,7 +203,7 @@ router.get('/api/settings', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.put('/api/settings/:key', async (req, res) => {
+router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { value } = req.body;
         await SettingsService_1.default.updateSetting(req.params.key, value);
@@ -291,7 +292,7 @@ router.post('/api/marketing/filter', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/marketing/campaigns', async (req, res) => {
+router.post('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { name, messageTemplate, filterCriteria, scheduledAt, createdBy } = req.body;
         const campaign = await MarketingService_1.default.createCampaign(name, messageTemplate, filterCriteria, scheduledAt ? new Date(scheduledAt) : undefined, createdBy);
@@ -301,7 +302,7 @@ router.post('/api/marketing/campaigns', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.get('/api/marketing/campaigns', async (req, res) => {
+router.get('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const campaigns = await MarketingService_1.default.getCampaigns();
         res.json(campaigns);

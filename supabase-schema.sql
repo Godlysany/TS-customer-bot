@@ -18,8 +18,11 @@ CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50) DEFAULT 'agent' CHECK (role IN ('admin', 'agent')),
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) DEFAULT 'support' CHECK (role IN ('master', 'support')),
     is_active BOOLEAN DEFAULT true,
+    reset_token TEXT,
+    reset_token_expires TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

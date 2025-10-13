@@ -32,8 +32,10 @@ export interface Agent {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'agent';
+  role: 'master' | 'support';
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Prompt {

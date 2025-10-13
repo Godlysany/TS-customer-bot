@@ -8,6 +8,7 @@ import customerAnalyticsService from '../core/CustomerAnalyticsService';
 import conversationTakeoverService from '../core/ConversationTakeoverService';
 import marketingService from '../core/MarketingService';
 import { supabase } from '../infrastructure/supabase';
+import { authMiddleware, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'WhatsApp CRM Bot' });
 });
 
-router.get('/api/conversations', async (req, res) => {
+router.get('/api/conversations', authMiddleware, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('conversations')
@@ -33,7 +34,7 @@ router.get('/api/conversations', async (req, res) => {
   }
 });
 
-router.get('/api/conversations/:id/messages', async (req, res) => {
+router.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
   try {
     const messages = await messageService.getConversationMessages(req.params.id);
     res.json(messages);
@@ -42,7 +43,7 @@ router.get('/api/conversations/:id/messages', async (req, res) => {
   }
 });
 
-router.post('/api/conversations/:id/messages', async (req, res) => {
+router.post('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
   try {
     const { content } = req.body;
     const message = await messageService.createMessage({
@@ -159,7 +160,7 @@ router.post('/api/bookings/:id/cancel', async (req, res) => {
 });
 
 // Settings endpoints
-router.get('/api/settings', async (req, res) => {
+router.get('/api/settings', authMiddleware, async (req, res) => {
   try {
     const category = req.query.category as string | undefined;
     const settings = await settingsService.getAllSettings(category);
@@ -169,7 +170,7 @@ router.get('/api/settings', async (req, res) => {
   }
 });
 
-router.put('/api/settings/:key', async (req, res) => {
+router.put('/api/settings/:key', authMiddleware, requireRole('master'), async (req, res) => {
   try {
     const { value } = req.body;
     await settingsService.updateSetting(req.params.key, value);
@@ -258,7 +259,7 @@ router.post('/api/marketing/filter', async (req, res) => {
   }
 });
 
-router.post('/api/marketing/campaigns', async (req, res) => {
+router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
   try {
     const { name, messageTemplate, filterCriteria, scheduledAt, createdBy } = req.body;
     const campaign = await marketingService.createCampaign(
@@ -274,7 +275,7 @@ router.post('/api/marketing/campaigns', async (req, res) => {
   }
 });
 
-router.get('/api/marketing/campaigns', async (req, res) => {
+router.get('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
   try {
     const campaigns = await marketingService.getCampaigns();
     res.json(campaigns);
