@@ -313,22 +313,23 @@ ON CONFLICT DO NOTHING;
 
 -- Insert default settings
 INSERT INTO settings (key, value, category, description, is_secret) VALUES
-    ('bot_enabled', 'true', 'bot_control', 'Enable/disable the WhatsApp bot globally', false),
+    ('bot_enabled', 'false', 'bot_control', 'Enable/disable the WhatsApp bot globally', false),
     ('openai_api_key', '', 'integrations', 'OpenAI API key for GPT responses (configure in CRM)', true),
     ('calendar_provider', 'google', 'integrations', 'Calendar provider type (google, outlook, caldav)', false),
     ('calendar_ical_url', '', 'integrations', 'Google Calendar iCal URL or API endpoint', false),
     ('whatsapp_connected', 'false', 'bot_control', 'WhatsApp connection status', false),
-    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription (configure in CRM)', true),
+    ('whatsapp_reply_mode', 'text', 'bot_control', 'WhatsApp reply mode (text/voice)', false),
+    ('deepgram_api_key', '', 'integrations', 'Deepgram API key for voice transcription', true),
     ('sendgrid_api_key', '', 'integrations', 'SendGrid API key for email notifications', true),
     ('sendgrid_from_email', '', 'integrations', 'Default sender email address for SendGrid', false),
-    ('sendgrid_from_name', '', 'integrations', 'Default sender name for SendGrid', false),
+    ('elevenlabs_api_key', '', 'integrations', 'ElevenLabs API key for text-to-speech', true),
+    ('elevenlabs_voice_id', '', 'integrations', 'ElevenLabs Voice ID', false),
     ('secretary_email', '', 'notifications', 'Secretary email for booking notifications', false),
     ('daily_summary_enabled', 'true', 'notifications', 'Enable daily summary emails to secretary', false),
     ('daily_summary_time', '09:00', 'notifications', 'Time to send daily summary (24h format in CET)', false),
     ('timezone', 'Europe/Berlin', 'general', 'Business timezone (CET/CEST)', false),
     ('cancellation_policy_hours', '24', 'policies', 'Hours before appointment for free cancellation', false),
-    ('late_cancellation_penalty_type', 'fixed', 'policies', 'Penalty type: fixed or percentage', false),
-    ('late_cancellation_penalty_amount', '50.00', 'policies', 'Penalty amount for late cancellations', false),
+    ('cancellation_penalty_fee', '50.00', 'policies', 'Penalty fee for late cancellations', false),
     ('review_request_delay_hours', '24', 'reviews', 'Hours after appointment to request review', false),
     ('reminder_hours_before', '24', 'reminders', 'Hours before appointment to send reminder', false)
 ON CONFLICT (key) DO NOTHING;
