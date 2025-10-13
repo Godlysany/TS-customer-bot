@@ -1,5 +1,31 @@
 # WhatsApp CRM Bot
 
+## Recent Changes (October 13, 2025)
+
+### CRM Enhancement: Customers & Questionnaire Views ✅
+**Complete Customer Relationship Management:**
+- **Customers Page**: Full customer list with search, sentiment tracking, interaction counts
+  - Display: Name, email, phone, sentiment (positive/negative/neutral), conversation count
+  - Analytics: Keywords, upsell potential, important notes
+  - Quick access to customer details and conversations
+- **Customer Detail Page**: Individual customer profiles with:
+  - Contact information and analytics
+  - Sentiment analysis and keywords
+  - Questionnaire responses history
+  - Quick stats (conversations, bookings, questionnaires)
+  - Links to view conversations
+- **Questionnaire Responses Page**: Centralized view of all submissions
+  - Filter by type (anamnesis, feedback, custom)
+  - Search by customer name/phone
+  - Split-screen: List view + detailed response viewer
+  - Quick access to customer profiles
+
+### Bot Configuration System ✅
+**Complete Bot Configuration Infrastructure:**
+- Business Context & FAQ, GPT Prompt Configuration, Questionnaire Builder, Advanced Controls
+- Master-only access with authentication protection
+- All settings persist to Supabase database
+
 ## Overview
 This project is a professional B2B customer service platform integrating WhatsApp for communication, Supabase as its database, and OpenAI GPT for intelligent replies. It includes a robust CRM, calendar booking capabilities, and advanced features for customer analytics and marketing. The system aims to be a self-contained, scalable solution, transforming customer service operations by providing comprehensive control over customer interactions, intelligent automation, and deep insights.
 

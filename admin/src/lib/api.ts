@@ -110,3 +110,14 @@ export const botConfigApi = {
   getControls: () => api.get('/bot-config/controls'),
   saveControls: (data: any) => api.post('/bot-config/controls', data),
 };
+
+export const customersApi = {
+  getAll: () => api.get('/customers'),
+  getById: (id: string) => api.get(`/customers/${id}`),
+  getQuestionnaires: (id: string) => api.get(`/customers/${id}/questionnaires`),
+};
+
+export const questionnaireResponsesApi = {
+  getAll: () => api.get('/questionnaire-responses'),
+  getById: (id: string) => api.get(`/questionnaire-responses/${id}`),
+};

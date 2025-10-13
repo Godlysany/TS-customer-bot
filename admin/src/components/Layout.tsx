@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Layout = () => {
@@ -12,6 +12,8 @@ const Layout = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['master', 'support'] },
     { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'support'] },
+    { path: '/customers', label: 'Customers', icon: Users, roles: ['master', 'support'] },
+    { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
     { path: '/bot-config', label: 'Bot Configuration', icon: Settings, roles: ['master'] },
