@@ -10,8 +10,10 @@ import customersRoutes from './api/customers';
 import questionnaireResponsesRoutes from './api/questionnaire-responses';
 import servicesRoutes from './api/services';
 import engagementRoutes from './api/engagement';
+import recurringRoutes from './api/recurring';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
+import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -55,6 +57,7 @@ app.use('/api/customers', customersRoutes);
 app.use('/api/questionnaire-responses', questionnaireResponsesRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/engagement', engagementRoutes);
+app.use('/api/recurring', recurringRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
@@ -112,6 +115,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start engagement scheduler (checks every 60 minutes)
   startEngagementScheduler(60);
+  
+  // Start recurring appointment scheduler (checks daily - 1440 minutes)
+  startRecurringScheduler(1440);
 });
 
 server.on('error', (error: any) => {
@@ -137,6 +143,7 @@ process.on('SIGTERM', () => {
   console.log('⚠️  SIGTERM received, closing server...');
   reminderScheduler.stop();
   stopEngagementScheduler();
+  stopRecurringScheduler();
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);

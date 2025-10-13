@@ -15,8 +15,10 @@ const customers_1 = __importDefault(require("./api/customers"));
 const questionnaire_responses_1 = __importDefault(require("./api/questionnaire-responses"));
 const services_1 = __importDefault(require("./api/services"));
 const engagement_1 = __importDefault(require("./api/engagement"));
+const recurring_1 = __importDefault(require("./api/recurring"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
+const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -53,6 +55,7 @@ app.use('/api/customers', customers_1.default);
 app.use('/api/questionnaire-responses', questionnaire_responses_1.default);
 app.use('/api/services', services_1.default);
 app.use('/api/engagement', engagement_1.default);
+app.use('/api/recurring', recurring_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching
@@ -103,6 +106,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     ReminderScheduler_1.reminderScheduler.start(5);
     // Start engagement scheduler (checks every 60 minutes)
     (0, EngagementScheduler_1.startEngagementScheduler)(60);
+    // Start recurring appointment scheduler (checks daily - 1440 minutes)
+    (0, RecurringAppointmentScheduler_1.startRecurringScheduler)(1440);
 });
 server.on('error', (error) => {
     console.error('❌ Server error:', error);
@@ -124,6 +129,7 @@ process.on('SIGTERM', () => {
     console.log('⚠️  SIGTERM received, closing server...');
     ReminderScheduler_1.reminderScheduler.stop();
     (0, EngagementScheduler_1.stopEngagementScheduler)();
+    (0, RecurringAppointmentScheduler_1.stopRecurringScheduler)();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);
