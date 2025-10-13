@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, AlertCircle, CheckCircle, Play, Hand } from 'lucide-react';
+import { Send, AlertCircle, CheckCircle, Play, Hand, User, FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Conversations = () => {
   const [selectedConv, setSelectedConv] = useState<string | null>(null);
@@ -142,6 +143,24 @@ const Conversations = () => {
                       🎯 Takeover Active: {takeoverStatus.mode.replace('_', ' ')}
                     </p>
                   )}
+                  <div className="flex gap-3 mt-2">
+                    <Link
+                      to={`/customers/${conversations?.find((c: Conversation) => c.id === selectedConv)?.contactId}`}
+                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <User className="w-4 h-4" />
+                      <span>View Customer Profile</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                    <Link
+                      to="/questionnaires"
+                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>View Questionnaires</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {!takeoverStatus?.isActive ? (
