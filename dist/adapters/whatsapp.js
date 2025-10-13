@@ -36,6 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.clearQrCode = exports.getQrCode = void 0;
 exports.startSock = startSock;
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 // @ts-ignore
@@ -54,6 +55,12 @@ const ConversationTakeoverService_1 = __importDefault(require("../core/Conversat
 const CustomerAnalyticsService_1 = __importDefault(require("../core/CustomerAnalyticsService"));
 const debounceTimers = new Map();
 const messageBuffers = new Map();
+// Store current QR code for frontend display
+let currentQrCode = null;
+const getQrCode = () => currentQrCode;
+exports.getQrCode = getQrCode;
+const clearQrCode = () => { currentQrCode = null; };
+exports.clearQrCode = clearQrCode;
 if (config_1.config.whatsapp.resetAuth) {
     const authPath = './auth_info';
     try {
@@ -261,6 +268,8 @@ async function startSock() {
             qrcode_terminal_1.default.generate(qr, { small: true });
             const dataUrl = await qrcode_1.default.toDataURL(qr);
             console.log('🔗 QR link:', dataUrl);
+            // Store QR code for frontend
+            currentQrCode = dataUrl;
             clearTimeout(qrTimeout);
             qrTimeout = setTimeout(() => {
                 if (!sock.user) {
@@ -275,6 +284,7 @@ async function startSock() {
         if (connection === 'open') {
             console.log('✅ Connected to WhatsApp!');
             clearTimeout(qrTimeout);
+            currentQrCode = null; // Clear QR code on successful connection
             await SettingsService_1.default.setWhatsAppConnected(true);
         }
         if (connection === 'close') {

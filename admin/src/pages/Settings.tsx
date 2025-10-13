@@ -8,6 +8,7 @@ import toast, { Toaster } from 'react-hot-toast';
 const Settings = () => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [showQrModal, setShowQrModal] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: settings } = useQuery({
@@ -26,6 +27,22 @@ const Settings = () => {
     },
     refetchInterval: 5000,
   });
+
+  const { data: qrData } = useQuery({
+    queryKey: ['whatsapp-qr'],
+    queryFn: async () => {
+      const res = await settingsApi.getWhatsAppQr();
+      return res.data;
+    },
+    refetchInterval: showQrModal ? 2000 : false, // Poll every 2s when modal is open
+    enabled: showQrModal, // Only fetch when modal is shown
+  });
+
+  // Auto-close modal when WhatsApp connects
+  if (showQrModal && whatsappStatus?.connected) {
+    setShowQrModal(false);
+    toast.success('WhatsApp connected successfully!');
+  }
 
   const updateSettingMutation = useMutation({
     mutationFn: ({ key, value, isSecret }: { key: string; value: string; isSecret: boolean }) =>
@@ -56,7 +73,8 @@ const Settings = () => {
     mutationFn: () => settingsApi.connectWhatsApp(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
-      toast.success('WhatsApp connection initiated');
+      setShowQrModal(true); // Show QR modal after connection initiated
+      toast.success('WhatsApp connection initiated - waiting for QR code...');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || 'Failed to connect WhatsApp');
@@ -236,14 +254,6 @@ const Settings = () => {
             </button>
           </div>
 
-          {whatsappStatus?.qrCode && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-3">Scan this QR code with WhatsApp:</p>
-              <pre className="text-xs bg-white p-3 rounded border border-gray-200 overflow-x-auto">
-                {whatsappStatus.qrCode}
-              </pre>
-            </div>
-          )}
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -279,6 +289,39 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Connect WhatsApp</h3>
+            
+            {qrData?.qrCode ? (
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">Scan this QR code with your WhatsApp mobile app:</p>
+                <div className="bg-white p-4 rounded-lg inline-block">
+                  <img src={qrData.qrCode} alt="WhatsApp QR Code" className="w-64 h-64" />
+                </div>
+                <p className="text-sm text-gray-500 mt-4">Open WhatsApp → Settings → Linked Devices → Link a Device</p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Generating QR code...</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowQrModal(false)}
+              className="mt-6 w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <Toaster position="top-right" />
     </div>
   );
 };

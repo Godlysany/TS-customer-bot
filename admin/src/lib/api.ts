@@ -37,6 +37,8 @@ export const settingsApi = {
     api.post('/settings/bot/toggle'),
   getWhatsAppStatus: () => 
     api.get('/settings/whatsapp/status'),
+  getWhatsAppQr: () => 
+    api.get('/settings/whatsapp/qr'),
   connectWhatsApp: () =>
     api.post('/whatsapp/connect'),
   disconnectWhatsApp: () =>

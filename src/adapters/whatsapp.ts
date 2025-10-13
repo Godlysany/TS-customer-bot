@@ -18,6 +18,11 @@ import customerAnalyticsService from '../core/CustomerAnalyticsService';
 const debounceTimers = new Map();
 const messageBuffers = new Map();
 
+// Store current QR code for frontend display
+let currentQrCode: string | null = null;
+export const getQrCode = () => currentQrCode;
+export const clearQrCode = () => { currentQrCode = null; };
+
 if (config.whatsapp.resetAuth) {
   const authPath = './auth_info';
   try {
@@ -260,6 +265,9 @@ async function startSock() {
       qrcode.generate(qr, { small: true });
       const dataUrl = await QRCode.toDataURL(qr);
       console.log('🔗 QR link:', dataUrl);
+      
+      // Store QR code for frontend
+      currentQrCode = dataUrl;
 
       clearTimeout(qrTimeout);
       qrTimeout = setTimeout(() => {
@@ -276,6 +284,7 @@ async function startSock() {
     if (connection === 'open') {
       console.log('✅ Connected to WhatsApp!');
       clearTimeout(qrTimeout);
+      currentQrCode = null; // Clear QR code on successful connection
       await settingsService.setWhatsAppConnected(true);
     }
 

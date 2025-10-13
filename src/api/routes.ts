@@ -199,6 +199,16 @@ router.get('/api/settings/whatsapp/status', async (req, res) => {
   }
 });
 
+router.get('/api/settings/whatsapp/qr', async (req, res) => {
+  try {
+    const { getQrCode } = await import('../adapters/whatsapp');
+    const qrCode = getQrCode();
+    res.json({ qrCode });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Customer analytics endpoints
 router.get('/api/contacts/:id/analytics', async (req, res) => {
   try {

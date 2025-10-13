@@ -5,6 +5,16 @@ This project is a professional B2B customer service platform integrating WhatsAp
 
 ## Recent Changes (October 13, 2025)
 
+### WhatsApp QR Code Modal ✅
+**Added Visual QR Code Display for WhatsApp Connection:**
+- QR code modal pops up when "Connect WhatsApp" button is clicked
+- Backend stores generated QR code in memory and exposes via `/api/settings/whatsapp/qr` endpoint
+- Frontend polls for QR code every 2 seconds when modal is open
+- QR code displayed as scannable image (not text)
+- Modal auto-closes when WhatsApp connection succeeds
+- Clear user instructions: "Open WhatsApp → Settings → Linked Devices → Link a Device"
+- Resolves UX issue where QR code was only visible in backend logs
+
 ### Critical Auth Route Fix ✅
 **Fixed Login 404 Error:**
 - Corrected auth routes mounting from `/auth` to `/api/auth` (frontend expects `/api/auth/login`)
