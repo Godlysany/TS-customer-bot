@@ -27,6 +27,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Skip interceptor if header is set (for initial auth check)
+    if (originalRequest.headers?.['X-Skip-Interceptor']) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -83,11 +88,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await api.get('/api/auth/me');
+      // Skip interceptor retry for initial auth check
+      const response = await api.get('/api/auth/me', { 
+        headers: { 'X-Skip-Interceptor': 'true' } 
+      } as any);
       setAgent(response.data.agent);
     } catch (error) {
+      // If auth check fails, user is not logged in
       setAgent(null);
     } finally {
+      // Always set loading to false, even if there's an error
       setLoading(false);
     }
   };
