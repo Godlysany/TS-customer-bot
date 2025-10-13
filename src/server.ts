@@ -31,6 +31,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/api/version', (req, res) => {
+  const fs = require('fs');
+  const versionPath = path.join(adminDistPath, 'version.json');
+  try {
+    const version = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
+    res.json(version);
+  } catch (err) {
+    res.json({ error: 'Version file not found', adminDistPath });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use(routes);
 

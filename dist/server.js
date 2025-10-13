@@ -29,6 +29,17 @@ app.use((0, cookie_parser_1.default)());
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+app.get('/api/version', (req, res) => {
+    const fs = require('fs');
+    const versionPath = path_1.default.join(adminDistPath, 'version.json');
+    try {
+        const version = JSON.parse(fs.readFileSync(versionPath, 'utf8'));
+        res.json(version);
+    }
+    catch (err) {
+        res.json({ error: 'Version file not found', adminDistPath });
+    }
+});
 app.use('/api/auth', auth_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
