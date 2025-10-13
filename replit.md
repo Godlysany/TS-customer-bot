@@ -20,6 +20,17 @@
   - Split-screen: List view + detailed response viewer
   - Quick access to customer profiles
 
+### Workflow Enhancements ✅
+**Improved Agent Experience:**
+- **Waitlist Management**: Tab-based Bookings page with Appointments and Waitlist views
+  - Waitlist table: Customer info, contact details, date requested, priority level
+  - Remove functionality with proper API integration
+  - Clean empty states for both appointments and waitlist
+- **Quick Access Links**: Conversations page now includes:
+  - Direct link to customer profile (context-aware)
+  - Quick access to Questionnaires page
+  - Proper icons and external link indicators for better UX
+
 ### Bot Configuration System ✅
 **Complete Bot Configuration Infrastructure:**
 - Business Context & FAQ, GPT Prompt Configuration, Questionnaire Builder, Advanced Controls
