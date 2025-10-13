@@ -32,6 +32,7 @@ export class BookingService {
     conversationId: string, 
     event: CalendarEvent,
     options?: {
+      serviceId?: string;
       discountCode?: string;
       discountAmount?: number;
       promoVoucher?: string;
@@ -40,6 +41,34 @@ export class BookingService {
     if (!this.calendarProvider) {
       throw new Error('Calendar provider not initialized');
     }
+
+    let bufferTimeBefore = 0;
+    let bufferTimeAfter = 0;
+
+    if (options?.serviceId) {
+      const { data: service } = await supabase
+        .from('services')
+        .select('buffer_time_before, buffer_time_after')
+        .eq('id', options.serviceId)
+        .single();
+
+      if (service) {
+        bufferTimeBefore = service.buffer_time_before || 0;
+        bufferTimeAfter = service.buffer_time_after || 0;
+      }
+    }
+
+    const actualStartTime = new Date(event.startTime);
+    actualStartTime.setMinutes(actualStartTime.getMinutes() - bufferTimeBefore);
+
+    const actualEndTime = new Date(event.endTime);
+    actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferTimeAfter);
+
+    await this.checkBufferedConflicts(
+      actualStartTime,
+      actualEndTime,
+      options?.serviceId
+    );
 
     const calendarEventId = await this.calendarProvider.createEvent(event);
 
@@ -52,6 +81,11 @@ export class BookingService {
         title: event.title,
         startTime: event.startTime,
         endTime: event.endTime,
+        serviceId: options?.serviceId,
+        actualStartTime,
+        actualEndTime,
+        bufferTimeBefore,
+        bufferTimeAfter,
         status: 'confirmed',
         discountCode: options?.discountCode,
         discountAmount: options?.discountAmount || 0,
@@ -196,6 +230,41 @@ export class BookingService {
       penaltyApplied: isLateCancellation,
       penaltyFee,
     };
+  }
+
+  async checkBufferedConflicts(
+    actualStartTime: Date,
+    actualEndTime: Date,
+    excludeServiceId?: string
+  ): Promise<void> {
+    const { data: allBookings } = await supabase
+      .from('bookings')
+      .select('id, start_time, end_time, actual_start_time, actual_end_time, title, buffer_time_before, buffer_time_after')
+      .eq('status', 'confirmed');
+
+    if (!allBookings) return;
+
+    const conflicts = allBookings.filter(booking => {
+      const bufferBefore = Number(booking.buffer_time_before) || 0;
+      const bufferAfter = Number(booking.buffer_time_after) || 0;
+
+      const bookingStart = booking.actual_start_time 
+        ? new Date(booking.actual_start_time)
+        : new Date(new Date(booking.start_time).getTime() - bufferBefore * 60000);
+      
+      const bookingEnd = booking.actual_end_time
+        ? new Date(booking.actual_end_time)
+        : new Date(new Date(booking.end_time).getTime() + bufferAfter * 60000);
+
+      return bookingStart < actualEndTime && bookingEnd > actualStartTime;
+    });
+
+    if (conflicts.length > 0) {
+      const conflictTitles = conflicts.map(c => c.title).join(', ');
+      throw new Error(
+        `Booking conflict detected (including buffer times). Overlaps with: ${conflictTitles}. Please choose a different time slot.`
+      );
+    }
   }
 
   async getAvailability(startDate: Date, endDate: Date) {

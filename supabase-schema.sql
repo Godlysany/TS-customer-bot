@@ -69,10 +69,15 @@ CREATE TABLE IF NOT EXISTS bookings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    service_id UUID REFERENCES services(id) ON DELETE SET NULL,
     calendar_event_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    actual_start_time TIMESTAMP WITH TIME ZONE,
+    actual_end_time TIMESTAMP WITH TIME ZONE,
+    buffer_time_before INTEGER DEFAULT 0,
+    buffer_time_after INTEGER DEFAULT 0,
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
     cancellation_reason TEXT,
     cancelled_at TIMESTAMP WITH TIME ZONE,
@@ -508,6 +513,21 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_id UUID REFERENCES service
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS recurring_appointment_id UUID REFERENCES recurring_appointments(id) ON DELETE SET NULL;
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'not_required' CHECK (payment_status IN ('not_required', 'pending', 'paid', 'refunded'));
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_transaction_id UUID REFERENCES payment_transactions(id) ON DELETE SET NULL;
+
+-- Feature 6: Smart Buffer Time columns
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS actual_start_time TIMESTAMP WITH TIME ZONE;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS actual_end_time TIMESTAMP WITH TIME ZONE;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS buffer_time_before INTEGER DEFAULT 0;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS buffer_time_after INTEGER DEFAULT 0;
+
+-- Backfill buffer columns for legacy bookings
+UPDATE bookings 
+SET buffer_time_before = 0 
+WHERE buffer_time_before IS NULL;
+
+UPDATE bookings 
+SET buffer_time_after = 0 
+WHERE buffer_time_after IS NULL;
 
 -- Triggers for new tables
 CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

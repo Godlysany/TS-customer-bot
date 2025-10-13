@@ -167,12 +167,27 @@ class RecurringAppointmentService {
                         const { data: service } = appointment.serviceId
                             ? await supabase_1.supabase
                                 .from('services')
-                                .select('name, duration_minutes')
+                                .select('name, duration_minutes, buffer_time_before, buffer_time_after')
                                 .eq('id', appointment.serviceId)
                                 .single()
                             : { data: null };
+                        const bufferBefore = service?.buffer_time_before || 0;
+                        const bufferAfter = service?.buffer_time_after || 0;
                         const endDate = new Date(nextDate);
                         endDate.setMinutes(endDate.getMinutes() + (service?.duration_minutes || 30));
+                        const actualStartTime = new Date(nextDate);
+                        actualStartTime.setMinutes(actualStartTime.getMinutes() - bufferBefore);
+                        const actualEndTime = new Date(endDate);
+                        actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferAfter);
+                        const bookingService = new BookingService_1.BookingService();
+                        try {
+                            await bookingService.checkBufferedConflicts(actualStartTime, actualEndTime, appointment.serviceId);
+                        }
+                        catch (error) {
+                            console.error(`   ❌ Conflict detected for recurring booking:`, error.message);
+                            failed++;
+                            continue;
+                        }
                         const { data: conversation } = await supabase_1.supabase
                             .from('conversations')
                             .select('id')
@@ -195,6 +210,10 @@ class RecurringAppointmentService {
                                 title: service?.name || 'Recurring Appointment',
                                 start_time: nextDate.toISOString(),
                                 end_time: endDate.toISOString(),
+                                actual_start_time: actualStartTime.toISOString(),
+                                actual_end_time: actualEndTime.toISOString(),
+                                buffer_time_before: bufferBefore,
+                                buffer_time_after: bufferAfter,
                                 status: 'confirmed',
                                 service_id: appointment.serviceId,
                                 recurring_appointment_id: appointment.id,
