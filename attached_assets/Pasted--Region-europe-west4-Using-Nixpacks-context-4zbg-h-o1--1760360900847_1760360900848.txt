@@ -1,0 +1,86 @@
+ 
+[Region: europe-west4]
+==============
+Using Nixpacks
+==============
+
+context: 4zbg-h_o1
+╔══════════════════════════════ Nixpacks v1.38.0 ══════════════════════════════╗
+║ setup      │ nodejs_22, npm-9_x                                              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ install    │ npm ci                                                          ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ build      │ npm install && npm run build && cd admin && rm -rf dist         ║
+║            │ node_modules/.vite && npm install && npm run build              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ start      │ node dist/server.js                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+305ms
+
+internal
+load .dockerignore
+0ms
+
+stage-0
+FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067@sha256:d45c89d80e13d7ad0fd555b5130f22a866d9dd10e861f589932303ef2314c7de
+11ms
+
+internal
+load build context
+0ms
+
+stage-0
+RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d cached
+0ms
+
+stage-0
+COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix cached
+0ms
+
+stage-0
+WORKDIR /app/ cached
+0ms
+
+stage-0
+COPY . /app/.
+34ms
+
+stage-0
+RUN npm ci
+5s
+Run `npm audit` for details.
+
+stage-0
+COPY . /app/.
+195ms
+
+stage-0
+RUN npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+36s
+✓ built in 2.92s
+
+stage-0
+RUN printf '\nPATH=/app/node_modules/.bin:$PATH' >> /root/.profile
+202ms
+
+stage-0
+COPY . /app
+110ms
+
+importing to docker
+57s
+
+auth
+sharing credentials for production-europe-west4-drams3a.railway-registry.com
+0ms
+=== Successfully Built! ===
+Run:
+docker run -it production-europe-west4-drams3a.railway-registry.com/9f180a5f-a5d8-49ed-9531-e429451ea0d4:4e066fb6-f85d-461a-b232-39bbce1d32d1
+Build time: 128.23 seconds
