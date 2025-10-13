@@ -9,6 +9,7 @@ import botConfigRoutes from './api/bot-config';
 import customersRoutes from './api/customers';
 import questionnaireResponsesRoutes from './api/questionnaire-responses';
 import servicesRoutes from './api/services';
+import { reminderScheduler } from './core/ReminderScheduler';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -102,6 +103,9 @@ const server = app.listen(config.port, config.host, () => {
   } catch (err) {
     console.error(`❌ Error checking admin/dist:`, err);
   }
+
+  // Start reminder scheduler (checks every 5 minutes)
+  reminderScheduler.start(5);
 });
 
 server.on('error', (error: any) => {
@@ -125,6 +129,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('SIGTERM', () => {
   console.log('⚠️  SIGTERM received, closing server...');
+  reminderScheduler.stop();
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);

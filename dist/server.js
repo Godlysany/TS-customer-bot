@@ -14,6 +14,7 @@ const bot_config_1 = __importDefault(require("./api/bot-config"));
 const customers_1 = __importDefault(require("./api/customers"));
 const questionnaire_responses_1 = __importDefault(require("./api/questionnaire-responses"));
 const services_1 = __importDefault(require("./api/services"));
+const ReminderScheduler_1 = require("./core/ReminderScheduler");
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -95,6 +96,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     catch (err) {
         console.error(`❌ Error checking admin/dist:`, err);
     }
+    // Start reminder scheduler (checks every 5 minutes)
+    ReminderScheduler_1.reminderScheduler.start(5);
 });
 server.on('error', (error) => {
     console.error('❌ Server error:', error);
@@ -114,6 +117,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 process.on('SIGTERM', () => {
     console.log('⚠️  SIGTERM received, closing server...');
+    ReminderScheduler_1.reminderScheduler.stop();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);

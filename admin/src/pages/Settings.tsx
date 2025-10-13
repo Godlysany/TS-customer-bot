@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../lib/api';
 import type { Setting } from '../types';
-import { Key, Bot, Smartphone, Calendar, Save, Power, User } from 'lucide-react';
+import { Key, Bot, Smartphone, Calendar, Save, Power, User, Bell } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Settings = () => {
@@ -122,6 +122,12 @@ const Settings = () => {
     { key: 'daily_summary_time', label: 'Daily Summary Time', type: 'time', placeholder: 'HH:MM (24-hour format)' },
     { key: 'cancellation_policy_hours', label: 'Cancellation Policy (Hours)', type: 'number' },
     { key: 'cancellation_penalty_fee', label: 'Cancellation Penalty Fee ($)', type: 'number' },
+  ];
+
+  const reminderSettings = [
+    { key: 'whatsapp_reminders_enabled', label: 'Enable WhatsApp Reminders', type: 'select', options: ['true', 'false'] },
+    { key: 'whatsapp_reminder_timing', label: 'WhatsApp Reminder Timing (hours before, comma-separated)', type: 'text', placeholder: '24,2' },
+    { key: 'email_reminder_timing', label: 'Email Reminder Timing (hours before, comma-separated)', type: 'text', placeholder: '48,24' },
   ];
 
   const renderSettingField = (config: any) => {
@@ -278,7 +284,7 @@ const Settings = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
             <User className="w-6 h-6 text-gray-700" />
             <h2 className="text-xl font-semibold text-gray-900">Secretary & Policy Settings</h2>
@@ -286,6 +292,25 @@ const Settings = () => {
           
           <div className="space-y-4">
             {secretarySettings.map(renderSettingField)}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Bell className="w-6 h-6 text-gray-700" />
+            <h2 className="text-xl font-semibold text-gray-900">Reminder Settings</h2>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Configure when to send automated reminders for appointments. 
+              Multiple timings can be set (comma-separated) for both WhatsApp and email reminders.
+              For example: "48,24,2" will send reminders at 48 hours, 24 hours, and 2 hours before the appointment.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {reminderSettings.map(renderSettingField)}
           </div>
         </div>
       </div>
