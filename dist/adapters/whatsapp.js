@@ -53,6 +53,7 @@ const AIService_1 = __importDefault(require("../core/AIService"));
 const SettingsService_1 = __importDefault(require("../core/SettingsService"));
 const ConversationTakeoverService_1 = __importDefault(require("../core/ConversationTakeoverService"));
 const CustomerAnalyticsService_1 = __importDefault(require("../core/CustomerAnalyticsService"));
+const BookingChatHandler_1 = __importDefault(require("../core/BookingChatHandler"));
 const debounceTimers = new Map();
 const messageBuffers = new Map();
 // Store current QR code for frontend display
@@ -189,14 +190,24 @@ async function handleMessage(msg) {
             console.log('👤 Agent has taken over conversation, bot will not reply');
             return;
         }
-        const intent = await AIService_1.default.detectIntent(text);
-        console.log('🎯 Intent detected:', intent);
         let replyText;
-        if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
-            replyText = 'I understand you want to manage a booking. This feature is coming soon! For now, please contact our support team.';
+        // CRITICAL: Check for active booking context BEFORE intent detection
+        // This ensures follow-up messages (like "1" or "next Monday") route to the handler
+        if (BookingChatHandler_1.default.hasActiveContext(conversation.id)) {
+            console.log('🔄 Continuing booking conversation flow');
+            replyText = await BookingChatHandler_1.default.handleContextMessage(conversation.id, text, messageHistory);
         }
         else {
-            replyText = await AIService_1.default.generateReply(conversation.id, messageHistory, text);
+            // No active context - detect intent normally
+            const intent = await AIService_1.default.detectIntent(text);
+            console.log('🎯 Intent detected:', intent);
+            if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
+                // Start new booking conversation flow
+                replyText = await BookingChatHandler_1.default.handleBookingIntent(intent.intent, conversation.id, contact.id, phoneNumber, text, messageHistory);
+            }
+            else {
+                replyText = await AIService_1.default.generateReply(conversation.id, messageHistory, text);
+            }
         }
         await MessageService_1.default.createMessage({
             conversationId: conversation.id,

@@ -14,6 +14,7 @@ import bookingService from '../core/BookingService';
 import settingsService from '../core/SettingsService';
 import conversationTakeoverService from '../core/ConversationTakeoverService';
 import customerAnalyticsService from '../core/CustomerAnalyticsService';
+import bookingChatHandler from '../core/BookingChatHandler';
 
 const debounceTimers = new Map();
 const messageBuffers = new Map();
@@ -174,15 +175,35 @@ async function handleMessage(msg: WAMessage) {
       return;
     }
 
-    const intent = await aiService.detectIntent(text);
-    console.log('🎯 Intent detected:', intent);
-
     let replyText: string;
 
-    if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
-      replyText = 'I understand you want to manage a booking. This feature is coming soon! For now, please contact our support team.';
+    // CRITICAL: Check for active booking context BEFORE intent detection
+    // This ensures follow-up messages (like "1" or "next Monday") route to the handler
+    if (bookingChatHandler.hasActiveContext(conversation.id)) {
+      console.log('🔄 Continuing booking conversation flow');
+      replyText = await bookingChatHandler.handleContextMessage(
+        conversation.id,
+        text,
+        messageHistory
+      );
     } else {
-      replyText = await aiService.generateReply(conversation.id, messageHistory, text);
+      // No active context - detect intent normally
+      const intent = await aiService.detectIntent(text);
+      console.log('🎯 Intent detected:', intent);
+
+      if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
+        // Start new booking conversation flow
+        replyText = await bookingChatHandler.handleBookingIntent(
+          intent.intent,
+          conversation.id,
+          contact.id,
+          phoneNumber,
+          text,
+          messageHistory
+        );
+      } else {
+        replyText = await aiService.generateReply(conversation.id, messageHistory, text);
+      }
     }
 
     await messageService.createMessage({
