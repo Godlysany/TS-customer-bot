@@ -1,6 +1,6 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
-import { BookingService } from './BookingService';
+import BookingService from './BookingService';
 import { MultiServiceBookingService } from './MultiServiceBookingService';
 import getOpenAIClient from '../infrastructure/openai';
 
@@ -16,12 +16,12 @@ interface BookingContext {
 }
 
 export class BookingChatHandler {
-  private bookingService: BookingService;
+  private bookingService: typeof BookingService;
   private multiServiceService: MultiServiceBookingService;
   private contexts: Map<string, BookingContext> = new Map();
 
   constructor() {
-    this.bookingService = new BookingService();
+    this.bookingService = BookingService;
     this.multiServiceService = new MultiServiceBookingService();
   }
 

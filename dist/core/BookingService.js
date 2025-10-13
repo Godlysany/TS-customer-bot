@@ -41,6 +41,7 @@ const ReminderService_1 = require("./ReminderService");
 const ReviewService_1 = require("./ReviewService");
 const SecretaryNotificationService_1 = require("./SecretaryNotificationService");
 const SettingsService_1 = require("./SettingsService");
+const DocumentService_1 = require("./DocumentService");
 class BookingService {
     calendarProvider = null;
     emailService;
@@ -48,12 +49,14 @@ class BookingService {
     reviewService;
     secretaryService;
     settingsService;
+    documentService;
     constructor() {
         this.emailService = new EmailService_1.EmailService();
         this.reminderService = new ReminderService_1.ReminderService();
         this.reviewService = new ReviewService_1.ReviewService();
         this.secretaryService = new SecretaryNotificationService_1.SecretaryNotificationService();
         this.settingsService = new SettingsService_1.SettingsService();
+        this.documentService = new DocumentService_1.DocumentService();
     }
     setCalendarProvider(provider) {
         this.calendarProvider = provider;
@@ -125,6 +128,9 @@ class BookingService {
         await this.reminderService.scheduleAppointmentReminder(booking.id, contactId, event.startTime);
         await this.reviewService.scheduleReviewRequest(booking.id, contactId);
         await this.secretaryService.notifyBookingCreated(data);
+        if (options?.serviceId) {
+            await this.documentService.scheduleDocumentDelivery(booking.id);
+        }
         return booking;
     }
     async updateBooking(bookingId, updates) {

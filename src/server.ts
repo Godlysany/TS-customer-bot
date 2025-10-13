@@ -12,9 +12,11 @@ import servicesRoutes from './api/services';
 import engagementRoutes from './api/engagement';
 import recurringRoutes from './api/recurring';
 import multiServiceRoutes from './api/multi-service';
+import documentsRoutes from './api/documents';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
+import documentScheduler from './core/DocumentScheduler';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -60,6 +62,7 @@ app.use('/api/services', servicesRoutes);
 app.use('/api/engagement', engagementRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/multi-service', multiServiceRoutes);
+app.use('/api/documents', documentsRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');
@@ -120,6 +123,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start recurring appointment scheduler (checks daily - 1440 minutes)
   startRecurringScheduler(1440);
+  
+  // Start document scheduler (checks every 60 minutes)
+  documentScheduler.start(60);
 });
 
 server.on('error', (error: any) => {

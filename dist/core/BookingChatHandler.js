@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingChatHandler = void 0;
 const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
-const BookingService_1 = require("./BookingService");
+const BookingService_1 = __importDefault(require("./BookingService"));
 const MultiServiceBookingService_1 = require("./MultiServiceBookingService");
 const openai_1 = __importDefault(require("../infrastructure/openai"));
 class BookingChatHandler {
@@ -14,7 +14,7 @@ class BookingChatHandler {
     multiServiceService;
     contexts = new Map();
     constructor() {
-        this.bookingService = new BookingService_1.BookingService();
+        this.bookingService = BookingService_1.default;
         this.multiServiceService = new MultiServiceBookingService_1.MultiServiceBookingService();
     }
     /**

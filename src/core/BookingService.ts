@@ -6,6 +6,7 @@ import { ReminderService } from './ReminderService';
 import { ReviewService } from './ReviewService';
 import { SecretaryNotificationService } from './SecretaryNotificationService';
 import { SettingsService } from './SettingsService';
+import { DocumentService } from './DocumentService';
 
 export class BookingService {
   private calendarProvider: CalendarProvider | null = null;
@@ -14,6 +15,7 @@ export class BookingService {
   private reviewService: ReviewService;
   private secretaryService: SecretaryNotificationService;
   private settingsService: SettingsService;
+  private documentService: DocumentService;
 
   constructor() {
     this.emailService = new EmailService();
@@ -21,6 +23,7 @@ export class BookingService {
     this.reviewService = new ReviewService();
     this.secretaryService = new SecretaryNotificationService();
     this.settingsService = new SettingsService();
+    this.documentService = new DocumentService();
   }
 
   setCalendarProvider(provider: CalendarProvider) {
@@ -121,6 +124,10 @@ export class BookingService {
     await this.reminderService.scheduleAppointmentReminder(booking.id, contactId, event.startTime);
     await this.reviewService.scheduleReviewRequest(booking.id, contactId);
     await this.secretaryService.notifyBookingCreated(data);
+
+    if (options?.serviceId) {
+      await this.documentService.scheduleDocumentDelivery(booking.id);
+    }
 
     return booking;
   }
