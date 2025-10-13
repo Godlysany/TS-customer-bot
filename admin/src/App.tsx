@@ -11,6 +11,7 @@ import Analytics from './pages/Analytics';
 import Marketing from './pages/Marketing';
 import Bookings from './pages/Bookings';
 import AdminManagement from './pages/AdminManagement';
+import BotConfiguration from './pages/BotConfiguration';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,14 @@ function App() {
               <Route path="conversations" element={<Conversations />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="bookings" element={<Bookings />} />
+              <Route
+                path="bot-config"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <BotConfiguration />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="settings"
                 element={

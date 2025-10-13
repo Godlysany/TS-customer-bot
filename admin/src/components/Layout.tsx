@@ -14,9 +14,10 @@ const Layout = () => {
     { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
+    { path: '/bot-config', label: 'Bot Configuration', icon: Settings, roles: ['master'] },
     { path: '/marketing', label: 'Marketing', icon: Mail, roles: ['master'] },
     { path: '/admin', label: 'Admin Management', icon: Users, roles: ['master'] },
-    { path: '/settings', label: 'Settings', icon: Settings, roles: ['master'] },
+    { path: '/settings', label: 'System Settings', icon: Settings, roles: ['master'] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(agent?.role || ''));

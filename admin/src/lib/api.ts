@@ -99,3 +99,14 @@ export const reviewApi = {
   saveFeedback: (bookingId: string, data: any) => 
     api.post(`/reviews/${bookingId}/feedback`, data),
 };
+
+export const botConfigApi = {
+  getContext: () => api.get('/bot-config/context'),
+  saveContext: (data: any) => api.post('/bot-config/context', data),
+  getPrompts: () => api.get('/bot-config/prompts'),
+  savePrompts: (data: any) => api.post('/bot-config/prompts', data),
+  getQuestionnaires: () => api.get('/bot-config/questionnaires'),
+  saveQuestionnaire: (data: any) => api.post('/bot-config/questionnaires', data),
+  getControls: () => api.get('/bot-config/controls'),
+  saveControls: (data: any) => api.post('/bot-config/controls', data),
+};
