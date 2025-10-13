@@ -283,10 +283,20 @@ CREATE INDEX idx_email_logs_contact_id ON email_logs(contact_id);
 CREATE INDEX idx_email_logs_booking_id ON email_logs(booking_id);
 CREATE INDEX idx_reminder_logs_booking_id ON reminder_logs(booking_id);
 CREATE INDEX idx_reminder_logs_scheduled_for ON reminder_logs(scheduled_for);
+CREATE INDEX idx_agents_email ON agents(email);
+CREATE INDEX idx_agents_role ON agents(role);
+CREATE INDEX idx_settings_key ON settings(key);
+CREATE INDEX idx_settings_category ON settings(category);
 
--- Insert default admin agent
-INSERT INTO agents (name, email, role, is_active) 
-VALUES ('Admin', 'admin@example.com', 'admin', true)
+-- Insert default admin agent with password: admin123 (CHANGE IMMEDIATELY AFTER FIRST LOGIN!)
+INSERT INTO agents (name, email, password_hash, role, is_active) 
+VALUES (
+    'System Administrator', 
+    'admin@crm.local',
+    '$2b$10$3s1ejZQdGXJojmapsMFrPuuAkC8GFt2slzOTOZ9o/alXMcvLi/Ip6',
+    'master',
+    true
+)
 ON CONFLICT (email) DO NOTHING;
 
 -- Insert default active prompt
