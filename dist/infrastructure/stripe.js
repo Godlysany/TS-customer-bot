@@ -18,9 +18,7 @@ async function getStripeClient() {
         console.warn('⚠️  Stripe API key not configured');
         return null;
     }
-    stripeClient = new stripe_1.default(apiKey, {
-        apiVersion: '2025-09-30.clover',
-    });
+    stripeClient = new stripe_1.default(apiKey);
     return stripeClient;
 }
 async function isStripeEnabled() {

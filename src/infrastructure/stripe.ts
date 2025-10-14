@@ -16,9 +16,7 @@ export async function getStripeClient(): Promise<Stripe | null> {
     return null;
   }
 
-  stripeClient = new Stripe(apiKey, {
-    apiVersion: '2025-09-30.clover',
-  });
+  stripeClient = new Stripe(apiKey);
 
   return stripeClient;
 }
