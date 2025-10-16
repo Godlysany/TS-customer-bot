@@ -43,6 +43,7 @@ The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind 
 - **Stripe Payment Integration**: Secure payment processing with payment intent creation, confirmation, full/partial refunds, and transaction tracking.
 - **Language Preference System**: Allows unlimited language support with `preferred_language` stored per contact, enabling the bot to adapt and remember customer language choices.
 - **Currency Standardization**: All financial transactions and settings are standardized to CHF (Swiss Francs).
+- **Promotion & Payment System (October 16, 2025)**: Complete B2B marketing platform with 8 new database tables (promotions, promotion_usage, bot_discount_requests, payment_links, csv_import_batches), 4 core services (PromotionService, ContactService, PaymentLinkService, BotDiscountService), 34 API endpoints, production-safe Stripe webhook with signature verification, smart bot discount autonomy (≤20 CHF configurable cap), admin approval queue for high-value discounts, bulk CSV customer import with validation, service-specific promotions, voucher code generation, balance sheet protection via usage limits and audit trails, comprehensive analytics dashboards. Backend production-ready, frontend API clients complete, UI implementation pending.
 
 ### System Design Choices
 - **Optional WhatsApp Connection**: The server starts independently of WhatsApp status, allowing manual connection via API.

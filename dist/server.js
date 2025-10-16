@@ -73,6 +73,9 @@ app.use((0, cors_1.default)({
     origin: true, // Allow all origins (frontend served from same domain on Railway)
     credentials: true,
 }));
+// CRITICAL: Stripe webhook endpoint requires raw body for signature verification
+// Must be registered BEFORE express.json() middleware
+app.use('/api/payments/webhook', express_1.default.raw({ type: 'application/json' }));
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
 app.get('/health', (req, res) => {

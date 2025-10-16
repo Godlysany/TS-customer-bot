@@ -46,6 +46,11 @@ const ConversationTakeoverService_1 = __importDefault(require("../core/Conversat
 const MarketingService_1 = __importDefault(require("../core/MarketingService"));
 const supabase_1 = require("../infrastructure/supabase");
 const auth_1 = require("../middleware/auth");
+// Import new feature routes
+const promotion_routes_1 = __importDefault(require("./promotion-routes"));
+const contact_routes_1 = __importDefault(require("./contact-routes"));
+const payment_routes_1 = __importDefault(require("./payment-routes"));
+const bot_discount_routes_1 = __importDefault(require("./bot-discount-routes"));
 const router = (0, express_1.Router)();
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'WhatsApp CRM Bot' });
@@ -554,4 +559,9 @@ router.put('/api/policies/cancellation/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Mount new feature routes
+router.use('/api', promotion_routes_1.default);
+router.use('/api', contact_routes_1.default);
+router.use('/api', payment_routes_1.default);
+router.use('/api', bot_discount_routes_1.default);
 exports.default = router;

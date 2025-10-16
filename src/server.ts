@@ -41,6 +41,11 @@ app.use(cors({
   origin: true, // Allow all origins (frontend served from same domain on Railway)
   credentials: true,
 }));
+
+// CRITICAL: Stripe webhook endpoint requires raw body for signature verification
+// Must be registered BEFORE express.json() middleware
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 app.use(cookieParser());
 

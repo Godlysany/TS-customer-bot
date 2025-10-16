@@ -10,6 +10,12 @@ import marketingService from '../core/MarketingService';
 import { supabase } from '../infrastructure/supabase';
 import { authMiddleware, requireRole, AuthRequest } from '../middleware/auth';
 
+// Import new feature routes
+import promotionRoutes from './promotion-routes';
+import contactRoutes from './contact-routes';
+import paymentRoutes from './payment-routes';
+import botDiscountRoutes from './bot-discount-routes';
+
 const router = Router();
 
 router.get('/health', (req, res) => {
@@ -544,5 +550,11 @@ router.put('/api/policies/cancellation/:id', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Mount new feature routes
+router.use('/api', promotionRoutes);
+router.use('/api', contactRoutes);
+router.use('/api', paymentRoutes);
+router.use('/api', botDiscountRoutes);
 
 export default router;
