@@ -244,7 +244,7 @@ router.get('/api/settings/whatsapp/status', async (req, res) => {
         // Check actual socket connection, not just database setting
         const whatsappModule = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
         const sock = whatsappModule.default;
-        const actuallyConnected = sock && sock.user; // Has active session
+        const actuallyConnected = !!(sock && sock.user); // Coerce to boolean
         // Update database setting if it's stale
         const dbConnected = await SettingsService_1.default.isWhatsAppConnected();
         if (dbConnected !== actuallyConnected) {
