@@ -4,6 +4,8 @@ import { toSnakeCase, toCamelCase } from '../infrastructure/mapper';
 
 export class ConversationService {
   async getOrCreateConversation(phoneNumber: string, whatsappName?: string | null): Promise<{ conversation: Conversation; contact: Contact }> {
+    const resolvedName = whatsappName?.trim() || phoneNumber;
+    
     let { data: contactData } = await supabase
       .from('contacts')
       .select('*')
@@ -16,7 +18,7 @@ export class ConversationService {
         .from('contacts')
         .insert({ 
           phone_number: phoneNumber, 
-          name: whatsappName || null,
+          name: resolvedName,
           created_at: new Date().toISOString(), 
           updated_at: new Date().toISOString() 
         })
@@ -28,11 +30,11 @@ export class ConversationService {
     } else {
       contact = toCamelCase(contactData) as Contact;
       
-      // Update contact name if WhatsApp name is provided and contact name is empty
-      if (whatsappName && !contact.name) {
+      // Update contact name if WhatsApp name is provided and contact name is phone number or empty
+      if (whatsappName && (!contact.name || contact.name === phoneNumber)) {
         const { data: updatedContact } = await supabase
           .from('contacts')
-          .update({ name: whatsappName, updated_at: new Date().toISOString() })
+          .update({ name: resolvedName, updated_at: new Date().toISOString() })
           .eq('id', contact.id)
           .select()
           .single();

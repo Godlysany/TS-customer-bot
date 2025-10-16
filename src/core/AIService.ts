@@ -4,41 +4,54 @@ import { Message } from '../types';
 
 export class AIService {
   async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string): Promise<string> {
-    const openai = await getOpenAIClient();
-    
-    const { data: activePrompt } = await supabase
-      .from('prompts')
-      .select('*')
-      .eq('is_active', true)
-      .single();
+    try {
+      const openai = await getOpenAIClient();
+      
+      const { data: activePrompt } = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('is_active', true)
+        .single();
 
-    if (!activePrompt) {
-      throw new Error('No active prompt configuration found');
+      if (!activePrompt) {
+        console.error('❌ No active prompt configuration found');
+        throw new Error('No active prompt configuration found');
+      }
+
+      const messages = [
+        {
+          role: 'system' as const,
+          content: `${activePrompt.system_prompt}\n\nBusiness Context:\n${activePrompt.business_context}`,
+        },
+        ...messageHistory.slice(-10).map(msg => ({
+          role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+        })),
+        {
+          role: 'user' as const,
+          content: currentMessage,
+        },
+      ];
+
+      console.log(`🤖 Generating GPT reply for conversation ${conversationId}`);
+      console.log(`📝 Message history: ${messageHistory.length} messages`);
+      
+      const response = await openai.chat.completions.create({
+        model: activePrompt.model || 'gpt-4o',
+        messages,
+        temperature: activePrompt.temperature || 0.7,
+        max_tokens: 500,
+      });
+
+      const reply = response.choices[0]?.message?.content || 'I apologize, I could not generate a response.';
+      console.log(`✅ GPT reply generated (${reply.length} chars)`);
+      
+      return reply;
+    } catch (error: any) {
+      console.error('❌ GPT Error:', error.message);
+      console.error('Stack:', error.stack);
+      throw error;
     }
-
-    const messages = [
-      {
-        role: 'system' as const,
-        content: `${activePrompt.system_prompt}\n\nBusiness Context:\n${activePrompt.business_context}`,
-      },
-      ...messageHistory.slice(-10).map(msg => ({
-        role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
-        content: msg.content,
-      })),
-      {
-        role: 'user' as const,
-        content: currentMessage,
-      },
-    ];
-
-    const response = await openai.chat.completions.create({
-      model: activePrompt.model || 'gpt-4o',
-      messages,
-      temperature: activePrompt.temperature || 0.7,
-      max_tokens: 500,
-    });
-
-    return response.choices[0]?.message?.content || 'I apologize, I could not generate a response.';
   }
 
   async detectIntent(message: string): Promise<{ intent: string; confidence: number; entities?: Record<string, any> }> {

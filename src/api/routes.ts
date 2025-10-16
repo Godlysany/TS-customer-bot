@@ -46,6 +46,25 @@ router.get('/api/conversations/:id/messages', authMiddleware, async (req, res) =
 router.post('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
   try {
     const { content } = req.body;
+    
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('contact_id, contact:contacts(phone_number)')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (!conversation || !conversation.contact) {
+      return res.status(404).json({ error: 'Conversation or contact not found' });
+    }
+    
+    const phoneNumber = (conversation.contact as any).phone_number;
+    const contactId = conversation.contact_id;
+    console.log(`📤 Sending outbound message to ${phoneNumber}`);
+    
+    const { sendProactiveMessage } = await import('../adapters/whatsapp');
+    await sendProactiveMessage(phoneNumber, content, contactId);
+    console.log(`✅ Message sent via WhatsApp to ${phoneNumber}`);
+    
     const message = await messageService.createMessage({
       conversationId: req.params.id,
       content,
@@ -53,8 +72,12 @@ router.post('/api/conversations/:id/messages', authMiddleware, async (req, res) 
       direction: 'outbound',
       sender: 'agent',
     });
+    
+    await messageService.updateConversationLastMessage(req.params.id);
+    
     res.json(message);
   } catch (error: any) {
+    console.error('❌ Error sending message:', error);
     res.status(500).json({ error: error.message });
   }
 });

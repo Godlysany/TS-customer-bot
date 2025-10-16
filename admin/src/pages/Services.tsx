@@ -159,7 +159,7 @@ const Services = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <DollarSign className="w-4 h-4" />
-                    <span>€{service.cost.toFixed(2)}</span>
+                    <span>CHF {service.cost.toFixed(2)}</span>
                     {service.requiresPayment && (
                       <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">
                         Payment Required
@@ -254,7 +254,7 @@ const Services = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cost (€) *
+                    Cost (CHF) *
                   </label>
                   <input
                     type="number"
@@ -345,7 +345,7 @@ const Services = () => {
                 {formData.requiresPayment && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Deposit Amount (€)
+                      Deposit Amount (CHF)
                     </label>
                     <input
                       type="number"
@@ -380,7 +380,7 @@ const Services = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Penalty Amount (€)
+                    Penalty Amount (CHF)
                   </label>
                   <input
                     type="number"

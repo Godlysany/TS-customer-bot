@@ -80,6 +80,20 @@ router.get('/api/conversations/:id/messages', auth_1.authMiddleware, async (req,
 router.post('/api/conversations/:id/messages', auth_1.authMiddleware, async (req, res) => {
     try {
         const { content } = req.body;
+        const { data: conversation } = await supabase_1.supabase
+            .from('conversations')
+            .select('contact_id, contact:contacts(phone_number)')
+            .eq('id', req.params.id)
+            .single();
+        if (!conversation || !conversation.contact) {
+            return res.status(404).json({ error: 'Conversation or contact not found' });
+        }
+        const phoneNumber = conversation.contact.phone_number;
+        const contactId = conversation.contact_id;
+        console.log(`📤 Sending outbound message to ${phoneNumber}`);
+        const { sendProactiveMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+        await sendProactiveMessage(phoneNumber, content, contactId);
+        console.log(`✅ Message sent via WhatsApp to ${phoneNumber}`);
         const message = await MessageService_1.default.createMessage({
             conversationId: req.params.id,
             content,
@@ -87,9 +101,11 @@ router.post('/api/conversations/:id/messages', auth_1.authMiddleware, async (req
             direction: 'outbound',
             sender: 'agent',
         });
+        await MessageService_1.default.updateConversationLastMessage(req.params.id);
         res.json(message);
     }
     catch (error) {
+        console.error('❌ Error sending message:', error);
         res.status(500).json({ error: error.message });
     }
 });

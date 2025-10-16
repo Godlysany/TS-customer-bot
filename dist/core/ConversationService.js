@@ -5,6 +5,7 @@ const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
 class ConversationService {
     async getOrCreateConversation(phoneNumber, whatsappName) {
+        const resolvedName = whatsappName?.trim() || phoneNumber;
         let { data: contactData } = await supabase_1.supabase
             .from('contacts')
             .select('*')
@@ -16,7 +17,7 @@ class ConversationService {
                 .from('contacts')
                 .insert({
                 phone_number: phoneNumber,
-                name: whatsappName || null,
+                name: resolvedName,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             })
@@ -28,11 +29,11 @@ class ConversationService {
         }
         else {
             contact = (0, mapper_1.toCamelCase)(contactData);
-            // Update contact name if WhatsApp name is provided and contact name is empty
-            if (whatsappName && !contact.name) {
+            // Update contact name if WhatsApp name is provided and contact name is phone number or empty
+            if (whatsappName && (!contact.name || contact.name === phoneNumber)) {
                 const { data: updatedContact } = await supabase_1.supabase
                     .from('contacts')
-                    .update({ name: whatsappName, updated_at: new Date().toISOString() })
+                    .update({ name: resolvedName, updated_at: new Date().toISOString() })
                     .eq('id', contact.id)
                     .select()
                     .single();

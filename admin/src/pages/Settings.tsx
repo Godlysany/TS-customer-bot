@@ -274,9 +274,25 @@ const Settings = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Calendar className="w-6 h-6 text-gray-700" />
-            <h2 className="text-xl font-semibold text-gray-900">Calendar Settings</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-6 h-6 text-gray-700" />
+              <h2 className="text-xl font-semibold text-gray-900">Calendar Settings</h2>
+            </div>
+            <button
+              onClick={() => {
+                const calendarProvider = getSetting('calendar_provider')?.value || 'google';
+                if (calendarProvider === 'google') {
+                  window.location.href = '/api/calendar/oauth/connect';
+                } else {
+                  toast.error('Only Google Calendar OAuth is currently supported');
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              Connect Calendar
+            </button>
           </div>
           
           <div className="space-y-4">

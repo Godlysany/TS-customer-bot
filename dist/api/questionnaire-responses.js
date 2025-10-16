@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
             .from('questionnaire_responses')
             .select(`
         *,
-        contact:contacts(name, phone, email),
+        contact:contacts(name, phone_number, email),
         questionnaire:questionnaires(name, type)
       `)
             .order('created_at', { ascending: false });
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
         const formattedResponses = responses?.map((r) => ({
             ...r,
             contact_name: r.contact?.name,
-            contact_phone: r.contact?.phone,
+            contact_phone: r.contact?.phone_number,
             contact_email: r.contact?.email,
             questionnaire_name: r.questionnaire?.name,
             questionnaire_type: r.questionnaire?.type,
@@ -39,7 +39,7 @@ router.get('/:id', async (req, res) => {
             .from('questionnaire_responses')
             .select(`
         *,
-        contact:contacts(name, phone, email),
+        contact:contacts(name, phone_number, email),
         questionnaire:questionnaires(name, type)
       `)
             .eq('id', id)
@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
         const formattedResponse = {
             ...response,
             contact_name: response.contact?.name,
-            contact_phone: response.contact?.phone,
+            contact_phone: response.contact?.phone_number,
             contact_email: response.contact?.email,
             questionnaire_name: response.questionnaire?.name,
             questionnaire_type: response.questionnaire?.type,
