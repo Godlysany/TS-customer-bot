@@ -175,35 +175,42 @@ async function handleMessage(msg: WAMessage) {
       return;
     }
 
-    let replyText: string;
+    let replyText: string | null = null;
 
-    // CRITICAL: Check for active booking context BEFORE intent detection
-    // This ensures follow-up messages (like "1" or "next Monday") route to the handler
-    if (bookingChatHandler.hasActiveContext(conversation.id)) {
-      console.log('🔄 Continuing booking conversation flow');
-      replyText = await bookingChatHandler.handleContextMessage(
-        conversation.id,
-        text,
-        messageHistory
-      );
-    } else {
-      // No active context - detect intent normally
-      const intent = await aiService.detectIntent(text);
-      console.log('🎯 Intent detected:', intent);
-
-      if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
-        // Start new booking conversation flow
-        replyText = await bookingChatHandler.handleBookingIntent(
-          intent.intent,
+    try {
+      // CRITICAL: Check for active booking context BEFORE intent detection
+      // This ensures follow-up messages (like "1" or "next Monday") route to the handler
+      if (bookingChatHandler.hasActiveContext(conversation.id)) {
+        console.log('🔄 Continuing booking conversation flow');
+        replyText = await bookingChatHandler.handleContextMessage(
           conversation.id,
-          contact.id,
-          phoneNumber,
           text,
           messageHistory
         );
       } else {
-        replyText = await aiService.generateReply(conversation.id, messageHistory, text);
+        // No active context - detect intent normally
+        const intent = await aiService.detectIntent(text);
+        console.log('🎯 Intent detected:', intent);
+
+        if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
+          // Start new booking conversation flow
+          replyText = await bookingChatHandler.handleBookingIntent(
+            intent.intent,
+            conversation.id,
+            contact.id,
+            phoneNumber,
+            text,
+            messageHistory
+          );
+        } else {
+          replyText = await aiService.generateReply(conversation.id, messageHistory, text);
+        }
       }
+    } catch (aiError: any) {
+      console.error('❌ AI processing failed:', aiError.message);
+      console.log('📝 Message saved to conversation, but no reply sent (AI not configured)');
+      // Conversation and message are already saved - just return without sending a reply
+      return;
     }
 
     await messageService.createMessage({
