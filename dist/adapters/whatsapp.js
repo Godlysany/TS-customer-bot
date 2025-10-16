@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearQrCode = exports.getQrCode = void 0;
 exports.sendProactiveMessage = sendProactiveMessage;
+exports.sendApprovedMessage = sendApprovedMessage;
 exports.startSock = startSock;
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 // @ts-ignore
@@ -48,6 +49,7 @@ const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../infrastructure/config");
+const supabase_1 = require("../infrastructure/supabase");
 const ConversationService_1 = __importDefault(require("../core/ConversationService"));
 const MessageService_1 = __importDefault(require("../core/MessageService"));
 const AIService_1 = __importDefault(require("../core/AIService"));
@@ -220,13 +222,22 @@ async function handleMessage(msg) {
             // Conversation and message are already saved - just return without sending a reply
             return;
         }
-        await MessageService_1.default.createMessage({
+        // Check if human approval is required before sending
+        const requireApprovalSetting = await SettingsService_1.default.getSetting('require_human_approval');
+        const needsApproval = requireApprovalSetting === 'true';
+        const messageRecord = await MessageService_1.default.createMessage({
             conversationId: conversation.id,
             content: replyText,
             messageType: 'text',
             direction: 'outbound',
             sender: 'bot',
+            approvalStatus: needsApproval ? 'pending_approval' : 'approved',
         });
+        if (needsApproval) {
+            console.log('⏸️  Message created, pending human approval before sending to WhatsApp');
+            await MessageService_1.default.updateConversationLastMessage(conversation.id);
+            return;
+        }
         await MessageService_1.default.updateConversationLastMessage(conversation.id);
         const shouldSendVoice = config_1.config.whatsapp.replyMode === 'voice' ||
             (config_1.config.whatsapp.replyMode === 'voice-on-voice' && isVoice);
@@ -393,6 +404,35 @@ async function sendProactiveMessage(phoneNumber, message, contactId) {
     }
     catch (error) {
         console.error(`❌ Error sending proactive message to ${phoneNumber}:`, error);
+        return false;
+    }
+}
+async function sendApprovedMessage(message) {
+    try {
+        if (!sock) {
+            console.error('❌ WhatsApp not connected');
+            return false;
+        }
+        // Get conversation to find phone number
+        const { data: conversation, error } = await supabase_1.supabase
+            .from('conversations')
+            .select('contact:contacts(phone_number)')
+            .eq('id', message.conversationId)
+            .single();
+        if (error || !conversation) {
+            console.error('❌ Failed to find conversation for approved message');
+            return false;
+        }
+        const phoneNumber = conversation.contact.phone_number;
+        const formattedNumber = phoneNumber.includes('@s.whatsapp.net')
+            ? phoneNumber
+            : `${phoneNumber}@s.whatsapp.net`;
+        await sock.sendMessage(formattedNumber, { text: message.content });
+        console.log(`✅ Approved message sent to ${phoneNumber}`);
+        return true;
+    }
+    catch (error) {
+        console.error('❌ Error sending approved message:', error);
         return false;
     }
 }

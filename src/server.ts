@@ -15,6 +15,7 @@ import multiServiceRoutes from './api/multi-service';
 import documentsRoutes from './api/documents';
 import noShowRoutes from './api/no-show';
 import paymentsRoutes from './api/payments';
+import messageApprovalRoutes from './api/message-approval';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
@@ -68,6 +69,7 @@ app.use('/api/multi-service', multiServiceRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/no-show', noShowRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/message-approval', messageApprovalRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');

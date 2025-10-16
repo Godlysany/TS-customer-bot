@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import axios from 'axios';
 import { config } from '../infrastructure/config';
+import { supabase } from '../infrastructure/supabase';
 import conversationService from '../core/ConversationService';
 import messageService from '../core/MessageService';
 import aiService from '../core/AIService';
@@ -216,13 +217,24 @@ async function handleMessage(msg: WAMessage) {
       return;
     }
 
-    await messageService.createMessage({
+    // Check if human approval is required before sending
+    const requireApprovalSetting = await settingsService.getSetting('require_human_approval');
+    const needsApproval = requireApprovalSetting === 'true';
+
+    const messageRecord = await messageService.createMessage({
       conversationId: conversation.id,
       content: replyText,
       messageType: 'text',
       direction: 'outbound',
       sender: 'bot',
+      approvalStatus: needsApproval ? 'pending_approval' : 'approved',
     });
+
+    if (needsApproval) {
+      console.log('⏸️  Message created, pending human approval before sending to WhatsApp');
+      await messageService.updateConversationLastMessage(conversation.id);
+      return;
+    }
 
     await messageService.updateConversationLastMessage(conversation.id);
 
@@ -416,6 +428,39 @@ export async function sendProactiveMessage(
     return true;
   } catch (error) {
     console.error(`❌ Error sending proactive message to ${phoneNumber}:`, error);
+    return false;
+  }
+}
+
+export async function sendApprovedMessage(message: any): Promise<boolean> {
+  try {
+    if (!sock) {
+      console.error('❌ WhatsApp not connected');
+      return false;
+    }
+
+    // Get conversation to find phone number
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .select('contact:contacts(phone_number)')
+      .eq('id', message.conversationId)
+      .single();
+
+    if (error || !conversation) {
+      console.error('❌ Failed to find conversation for approved message');
+      return false;
+    }
+
+    const phoneNumber = (conversation.contact as any).phone_number;
+    const formattedNumber = phoneNumber.includes('@s.whatsapp.net')
+      ? phoneNumber
+      : `${phoneNumber}@s.whatsapp.net`;
+
+    await sock.sendMessage(formattedNumber, { text: message.content });
+    console.log(`✅ Approved message sent to ${phoneNumber}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending approved message:', error);
     return false;
   }
 }

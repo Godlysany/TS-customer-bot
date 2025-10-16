@@ -14,6 +14,9 @@ export interface Message {
   messageType: 'text' | 'voice' | 'image' | 'file';
   direction: 'inbound' | 'outbound';
   sender: string;
+  approvalStatus?: 'pending_approval' | 'approved' | 'rejected';
+  approvedBy?: string;
+  approvedAt?: Date;
   timestamp: Date;
   metadata?: Record<string, any>;
 }

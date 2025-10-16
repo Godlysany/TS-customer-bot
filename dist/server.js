@@ -20,6 +20,7 @@ const multi_service_1 = __importDefault(require("./api/multi-service"));
 const documents_1 = __importDefault(require("./api/documents"));
 const no_show_1 = __importDefault(require("./api/no-show"));
 const payments_1 = __importDefault(require("./api/payments"));
+const message_approval_1 = __importDefault(require("./api/message-approval"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
@@ -66,6 +67,7 @@ app.use('/api/multi-service', multi_service_1.default);
 app.use('/api/documents', documents_1.default);
 app.use('/api/no-show', no_show_1.default);
 app.use('/api/payments', payments_1.default);
+app.use('/api/message-approval', message_approval_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching
