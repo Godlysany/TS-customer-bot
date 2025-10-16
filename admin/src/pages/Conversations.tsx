@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { conversationsApi } from '../lib/api';
+import { conversationsApi, messageApprovalApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, CheckCircle, User, FileText } from 'lucide-react';
+import { Send, CheckCircle, User, FileText, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const Conversations = () => {
   const [selectedConv, setSelectedConv] = useState<string | null>(null);
@@ -68,6 +69,28 @@ const Conversations = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['takeover', selectedConv] });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (messageId: string) => messageApprovalApi.approve(messageId),
+    onSuccess: () => {
+      toast.success('Message approved and sent');
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedConv] });
+    },
+    onError: () => {
+      toast.error('Failed to approve message');
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (messageId: string) => messageApprovalApi.reject(messageId),
+    onSuccess: () => {
+      toast.success('Message rejected');
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedConv] });
+    },
+    onError: () => {
+      toast.error('Failed to reject message');
     },
   });
 
@@ -188,18 +211,50 @@ const Conversations = () => {
                   key={msg.id}
                   className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-md px-4 py-2.5 rounded-2xl shadow-sm ${
-                    msg.direction === 'outbound'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900 border border-gray-200'
-                  }`}>
-                    <p className="text-[15px] leading-relaxed">{msg.content}</p>
-                    <p className={`text-xs mt-1.5 ${
-                      msg.direction === 'outbound' ? 'text-blue-100' : 'text-gray-500'
+                  <div className="flex flex-col items-end gap-2">
+                    <div className={`max-w-md px-4 py-2.5 rounded-2xl shadow-sm ${
+                      msg.direction === 'outbound'
+                        ? msg.approvalStatus === 'pending_approval'
+                          ? 'bg-yellow-100 text-gray-900 border-2 border-yellow-400'
+                          : 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-900 border border-gray-200'
                     }`}>
-                      {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
-                      {msg.intent && ` · ${msg.intent}`}
-                    </p>
+                      {msg.direction === 'outbound' && msg.approvalStatus === 'pending_approval' && (
+                        <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-yellow-700">
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                          Pending Approval
+                        </div>
+                      )}
+                      <p className="text-[15px] leading-relaxed">{msg.content}</p>
+                      <p className={`text-xs mt-1.5 ${
+                        msg.direction === 'outbound' 
+                          ? msg.approvalStatus === 'pending_approval'
+                            ? 'text-gray-600'
+                            : 'text-blue-100'
+                          : 'text-gray-500'
+                      }`}>
+                        {formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}
+                        {msg.intent && ` · ${msg.intent}`}
+                      </p>
+                    </div>
+                    {msg.direction === 'outbound' && msg.approvalStatus === 'pending_approval' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approveMutation.mutate(msg.id)}
+                          className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <Check className="w-4 h-4" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => rejectMutation.mutate(msg.id)}
+                          className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <X className="w-4 h-4" />
+                          Reject
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

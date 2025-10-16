@@ -122,6 +122,12 @@ export const questionnaireResponsesApi = {
   getById: (id: string) => api.get(`/questionnaire-responses/${id}`),
 };
 
+export const messageApprovalApi = {
+  getPending: () => api.get('/message-approval/pending'),
+  approve: (id: string) => api.post(`/message-approval/${id}/approve`),
+  reject: (id: string) => api.post(`/message-approval/${id}/reject`),
+};
+
 export const servicesApi = {
   getAll: () => api.get('/services'),
   getById: (id: string) => api.get(`/services/${id}`),
