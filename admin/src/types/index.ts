@@ -16,7 +16,7 @@ export interface Message {
   messageType: 'text' | 'voice' | 'image';
   timestamp: Date;
   status: 'sent' | 'delivered' | 'read' | 'failed';
-  approvalStatus?: 'pending_approval' | 'approved' | 'rejected';
+  approvalStatus?: 'pending_approval' | 'sending' | 'approved' | 'rejected';
   approvedBy?: string;
   approvedAt?: Date;
   intent?: string;

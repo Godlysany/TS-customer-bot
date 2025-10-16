@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS messages (
     message_type VARCHAR(50) DEFAULT 'text' CHECK (message_type IN ('text', 'voice', 'image', 'file')),
     direction VARCHAR(50) NOT NULL CHECK (direction IN ('inbound', 'outbound')),
     sender VARCHAR(255) NOT NULL,
-    approval_status VARCHAR(50) DEFAULT 'approved' CHECK (approval_status IN ('pending_approval', 'approved', 'rejected')),
+    approval_status VARCHAR(50) DEFAULT 'approved' CHECK (approval_status IN ('pending_approval', 'sending', 'approved', 'rejected')),
     approved_by UUID REFERENCES agents(id),
     approved_at TIMESTAMP WITH TIME ZONE,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

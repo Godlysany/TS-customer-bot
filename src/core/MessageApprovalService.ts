@@ -25,8 +25,24 @@ export class MessageApprovalService {
     return toCamelCaseArray(data || []) as Message[];
   }
 
-  async approveMessage(messageId: string, agentId: string): Promise<Message> {
+  async markAsSending(messageId: string): Promise<boolean> {
+    // Atomic update: only succeeds if message is still pending_approval
     const { data, error } = await supabase
+      .from('messages')
+      .update({
+        approval_status: 'sending',
+      })
+      .eq('id', messageId)
+      .eq('approval_status', 'pending_approval')
+      .select()
+      .single();
+
+    if (error) return false;
+    return !!data;
+  }
+
+  async approveMessage(messageId: string, agentId: string): Promise<Message> {
+    const { data, error} = await supabase
       .from('messages')
       .update({
         approval_status: 'approved',
@@ -39,6 +55,15 @@ export class MessageApprovalService {
 
     if (error) throw error;
     return toCamelCase(data) as Message;
+  }
+
+  async rollbackToPending(messageId: string): Promise<void> {
+    await supabase
+      .from('messages')
+      .update({
+        approval_status: 'pending_approval',
+      })
+      .eq('id', messageId);
   }
 
   async rejectMessage(messageId: string, agentId: string): Promise<Message> {

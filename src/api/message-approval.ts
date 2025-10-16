@@ -21,13 +21,38 @@ router.get('/pending', async (req, res) => {
 router.post('/:id/approve', async (req, res) => {
   try {
     const agentId = (req as any).user.id;
-    const message = await messageApprovalService.approveMessage(req.params.id, agentId);
+    const messageId = req.params.id;
 
-    // Trigger WhatsApp send
-    const { sendApprovedMessage } = await import('../adapters/whatsapp');
-    await sendApprovedMessage(message);
+    // Atomic lock: mark as sending (prevents concurrent approvals)
+    const locked = await messageApprovalService.markAsSending(messageId);
+    if (!locked) {
+      return res.status(409).json({ error: 'Message is not in pending_approval status or already being processed' });
+    }
 
-    res.json(message);
+    // Get message for delivery
+    const message = await messageApprovalService.getMessageById(messageId);
+    if (!message) {
+      await messageApprovalService.rollbackToPending(messageId);
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    try {
+      // Send to WhatsApp
+      const { sendApprovedMessage } = await import('../adapters/whatsapp');
+      const sent = await sendApprovedMessage(message);
+
+      if (!sent) {
+        throw new Error('Failed to send message to WhatsApp');
+      }
+
+      // Only mark as approved after successful WhatsApp delivery
+      const approvedMessage = await messageApprovalService.approveMessage(messageId, agentId);
+      res.json(approvedMessage);
+    } catch (sendError: any) {
+      // Rollback to pending on send failure for retry
+      await messageApprovalService.rollbackToPending(messageId);
+      throw sendError;
+    }
   } catch (error: any) {
     console.error('Error approving message:', error);
     res.status(500).json({ error: error.message });

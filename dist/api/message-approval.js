@@ -56,11 +56,34 @@ router.get('/pending', async (req, res) => {
 router.post('/:id/approve', async (req, res) => {
     try {
         const agentId = req.user.id;
-        const message = await MessageApprovalService_1.default.approveMessage(req.params.id, agentId);
-        // Trigger WhatsApp send
-        const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
-        await sendApprovedMessage(message);
-        res.json(message);
+        const messageId = req.params.id;
+        // Atomic lock: mark as sending (prevents concurrent approvals)
+        const locked = await MessageApprovalService_1.default.markAsSending(messageId);
+        if (!locked) {
+            return res.status(409).json({ error: 'Message is not in pending_approval status or already being processed' });
+        }
+        // Get message for delivery
+        const message = await MessageApprovalService_1.default.getMessageById(messageId);
+        if (!message) {
+            await MessageApprovalService_1.default.rollbackToPending(messageId);
+            return res.status(404).json({ error: 'Message not found' });
+        }
+        try {
+            // Send to WhatsApp
+            const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+            const sent = await sendApprovedMessage(message);
+            if (!sent) {
+                throw new Error('Failed to send message to WhatsApp');
+            }
+            // Only mark as approved after successful WhatsApp delivery
+            const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
+            res.json(approvedMessage);
+        }
+        catch (sendError) {
+            // Rollback to pending on send failure for retry
+            await MessageApprovalService_1.default.rollbackToPending(messageId);
+            throw sendError;
+        }
     }
     catch (error) {
         console.error('Error approving message:', error);

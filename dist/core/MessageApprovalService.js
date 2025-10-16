@@ -25,6 +25,21 @@ class MessageApprovalService {
             throw error;
         return (0, mapper_1.toCamelCaseArray)(data || []);
     }
+    async markAsSending(messageId) {
+        // Atomic update: only succeeds if message is still pending_approval
+        const { data, error } = await supabase_1.supabase
+            .from('messages')
+            .update({
+            approval_status: 'sending',
+        })
+            .eq('id', messageId)
+            .eq('approval_status', 'pending_approval')
+            .select()
+            .single();
+        if (error)
+            return false;
+        return !!data;
+    }
     async approveMessage(messageId, agentId) {
         const { data, error } = await supabase_1.supabase
             .from('messages')
@@ -39,6 +54,14 @@ class MessageApprovalService {
         if (error)
             throw error;
         return (0, mapper_1.toCamelCase)(data);
+    }
+    async rollbackToPending(messageId) {
+        await supabase_1.supabase
+            .from('messages')
+            .update({
+            approval_status: 'pending_approval',
+        })
+            .eq('id', messageId);
     }
     async rejectMessage(messageId, agentId) {
         const { data, error } = await supabase_1.supabase
