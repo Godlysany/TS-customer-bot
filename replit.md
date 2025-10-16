@@ -1,5 +1,14 @@
 # WhatsApp CRM Bot
 
+## Recent Changes (October 16, 2025)
+
+### Calendar Integration Note
+- **iCal URL**: Currently configured for read-only calendar availability checking
+- **Limitation**: Cannot create or edit calendar events directly (read-only)
+- **Future Enhancement**: Google Calendar connector integration available but not configured
+  - User dismissed connector setup - if full calendar management needed, can configure later
+  - Alternative: Use Google Calendar API credentials as secrets
+
 ## Recent Changes (October 14, 2025)
 
 ### Feature 9: Stripe Payment Integration ✅ COMPLETE
