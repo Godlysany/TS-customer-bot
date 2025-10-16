@@ -66,6 +66,15 @@ export class MessageApprovalService {
       .eq('id', messageId);
   }
 
+  async markAsDelivered(messageId: string, whatsappMessageId: string): Promise<void> {
+    await supabase
+      .from('messages')
+      .update({
+        whatsapp_message_id: whatsappMessageId,
+      })
+      .eq('id', messageId);
+  }
+
   async rejectMessage(messageId: string, agentId: string): Promise<Message> {
     const { data, error } = await supabase
       .from('messages')

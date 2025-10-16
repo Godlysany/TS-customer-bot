@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS messages (
     approval_status VARCHAR(50) DEFAULT 'approved' CHECK (approval_status IN ('pending_approval', 'sending', 'approved', 'rejected')),
     approved_by UUID REFERENCES agents(id),
     approved_at TIMESTAMP WITH TIME ZONE,
+    whatsapp_message_id VARCHAR(255),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     metadata JSONB
 );

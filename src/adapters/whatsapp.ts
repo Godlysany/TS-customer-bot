@@ -432,11 +432,11 @@ export async function sendProactiveMessage(
   }
 }
 
-export async function sendApprovedMessage(message: any): Promise<boolean> {
+export async function sendApprovedMessage(message: any): Promise<string | null> {
   try {
     if (!sock) {
       console.error('❌ WhatsApp not connected');
-      return false;
+      return null;
     }
 
     // Get conversation to find phone number
@@ -448,7 +448,7 @@ export async function sendApprovedMessage(message: any): Promise<boolean> {
 
     if (error || !conversation) {
       console.error('❌ Failed to find conversation for approved message');
-      return false;
+      return null;
     }
 
     const phoneNumber = (conversation.contact as any).phone_number;
@@ -456,12 +456,14 @@ export async function sendApprovedMessage(message: any): Promise<boolean> {
       ? phoneNumber
       : `${phoneNumber}@s.whatsapp.net`;
 
-    await sock.sendMessage(formattedNumber, { text: message.content });
-    console.log(`✅ Approved message sent to ${phoneNumber}`);
-    return true;
+    const sentMessage = await sock.sendMessage(formattedNumber, { text: message.content });
+    const messageId = sentMessage?.key?.id || `wa_${Date.now()}`;
+    
+    console.log(`✅ Approved message sent to ${phoneNumber} (ID: ${messageId})`);
+    return messageId;
   } catch (error) {
     console.error('❌ Error sending approved message:', error);
-    return false;
+    return null;
   }
 }
 

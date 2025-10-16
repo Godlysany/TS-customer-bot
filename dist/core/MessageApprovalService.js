@@ -63,6 +63,14 @@ class MessageApprovalService {
         })
             .eq('id', messageId);
     }
+    async markAsDelivered(messageId, whatsappMessageId) {
+        await supabase_1.supabase
+            .from('messages')
+            .update({
+            whatsapp_message_id: whatsappMessageId,
+        })
+            .eq('id', messageId);
+    }
     async rejectMessage(messageId, agentId) {
         const { data, error } = await supabase_1.supabase
             .from('messages')

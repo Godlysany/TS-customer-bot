@@ -411,7 +411,7 @@ async function sendApprovedMessage(message) {
     try {
         if (!sock) {
             console.error('❌ WhatsApp not connected');
-            return false;
+            return null;
         }
         // Get conversation to find phone number
         const { data: conversation, error } = await supabase_1.supabase
@@ -421,19 +421,20 @@ async function sendApprovedMessage(message) {
             .single();
         if (error || !conversation) {
             console.error('❌ Failed to find conversation for approved message');
-            return false;
+            return null;
         }
         const phoneNumber = conversation.contact.phone_number;
         const formattedNumber = phoneNumber.includes('@s.whatsapp.net')
             ? phoneNumber
             : `${phoneNumber}@s.whatsapp.net`;
-        await sock.sendMessage(formattedNumber, { text: message.content });
-        console.log(`✅ Approved message sent to ${phoneNumber}`);
-        return true;
+        const sentMessage = await sock.sendMessage(formattedNumber, { text: message.content });
+        const messageId = sentMessage?.key?.id || `wa_${Date.now()}`;
+        console.log(`✅ Approved message sent to ${phoneNumber} (ID: ${messageId})`);
+        return messageId;
     }
     catch (error) {
         console.error('❌ Error sending approved message:', error);
-        return false;
+        return null;
     }
 }
 exports.default = sock;

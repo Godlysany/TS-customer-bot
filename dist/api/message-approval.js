@@ -68,19 +68,40 @@ router.post('/:id/approve', async (req, res) => {
             await MessageApprovalService_1.default.rollbackToPending(messageId);
             return res.status(404).json({ error: 'Message not found' });
         }
+        // Idempotency check: if already delivered, just mark approved without re-sending
+        if (message.whatsappMessageId) {
+            console.log(`Message ${messageId} already delivered to WhatsApp (${message.whatsappMessageId}), marking as approved`);
+            const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
+            return res.json(approvedMessage);
+        }
         try {
             // Send to WhatsApp
             const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
-            const sent = await sendApprovedMessage(message);
-            if (!sent) {
+            const whatsappMsgId = await sendApprovedMessage(message);
+            if (!whatsappMsgId) {
                 throw new Error('Failed to send message to WhatsApp');
             }
-            // Only mark as approved after successful WhatsApp delivery
-            const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
-            res.json(approvedMessage);
+            // Persist delivery immediately (idempotency marker)
+            await MessageApprovalService_1.default.markAsDelivered(messageId, whatsappMsgId);
+            // Mark as approved - if this fails, retry will see whatsappMessageId and skip re-send
+            try {
+                const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
+                res.json(approvedMessage);
+            }
+            catch (approvalError) {
+                // Delivery succeeded but approval update failed - log and return error
+                // Message stays in 'sending' with whatsappMessageId set
+                // Retry will detect whatsappMessageId and complete approval without re-sending
+                console.error('WhatsApp delivery succeeded but approval update failed:', approvalError);
+                res.status(500).json({
+                    error: 'Message delivered but approval update failed - retry to complete',
+                    delivered: true,
+                    whatsappMessageId: whatsappMsgId
+                });
+            }
         }
         catch (sendError) {
-            // Rollback to pending on send failure for retry
+            // Rollback to pending on send failure for retry (no whatsappMessageId set)
             await MessageApprovalService_1.default.rollbackToPending(messageId);
             throw sendError;
         }

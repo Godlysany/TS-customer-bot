@@ -17,6 +17,7 @@ export interface Message {
   approvalStatus?: 'pending_approval' | 'sending' | 'approved' | 'rejected';
   approvedBy?: string;
   approvedAt?: Date;
+  whatsappMessageId?: string;
   timestamp: Date;
   metadata?: Record<string, any>;
 }
