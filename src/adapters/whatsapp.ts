@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, downloadMediaMessage, DisconnectReason, WAMessage } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, downloadMediaMessage, DisconnectReason, WAMessage, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 // @ts-ignore
 import qrcode from 'qrcode-terminal';
 // @ts-ignore
@@ -265,7 +265,10 @@ async function startSock() {
   isStarting = true;
 
   const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
+  const { version } = await fetchLatestBaileysVersion();
+  
   sock = makeWASocket({
+    version,
     auth: state,
     printQRInTerminal: false,
     getMessage: async () => undefined,

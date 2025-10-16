@@ -263,7 +263,9 @@ async function startSock() {
         return;
     isStarting = true;
     const { state, saveCreds } = await (0, baileys_1.useMultiFileAuthState)('./auth_info');
+    const { version } = await (0, baileys_1.fetchLatestBaileysVersion)();
     sock = (0, baileys_1.default)({
+        version,
         auth: state,
         printQRInTerminal: false,
         getMessage: async () => undefined,
