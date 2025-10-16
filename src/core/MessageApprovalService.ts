@@ -67,12 +67,16 @@ export class MessageApprovalService {
   }
 
   async markAsDelivered(messageId: string, whatsappMessageId: string): Promise<void> {
-    await supabase
+    const { error } = await supabase
       .from('messages')
       .update({
         whatsapp_message_id: whatsappMessageId,
       })
       .eq('id', messageId);
+
+    if (error) {
+      throw new Error(`Failed to persist WhatsApp message ID: ${error.message}`);
+    }
   }
 
   async rejectMessage(messageId: string, agentId: string): Promise<Message> {

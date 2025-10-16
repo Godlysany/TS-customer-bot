@@ -57,23 +57,37 @@ router.post('/:id/approve', async (req, res) => {
     try {
         const agentId = req.user.id;
         const messageId = req.params.id;
-        // Atomic lock: mark as sending (prevents concurrent approvals)
-        const locked = await MessageApprovalService_1.default.markAsSending(messageId);
-        if (!locked) {
-            return res.status(409).json({ error: 'Message is not in pending_approval status or already being processed' });
-        }
-        // Get message for delivery
-        const message = await MessageApprovalService_1.default.getMessageById(messageId);
+        // Get message to check current state
+        let message = await MessageApprovalService_1.default.getMessageById(messageId);
         if (!message) {
-            await MessageApprovalService_1.default.rollbackToPending(messageId);
             return res.status(404).json({ error: 'Message not found' });
         }
-        // Idempotency check: if already delivered, just mark approved without re-sending
+        // If already approved or rejected, return error
+        if (message.approvalStatus === 'approved') {
+            return res.status(409).json({ error: 'Message already approved' });
+        }
+        if (message.approvalStatus === 'rejected') {
+            return res.status(409).json({ error: 'Message already rejected' });
+        }
+        // Idempotency check: if already delivered (has whatsapp_message_id), just mark approved
         if (message.whatsappMessageId) {
             console.log(`Message ${messageId} already delivered to WhatsApp (${message.whatsappMessageId}), marking as approved`);
             const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
             return res.json(approvedMessage);
         }
+        // Atomic lock: mark as sending (prevents concurrent approvals)
+        // Only attempt if currently pending_approval
+        if (message.approvalStatus === 'pending_approval') {
+            const locked = await MessageApprovalService_1.default.markAsSending(messageId);
+            if (!locked) {
+                return res.status(409).json({ error: 'Message is being processed by another request' });
+            }
+        }
+        else if (message.approvalStatus !== 'sending') {
+            // If not pending or sending, something is wrong
+            return res.status(409).json({ error: `Cannot approve message with status: ${message.approvalStatus}` });
+        }
+        // If already 'sending', continue (this is a retry)
         try {
             // Send to WhatsApp
             const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
