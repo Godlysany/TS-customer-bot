@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS messages (
     message_type VARCHAR(50) DEFAULT 'text' CHECK (message_type IN ('text', 'voice', 'image', 'file')),
     direction VARCHAR(50) NOT NULL CHECK (direction IN ('inbound', 'outbound')),
     sender VARCHAR(255) NOT NULL,
+    approval_status VARCHAR(50) DEFAULT 'approved' CHECK (approval_status IN ('pending_approval', 'approved', 'rejected')),
+    approved_by UUID REFERENCES agents(id),
+    approved_at TIMESTAMP WITH TIME ZONE,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     metadata JSONB
 );
@@ -195,6 +198,7 @@ CREATE TABLE IF NOT EXISTS waitlist (
 CREATE TABLE IF NOT EXISTS questionnaires (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL DEFAULT 'anamnesis',
     description TEXT,
     questions JSONB NOT NULL, -- Array of question objects with type, options, required
     is_active BOOLEAN DEFAULT true,
