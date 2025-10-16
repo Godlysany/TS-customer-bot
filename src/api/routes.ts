@@ -199,7 +199,7 @@ router.get('/api/settings/whatsapp/status', async (req, res) => {
   }
 });
 
-router.get('/api/settings/whatsapp/qr', async (req, res) => {
+router.get('/api/settings/whatsapp/qr', authMiddleware, async (req, res) => {
   try {
     const { getQrCode } = await import('../adapters/whatsapp');
     const qrCode = getQrCode();
