@@ -37,15 +37,8 @@ router.post('/:id/approve', async (req, res) => {
       return res.status(409).json({ error: 'Message already rejected' });
     }
 
-    // Idempotency check: if already delivered (has whatsapp_message_id OR metadata flag), just mark approved
-    const deliveryConfirmed = message.whatsappMessageId || message.metadata?.whatsapp_delivery_confirmed;
-    if (deliveryConfirmed) {
-      console.log(`Message ${messageId} already delivered to WhatsApp, marking as approved`);
-      const approvedMessage = await messageApprovalService.approveMessage(messageId, agentId);
-      return res.json(approvedMessage);
-    }
-
-    // Check for failed persistence state - block retry to prevent duplicate send
+    // Check for failed persistence state FIRST - block retry to prevent duplicate send
+    // This must be checked BEFORE the idempotency check
     if (message.metadata?.requires_manual_recovery) {
       return res.status(423).json({
         error: 'Message was delivered but persistence failed - manual recovery required',
@@ -53,6 +46,14 @@ router.post('/:id/approve', async (req, res) => {
         whatsappMessageId: message.metadata.whatsapp_message_id_backup,
         instructions: 'Contact administrator to manually update database with WhatsApp message ID'
       });
+    }
+
+    // Idempotency check: if already delivered (has whatsapp_message_id OR metadata flag), just mark approved
+    const deliveryConfirmed = message.whatsappMessageId || message.metadata?.whatsapp_delivery_confirmed;
+    if (deliveryConfirmed) {
+      console.log(`Message ${messageId} already delivered to WhatsApp, marking as approved`);
+      const approvedMessage = await messageApprovalService.approveMessage(messageId, agentId);
+      return res.json(approvedMessage);
     }
 
     // Atomic lock: mark as sending (prevents concurrent approvals)
