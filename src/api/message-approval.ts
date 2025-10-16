@@ -57,37 +57,53 @@ router.post('/:id/approve', async (req, res) => {
     }
     // If already 'sending', continue (this is a retry)
 
+    // Send to WhatsApp
+    const { sendApprovedMessage } = await import('../adapters/whatsapp');
+    let whatsappMsgId: string | null = null;
+    
     try {
-      // Send to WhatsApp
-      const { sendApprovedMessage } = await import('../adapters/whatsapp');
-      const whatsappMsgId = await sendApprovedMessage(message);
+      whatsappMsgId = await sendApprovedMessage(message);
 
       if (!whatsappMsgId) {
         throw new Error('Failed to send message to WhatsApp');
       }
-
-      // Persist delivery immediately (idempotency marker)
-      await messageApprovalService.markAsDelivered(messageId, whatsappMsgId);
-
-      // Mark as approved - if this fails, retry will see whatsappMessageId and skip re-send
-      try {
-        const approvedMessage = await messageApprovalService.approveMessage(messageId, agentId);
-        res.json(approvedMessage);
-      } catch (approvalError: any) {
-        // Delivery succeeded but approval update failed - log and return error
-        // Message stays in 'sending' with whatsappMessageId set
-        // Retry will detect whatsappMessageId and complete approval without re-sending
-        console.error('WhatsApp delivery succeeded but approval update failed:', approvalError);
-        res.status(500).json({ 
-          error: 'Message delivered but approval update failed - retry to complete',
-          delivered: true,
-          whatsappMessageId: whatsappMsgId
-        });
-      }
     } catch (sendError: any) {
-      // Rollback to pending on send failure for retry (no whatsappMessageId set)
+      // WhatsApp send failed - rollback to pending for retry
       await messageApprovalService.rollbackToPending(messageId);
       throw sendError;
+    }
+
+    // WhatsApp send succeeded - persist delivery marker
+    // If this fails, DO NOT rollback (message already sent)
+    // Keep message in 'sending' so operators know to investigate
+    try {
+      await messageApprovalService.markAsDelivered(messageId, whatsappMsgId);
+    } catch (persistError: any) {
+      console.error('⚠️ CRITICAL: WhatsApp message delivered but failed to persist delivery marker:', persistError);
+      console.error(`Message ID: ${messageId}, WhatsApp Message ID: ${whatsappMsgId}`);
+      return res.status(500).json({
+        error: 'Message delivered to WhatsApp but database update failed - contact administrator',
+        delivered: true,
+        whatsappMessageId: whatsappMsgId,
+        messageId: messageId,
+        critical: true
+      });
+    }
+
+    // Persist delivery succeeded - now mark as approved
+    try {
+      const approvedMessage = await messageApprovalService.approveMessage(messageId, agentId);
+      res.json(approvedMessage);
+    } catch (approvalError: any) {
+      // Delivery marker persisted but approval update failed
+      // Message stays in 'sending' with whatsappMessageId set
+      // Retry will detect whatsappMessageId and complete approval without re-sending
+      console.error('WhatsApp delivery succeeded but approval update failed:', approvalError);
+      res.status(500).json({ 
+        error: 'Message delivered but approval update failed - retry to complete',
+        delivered: true,
+        whatsappMessageId: whatsappMsgId
+      });
     }
   } catch (error: any) {
     console.error('Error approving message:', error);

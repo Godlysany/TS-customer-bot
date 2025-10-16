@@ -88,36 +88,52 @@ router.post('/:id/approve', async (req, res) => {
             return res.status(409).json({ error: `Cannot approve message with status: ${message.approvalStatus}` });
         }
         // If already 'sending', continue (this is a retry)
+        // Send to WhatsApp
+        const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+        let whatsappMsgId = null;
         try {
-            // Send to WhatsApp
-            const { sendApprovedMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
-            const whatsappMsgId = await sendApprovedMessage(message);
+            whatsappMsgId = await sendApprovedMessage(message);
             if (!whatsappMsgId) {
                 throw new Error('Failed to send message to WhatsApp');
             }
-            // Persist delivery immediately (idempotency marker)
-            await MessageApprovalService_1.default.markAsDelivered(messageId, whatsappMsgId);
-            // Mark as approved - if this fails, retry will see whatsappMessageId and skip re-send
-            try {
-                const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
-                res.json(approvedMessage);
-            }
-            catch (approvalError) {
-                // Delivery succeeded but approval update failed - log and return error
-                // Message stays in 'sending' with whatsappMessageId set
-                // Retry will detect whatsappMessageId and complete approval without re-sending
-                console.error('WhatsApp delivery succeeded but approval update failed:', approvalError);
-                res.status(500).json({
-                    error: 'Message delivered but approval update failed - retry to complete',
-                    delivered: true,
-                    whatsappMessageId: whatsappMsgId
-                });
-            }
         }
         catch (sendError) {
-            // Rollback to pending on send failure for retry (no whatsappMessageId set)
+            // WhatsApp send failed - rollback to pending for retry
             await MessageApprovalService_1.default.rollbackToPending(messageId);
             throw sendError;
+        }
+        // WhatsApp send succeeded - persist delivery marker
+        // If this fails, DO NOT rollback (message already sent)
+        // Keep message in 'sending' so operators know to investigate
+        try {
+            await MessageApprovalService_1.default.markAsDelivered(messageId, whatsappMsgId);
+        }
+        catch (persistError) {
+            console.error('⚠️ CRITICAL: WhatsApp message delivered but failed to persist delivery marker:', persistError);
+            console.error(`Message ID: ${messageId}, WhatsApp Message ID: ${whatsappMsgId}`);
+            return res.status(500).json({
+                error: 'Message delivered to WhatsApp but database update failed - contact administrator',
+                delivered: true,
+                whatsappMessageId: whatsappMsgId,
+                messageId: messageId,
+                critical: true
+            });
+        }
+        // Persist delivery succeeded - now mark as approved
+        try {
+            const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
+            res.json(approvedMessage);
+        }
+        catch (approvalError) {
+            // Delivery marker persisted but approval update failed
+            // Message stays in 'sending' with whatsappMessageId set
+            // Retry will detect whatsappMessageId and complete approval without re-sending
+            console.error('WhatsApp delivery succeeded but approval update failed:', approvalError);
+            res.status(500).json({
+                error: 'Message delivered but approval update failed - retry to complete',
+                delivered: true,
+                whatsappMessageId: whatsappMsgId
+            });
         }
     }
     catch (error) {
