@@ -177,7 +177,9 @@ async function handleMessage(msg) {
             text = msg.message.conversation || msg.message.extendedTextMessage?.text || '[unsupported message]';
         }
         text = cleanText(text);
-        const { conversation, contact } = await ConversationService_1.default.getOrCreateConversation(phoneNumber);
+        // Extract WhatsApp contact name from message
+        const whatsappName = msg.pushName || msg.verifiedBizName || null;
+        const { conversation, contact } = await ConversationService_1.default.getOrCreateConversation(phoneNumber, whatsappName);
         await MessageService_1.default.createMessage({
             conversationId: conversation.id,
             content: text,

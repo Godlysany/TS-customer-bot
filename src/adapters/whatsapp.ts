@@ -157,7 +157,10 @@ async function handleMessage(msg: WAMessage) {
 
     text = cleanText(text);
 
-    const { conversation, contact } = await conversationService.getOrCreateConversation(phoneNumber);
+    // Extract WhatsApp contact name from message
+    const whatsappName = (msg as any).pushName || (msg as any).verifiedBizName || null;
+    
+    const { conversation, contact } = await conversationService.getOrCreateConversation(phoneNumber, whatsappName);
 
     await messageService.createMessage({
       conversationId: conversation.id,
