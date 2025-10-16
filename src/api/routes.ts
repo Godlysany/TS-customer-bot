@@ -295,7 +295,7 @@ router.get('/api/marketing/campaigns', authMiddleware, requireRole('master'), as
 });
 
 // WhatsApp connection control
-router.post('/api/whatsapp/connect', async (req, res) => {
+router.post('/api/whatsapp/connect', authMiddleware, async (req, res) => {
   try {
     const { startSock } = await import('../adapters/whatsapp');
     await startSock();
@@ -305,7 +305,7 @@ router.post('/api/whatsapp/connect', async (req, res) => {
   }
 });
 
-router.post('/api/whatsapp/disconnect', async (req, res) => {
+router.post('/api/whatsapp/disconnect', authMiddleware, async (req, res) => {
   try {
     const whatsappModule = await import('../adapters/whatsapp');
     const sock = whatsappModule.default;
@@ -317,6 +317,34 @@ router.post('/api/whatsapp/disconnect', async (req, res) => {
       res.json({ success: true, message: 'WhatsApp not connected' });
     }
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/whatsapp/reset', authMiddleware, requireRole('master'), async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const authPath = path.join(process.cwd(), 'auth_info');
+    
+    if (fs.existsSync(authPath)) {
+      fs.rmSync(authPath, { recursive: true, force: true });
+      console.log('🗑️  WhatsApp auth credentials cleared');
+    }
+    
+    const whatsappModule = await import('../adapters/whatsapp');
+    const sock = whatsappModule.default;
+    if (sock) {
+      await sock.end(undefined);
+    }
+    
+    const { clearQrCode } = whatsappModule;
+    clearQrCode();
+    
+    await settingsService.setWhatsAppConnected(false);
+    res.json({ success: true, message: 'WhatsApp credentials reset. You can now connect again.' });
+  } catch (error: any) {
+    console.error('Error resetting WhatsApp:', error);
     res.status(500).json({ error: error.message });
   }
 });

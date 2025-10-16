@@ -314,11 +314,17 @@ async function startSock() {
       const shouldReconnect = reason !== DisconnectReason.loggedOut && reason !== 405;
       console.log(`🔌 Connection closed (reason ${reason}). Reconnect? ${shouldReconnect}`);
       await settingsService.setWhatsAppConnected(false);
+      currentQrCode = null;
+      clearTimeout(qrTimeout);
       if (shouldReconnect) {
         isStarting = false;
         setTimeout(startSock, 3000);
       } else if (reason === 405) {
         console.log('⚠️ WhatsApp connection blocked (405). Manual restart required via CRM.');
+        console.log('💡 Delete ./auth_info folder and try connecting again.');
+        isStarting = false;
+      } else if (reason === DisconnectReason.loggedOut) {
+        console.log('🚪 Logged out from WhatsApp.');
         isStarting = false;
       }
     }

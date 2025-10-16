@@ -322,7 +322,7 @@ router.get('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.require
     }
 });
 // WhatsApp connection control
-router.post('/api/whatsapp/connect', async (req, res) => {
+router.post('/api/whatsapp/connect', auth_1.authMiddleware, async (req, res) => {
     try {
         const { startSock } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
         await startSock();
@@ -332,7 +332,7 @@ router.post('/api/whatsapp/connect', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/whatsapp/disconnect', async (req, res) => {
+router.post('/api/whatsapp/disconnect', auth_1.authMiddleware, async (req, res) => {
     try {
         const whatsappModule = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
         const sock = whatsappModule.default;
@@ -346,6 +346,30 @@ router.post('/api/whatsapp/disconnect', async (req, res) => {
         }
     }
     catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.post('/api/whatsapp/reset', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+    try {
+        const fs = await Promise.resolve().then(() => __importStar(require('fs')));
+        const path = await Promise.resolve().then(() => __importStar(require('path')));
+        const authPath = path.join(process.cwd(), 'auth_info');
+        if (fs.existsSync(authPath)) {
+            fs.rmSync(authPath, { recursive: true, force: true });
+            console.log('🗑️  WhatsApp auth credentials cleared');
+        }
+        const whatsappModule = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+        const sock = whatsappModule.default;
+        if (sock) {
+            await sock.end(undefined);
+        }
+        const { clearQrCode } = whatsappModule;
+        clearQrCode();
+        await SettingsService_1.default.setWhatsAppConnected(false);
+        res.json({ success: true, message: 'WhatsApp credentials reset. You can now connect again.' });
+    }
+    catch (error) {
+        console.error('Error resetting WhatsApp:', error);
         res.status(500).json({ error: error.message });
     }
 });
