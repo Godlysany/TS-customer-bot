@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     phone_number VARCHAR(50) UNIQUE NOT NULL,
     name VARCHAR(255),
     email VARCHAR(255),
+    preferred_language VARCHAR(10) DEFAULT 'de',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -477,7 +478,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     stripe_payment_intent_id VARCHAR(255),
     stripe_charge_id VARCHAR(255),
     amount DECIMAL(10,2) NOT NULL,
-    currency VARCHAR(10) DEFAULT 'EUR',
+    currency VARCHAR(10) DEFAULT 'CHF',
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'refunded', 'cancelled')),
     payment_type VARCHAR(50) DEFAULT 'booking' CHECK (payment_type IN ('booking', 'deposit', 'penalty', 'full_payment')),
     payment_method VARCHAR(50), -- card, bank_transfer, etc.
@@ -613,7 +614,15 @@ VALUES
     ('no_show_follow_up_enabled', 'true', 'no_show', 'Send follow-up message after no-show', false)
 ON CONFLICT (key) DO NOTHING;
 
--- Insert default cancellation policy
+-- Insert default cancellation policy (CHF currency)
 INSERT INTO cancellation_policies (name, hours_before_appointment, penalty_type, penalty_amount, is_active)
 VALUES ('Default 24h Policy', 24, 'fixed', 50.00, true)
 ON CONFLICT DO NOTHING;
+
+-- Insert default language settings
+INSERT INTO settings (key, value, category, description, is_secret)
+VALUES 
+    ('default_bot_language', 'de', 'bot', 'Default language for bot responses (de, en, fr, it)', false),
+    ('supported_languages', '["de","en","fr","it"]', 'bot', 'Supported languages for bot and customers', false),
+    ('auto_detect_language', 'false', 'bot', 'Auto-detect customer language from messages', false)
+ON CONFLICT (key) DO NOTHING;
