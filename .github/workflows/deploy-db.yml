@@ -1,0 +1,31 @@
+name: Deploy Database Schema
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase-schema.sql'
+  workflow_dispatch:
+
+jobs:
+  deploy-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Supabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "❌ SUPABASE_DB_URL secret not configured"
+            echo "Add your Railway Supabase connection string to GitHub Secrets"
+            exit 1
+          fi
+          
+          echo "🚀 Deploying database schema..."
+          psql "$SUPABASE_DB_URL" -f supabase-schema.sql
+          
+          echo "✅ Database schema deployed successfully!"

@@ -490,21 +490,7 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Reminder logs (track all reminders sent)
-CREATE TABLE IF NOT EXISTS reminder_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
-    contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-    reminder_type VARCHAR(50) NOT NULL CHECK (reminder_type IN ('email', 'whatsapp', 'sms')),
-    timing VARCHAR(50) NOT NULL, -- '24h_before', '2h_before', 'custom'
-    message_content TEXT,
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed', 'cancelled')),
-    scheduled_for TIMESTAMP WITH TIME ZONE NOT NULL,
-    sent_at TIMESTAMP WITH TIME ZONE,
-    error_message TEXT,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Reminder logs already created above (avoiding duplicate)
 
 -- Proactive engagement campaigns (reactivation, check-ins)
 CREATE TABLE IF NOT EXISTS proactive_campaigns (
@@ -619,10 +605,7 @@ INSERT INTO cancellation_policies (name, hours_before_appointment, penalty_type,
 VALUES ('Default 24h Policy', 24, 'fixed', 50.00, true)
 ON CONFLICT DO NOTHING;
 
--- Insert default language settings
+-- Insert default language setting (GPT supports all languages, no limitation)
 INSERT INTO settings (key, value, category, description, is_secret)
-VALUES 
-    ('default_bot_language', 'de', 'bot', 'Default language for bot responses (de, en, fr, it)', false),
-    ('supported_languages', '["de","en","fr","it"]', 'bot', 'Supported languages for bot and customers', false),
-    ('auto_detect_language', 'false', 'bot', 'Auto-detect customer language from messages', false)
+VALUES ('default_bot_language', 'de', 'bot', 'Default language for bot responses (GPT supports all languages)', false)
 ON CONFLICT (key) DO NOTHING;

@@ -3,11 +3,11 @@
 ## Recent Changes (October 16, 2025)
 
 ### Language Preference System ✅ IMPLEMENTED
-**Multi-Language Support with Customer Memory:**
+**Unlimited Language Support with Customer Memory:**
 - **Contact Preference**: New `preferred_language` column in contacts table (default: 'de')
-- **Settings**: `default_bot_language` (de), `supported_languages` ([de, en, fr, it])
+- **Settings**: `default_bot_language` (de) - GPT supports all languages, no limitations
 - **Bot Behavior**: Responds in default language, adapts when customer requests, remembers preference
-- **Auto-Detection**: Optional setting to auto-detect from customer messages
+- **No Language Restrictions**: System supports any language GPT can understand
 
 ### Currency Standardization ✅ COMPLETED
 **CHF (Swiss Francs) System-Wide:**
