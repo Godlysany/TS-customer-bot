@@ -21,6 +21,7 @@ import { startEngagementScheduler, stopEngagementScheduler } from './core/Engage
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
 import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
+import fs from 'fs';
 
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -136,6 +137,19 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start no-show scheduler (checks every 60 minutes)
   noShowScheduler.start(60);
+  
+  // Auto-reconnect WhatsApp if credentials exist
+  const authInfoPath = path.join(__dirname, '../auth_info');
+  if (fs.existsSync(authInfoPath)) {
+    console.log('📱 WhatsApp credentials found - auto-reconnecting...');
+    import('./adapters/whatsapp').then(({ startSock }) => {
+      startSock().catch((err: any) => {
+        console.error('❌ WhatsApp auto-reconnect failed:', err);
+      });
+    });
+  } else {
+    console.log('📱 No WhatsApp credentials - connect via Settings page');
+  }
 });
 
 server.on('error', (error: any) => {

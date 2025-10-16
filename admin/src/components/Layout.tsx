@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import WhatsAppBanner from './WhatsAppBanner';
 
 const Layout = () => {
   const location = useLocation();
@@ -86,6 +87,7 @@ const Layout = () => {
       </aside>
 
       <main className="flex-1 overflow-auto">
+        <WhatsAppBanner />
         <Outlet />
       </main>
     </div>
