@@ -74,6 +74,21 @@ class MessageApprovalService {
             throw new Error(`Failed to persist WhatsApp message ID: ${error.message}`);
         }
     }
+    async markAsDeliveryFailed(messageId, whatsappMessageId) {
+        // Mark message with metadata to prevent retry-induced duplicates
+        // Store the WhatsApp message ID in metadata even if main column update failed
+        await supabase_1.supabase
+            .from('messages')
+            .update({
+            metadata: {
+                whatsapp_delivery_confirmed: true,
+                whatsapp_message_id_backup: whatsappMessageId,
+                persistence_failed: true,
+                requires_manual_recovery: true
+            }
+        })
+            .eq('id', messageId);
+    }
     async rejectMessage(messageId, agentId) {
         const { data, error } = await supabase_1.supabase
             .from('messages')

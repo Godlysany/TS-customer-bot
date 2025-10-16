@@ -69,11 +69,21 @@ router.post('/:id/approve', async (req, res) => {
         if (message.approvalStatus === 'rejected') {
             return res.status(409).json({ error: 'Message already rejected' });
         }
-        // Idempotency check: if already delivered (has whatsapp_message_id), just mark approved
-        if (message.whatsappMessageId) {
-            console.log(`Message ${messageId} already delivered to WhatsApp (${message.whatsappMessageId}), marking as approved`);
+        // Idempotency check: if already delivered (has whatsapp_message_id OR metadata flag), just mark approved
+        const deliveryConfirmed = message.whatsappMessageId || message.metadata?.whatsapp_delivery_confirmed;
+        if (deliveryConfirmed) {
+            console.log(`Message ${messageId} already delivered to WhatsApp, marking as approved`);
             const approvedMessage = await MessageApprovalService_1.default.approveMessage(messageId, agentId);
             return res.json(approvedMessage);
+        }
+        // Check for failed persistence state - block retry to prevent duplicate send
+        if (message.metadata?.requires_manual_recovery) {
+            return res.status(423).json({
+                error: 'Message was delivered but persistence failed - manual recovery required',
+                messageId: messageId,
+                whatsappMessageId: message.metadata.whatsapp_message_id_backup,
+                instructions: 'Contact administrator to manually update database with WhatsApp message ID'
+            });
         }
         // Atomic lock: mark as sending (prevents concurrent approvals)
         // Only attempt if currently pending_approval
@@ -104,19 +114,22 @@ router.post('/:id/approve', async (req, res) => {
         }
         // WhatsApp send succeeded - persist delivery marker
         // If this fails, DO NOT rollback (message already sent)
-        // Keep message in 'sending' so operators know to investigate
+        // Mark with metadata to prevent duplicate sends on retry
         try {
             await MessageApprovalService_1.default.markAsDelivered(messageId, whatsappMsgId);
         }
         catch (persistError) {
             console.error('⚠️ CRITICAL: WhatsApp message delivered but failed to persist delivery marker:', persistError);
             console.error(`Message ID: ${messageId}, WhatsApp Message ID: ${whatsappMsgId}`);
+            // Store delivery confirmation in metadata to prevent retry-induced duplicates
+            await MessageApprovalService_1.default.markAsDeliveryFailed(messageId, whatsappMsgId);
             return res.status(500).json({
-                error: 'Message delivered to WhatsApp but database update failed - contact administrator',
+                error: 'Message delivered to WhatsApp but database update failed - manual recovery required',
                 delivered: true,
                 whatsappMessageId: whatsappMsgId,
                 messageId: messageId,
-                critical: true
+                critical: true,
+                instructions: 'Do not retry. Contact administrator for manual database update.'
             });
         }
         // Persist delivery succeeded - now mark as approved

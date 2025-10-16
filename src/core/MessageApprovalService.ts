@@ -79,6 +79,22 @@ export class MessageApprovalService {
     }
   }
 
+  async markAsDeliveryFailed(messageId: string, whatsappMessageId: string): Promise<void> {
+    // Mark message with metadata to prevent retry-induced duplicates
+    // Store the WhatsApp message ID in metadata even if main column update failed
+    await supabase
+      .from('messages')
+      .update({
+        metadata: { 
+          whatsapp_delivery_confirmed: true,
+          whatsapp_message_id_backup: whatsappMessageId,
+          persistence_failed: true,
+          requires_manual_recovery: true
+        }
+      })
+      .eq('id', messageId);
+  }
+
   async rejectMessage(messageId: string, agentId: string): Promise<Message> {
     const { data, error } = await supabase
       .from('messages')
