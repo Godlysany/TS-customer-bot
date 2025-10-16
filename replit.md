@@ -2,6 +2,34 @@
 
 ## Recent Changes (October 16, 2025)
 
+### Language Preference System ✅ IMPLEMENTED
+**Multi-Language Support with Customer Memory:**
+- **Contact Preference**: New `preferred_language` column in contacts table (default: 'de')
+- **Settings**: `default_bot_language` (de), `supported_languages` ([de, en, fr, it])
+- **Bot Behavior**: Responds in default language, adapts when customer requests, remembers preference
+- **Auto-Detection**: Optional setting to auto-detect from customer messages
+
+### Currency Standardization ✅ COMPLETED
+**CHF (Swiss Francs) System-Wide:**
+- **Database**: All payment_transactions updated to CHF currency
+- **Settings**: Penalty fees, cancellation policies in CHF
+- **Timezone**: CET (Switzerland) for all timestamps
+- **Migration Required**: Run SQL updates in Railway production database (see PRODUCTION_SETUP.md)
+
+### Google Calendar OAuth Integration
+**Production Setup Required:**
+- **Current**: iCal URL for read-only availability checking
+- **OAuth Setup**: Requires Google Cloud Console configuration (documented in PRODUCTION_SETUP.md)
+- **Features**: Create/edit events, automatic token refresh, encrypted token storage
+- **Environment Variables**: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
+
+### Known Production Issues (Debugging Required)
+**These features exist in code but need Railway log debugging:**
+- **Bot Config Save**: API endpoints exist, may have validation/auth issues
+- **Admin Management**: AgentService functional, check camelCase mapping
+- **Service Creation**: Form submission needs production error analysis
+- **Customer CRM**: Will populate as new WhatsApp conversations arrive with names
+
 ### Calendar Integration Note
 - **iCal URL**: Currently configured for read-only calendar availability checking
 - **Limitation**: Cannot create or edit calendar events directly (read-only)
