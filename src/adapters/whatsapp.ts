@@ -269,6 +269,8 @@ async function startSock() {
     auth: state,
     printQRInTerminal: false,
     getMessage: async () => undefined,
+    browser: ['WhatsApp CRM Bot', 'Chrome', '120.0'],
+    syncFullHistory: false,
   });
 
   (global as any).sock = sock;
