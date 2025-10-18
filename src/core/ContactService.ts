@@ -1,5 +1,5 @@
 import { supabase } from '../infrastructure/supabase';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export interface Contact {
   id?: string;
@@ -206,7 +206,7 @@ class ContactService {
     rows: CSVImportRow[],
     uploadedBy: string
   ): Promise<CSVImportResult> {
-    const batchId = uuidv4();
+    const batchId = randomUUID();
     const errors: Array<{ row: number; error: string; data: any }> = [];
     let successfulImports = 0;
     let failedImports = 0;

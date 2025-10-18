@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const supabase_1 = require("../infrastructure/supabase");
-const uuid_1 = require("uuid");
+const crypto_1 = require("crypto");
 class ContactService {
     /**
      * Create a new contact manually
@@ -157,7 +157,7 @@ class ContactService {
      * Process CSV import and create contacts in bulk
      */
     async importContactsFromCSV(rows, uploadedBy) {
-        const batchId = (0, uuid_1.v4)();
+        const batchId = (0, crypto_1.randomUUID)();
         const errors = [];
         let successfulImports = 0;
         let failedImports = 0;

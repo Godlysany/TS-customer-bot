@@ -1,0 +1,101 @@
+Stopping Container
+Node.js v22.11.0
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+}
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+Node.js v22.11.0
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+Node.js v22.11.0
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+/app/dist/core/ContactService.js:315
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+            console.error('Error searching contacts:', error);
+}
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+Node.js v22.11.0
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+/app/dist/core/ContactService.js:315
+            console.error('Error searching contacts:', error);
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/ContactService.js not supported.
+Instead change the require of index.js in /app/dist/core/ContactService.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/ContactService.js:4:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
