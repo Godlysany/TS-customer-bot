@@ -16,6 +16,9 @@ import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import QuestionnaireResponses from './pages/QuestionnaireResponses';
 import Services from './pages/Services';
+import Promotions from './pages/Promotions';
+import BotDiscounts from './pages/BotDiscounts';
+import CustomersManagement from './pages/CustomersManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +88,30 @@ function App() {
                 element={
                   <ProtectedRoute requireMaster>
                     <AdminManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="promotions"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <Promotions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="bot-discounts"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <BotDiscounts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="customers-management"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <CustomersManagement />
                   </ProtectedRoute>
                 }
               />
