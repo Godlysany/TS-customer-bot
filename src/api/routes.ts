@@ -215,6 +215,21 @@ router.post('/api/settings/bot/toggle', authMiddleware, requireRole('master'), a
     // Get current state and toggle it
     const currentState = await settingsService.getBotEnabled();
     const newState = !currentState;
+    
+    // CRITICAL: Prevent enabling bot if WhatsApp is not connected
+    if (newState === true) {
+      const { getSock } = await import('../adapters/whatsapp');
+      const sock = getSock();
+      const whatsappConnected = !!(sock && sock.user);
+      
+      if (!whatsappConnected) {
+        return res.status(400).json({ 
+          error: 'Cannot enable bot - WhatsApp is not connected. Please connect WhatsApp first.',
+          whatsappConnected: false
+        });
+      }
+    }
+    
     await settingsService.setBotEnabled(newState);
     res.json({ success: true, enabled: newState });
   } catch (error: any) {

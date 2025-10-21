@@ -9,7 +9,15 @@ const router = Router();
 function getOAuth2Client() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:8080'}/api/calendar/oauth/callback`;
+  
+  // Support both production (Railway/custom domain) and dev (Replit)
+  // Priority: PRODUCTION_DOMAIN > RAILWAY_PUBLIC_DOMAIN > REPLIT_DEV_DOMAIN
+  const domain = process.env.PRODUCTION_DOMAIN 
+    || process.env.RAILWAY_PUBLIC_DOMAIN 
+    || process.env.REPLIT_DEV_DOMAIN 
+    || 'localhost:8080';
+  
+  const redirectUri = `https://${domain}/api/calendar/oauth/callback`;
 
   if (!clientId || !clientSecret) {
     throw new Error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET');
@@ -45,7 +53,7 @@ router.get('/oauth/connect', async (req, res) => {
             <li>Create a new project or select existing</li>
             <li>Enable Google Calendar API</li>
             <li>Create OAuth 2.0 credentials (Web application)</li>
-            <li>Add redirect URI: <code>https://${process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback</code></li>
+            <li>Add redirect URI: <code>${`https://${process.env.PRODUCTION_DOMAIN || process.env.RAILWAY_PUBLIC_DOMAIN || process.env.REPLIT_DEV_DOMAIN}/api/calendar/oauth/callback`}</code></li>
             <li>Add secrets in Replit: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET</li>
           </ol>
           <p>Error: ${error.message}</p>
