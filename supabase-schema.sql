@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS marketing_campaigns (
     name VARCHAR(255) NOT NULL,
     message_template TEXT NOT NULL,
     filter_criteria JSONB NOT NULL, -- JSON filter for targeting
+    promotion_id UUID REFERENCES promotions(id) ON DELETE SET NULL, -- Optional promotion link for bot
     scheduled_at TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'sent', 'cancelled')),
     total_recipients INTEGER DEFAULT 0,

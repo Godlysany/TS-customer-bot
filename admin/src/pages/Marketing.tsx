@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { marketingApi } from '../lib/api';
+import { promotionApi } from '../lib/promotion-api';
 import type { MarketingCampaign } from '../types';
-import { Filter, Send, Calendar as CalendarIcon } from 'lucide-react';
+import { Filter, Send, Calendar as CalendarIcon, Tag } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Marketing = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -13,6 +15,7 @@ const Marketing = () => {
   });
   const [campaignName, setCampaignName] = useState('');
   const [campaignMessage, setCampaignMessage] = useState('');
+  const [selectedPromotionId, setSelectedPromotionId] = useState('');
   const [filteredCount, setFilteredCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
@@ -20,6 +23,14 @@ const Marketing = () => {
     queryKey: ['campaigns'],
     queryFn: async () => {
       const res = await marketingApi.getCampaigns();
+      return res.data;
+    },
+  });
+
+  const { data: promotions } = useQuery({
+    queryKey: ['promotions', 'active'],
+    queryFn: async () => {
+      const res = await promotionApi.getActive();
       return res.data;
     },
   });
@@ -38,8 +49,13 @@ const Marketing = () => {
       setShowFilterModal(false);
       setCampaignName('');
       setCampaignMessage('');
+      setSelectedPromotionId('');
       setFilterCriteria({ sentiment: '', hasAppointment: '', lastInteractionDays: '' });
       setFilteredCount(null);
+      toast.success('Campaign created successfully');
+    },
+    onError: () => {
+      toast.error('Failed to create campaign');
     },
   });
 
@@ -61,7 +77,8 @@ const Marketing = () => {
     createCampaignMutation.mutate({
       name: campaignName,
       filterCriteria: criteria,
-      message: campaignMessage,
+      messageTemplate: campaignMessage,
+      promotionId: selectedPromotionId || null,
       status: 'draft',
     });
   };
@@ -162,6 +179,28 @@ const Marketing = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Your campaign message..."
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Tag className="w-4 h-4 inline-block mr-1" />
+                    Link Promotion (Optional)
+                  </label>
+                  <select
+                    value={selectedPromotionId}
+                    onChange={(e) => setSelectedPromotionId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No promotion</option>
+                    {promotions?.map((promo: any) => (
+                      <option key={promo.id} value={promo.id}>
+                        {promo.name} - {promo.discount_type === 'fixed_chf' ? `${promo.discount_value} CHF` : `${promo.discount_value}%`} off
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    When linked, the bot can intelligently offer this promotion during customer conversations.
+                  </p>
                 </div>
 
                 <div className="border-t pt-6">

@@ -120,13 +120,12 @@ const Settings = () => {
   const secretarySettings = [
     { key: 'secretary_email', label: 'Secretary Email', type: 'email' },
     { key: 'daily_summary_time', label: 'Daily Summary Time', type: 'time', placeholder: 'HH:MM (24-hour format)' },
-    { key: 'cancellation_policy_hours', label: 'Cancellation Policy (Hours)', type: 'number' },
-    { key: 'cancellation_penalty_fee', label: 'Cancellation Penalty Fee ($)', type: 'number' },
   ];
 
   const reminderSettings = [
     { key: 'whatsapp_reminders_enabled', label: 'Enable WhatsApp Reminders', type: 'select', options: ['true', 'false'] },
     { key: 'whatsapp_reminder_timing', label: 'WhatsApp Reminder Timing (hours before, comma-separated)', type: 'text', placeholder: '24,2' },
+    { key: 'email_reminders_enabled', label: 'Enable Email Reminders', type: 'select', options: ['true', 'false'] },
     { key: 'email_reminder_timing', label: 'Email Reminder Timing (hours before, comma-separated)', type: 'text', placeholder: '48,24' },
   ];
 
@@ -214,9 +213,15 @@ const Settings = () => {
               </div>
             </div>
             <button
-              onClick={() => toggleBotMutation.mutate()}
-              disabled={toggleBotMutation.isPending}
-              className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50 ${
+              onClick={() => {
+                if (!botEnabled && !whatsappStatus?.connected) {
+                  toast.error('Cannot enable bot - WhatsApp is not connected. Please connect WhatsApp first.');
+                  return;
+                }
+                toggleBotMutation.mutate();
+              }}
+              disabled={toggleBotMutation.isPending || (!botEnabled && !whatsappStatus?.connected)}
+              className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                 botEnabled
                   ? 'bg-red-600 hover:bg-red-700 text-white'
                   : 'bg-green-600 hover:bg-green-700 text-white'

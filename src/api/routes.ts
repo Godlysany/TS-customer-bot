@@ -210,11 +210,13 @@ router.put('/api/settings/:key', authMiddleware, requireRole('master'), async (r
   }
 });
 
-router.post('/api/settings/bot/toggle', async (req, res) => {
+router.post('/api/settings/bot/toggle', authMiddleware, requireRole('master'), async (req, res) => {
   try {
-    const { enabled } = req.body;
-    await settingsService.setBotEnabled(enabled);
-    res.json({ success: true, enabled });
+    // Get current state and toggle it
+    const currentState = await settingsService.getBotEnabled();
+    const newState = !currentState;
+    await settingsService.setBotEnabled(newState);
+    res.json({ success: true, enabled: newState });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -311,11 +313,12 @@ router.post('/api/marketing/filter', async (req, res) => {
 
 router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
   try {
-    const { name, messageTemplate, filterCriteria, scheduledAt, createdBy } = req.body;
+    const { name, messageTemplate, filterCriteria, promotionId, scheduledAt, createdBy } = req.body;
     const campaign = await marketingService.createCampaign(
       name,
       messageTemplate,
       filterCriteria,
+      promotionId,
       scheduledAt ? new Date(scheduledAt) : undefined,
       createdBy
     );
