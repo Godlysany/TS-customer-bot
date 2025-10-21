@@ -303,7 +303,7 @@ Respond with JSON only:
    */
   async updateContactWithInsights(contactId: string, extractedData: ExtractedConversationData): Promise<void> {
     try {
-      if (!extractedData.newInsights || extractedData.confidence < 0.3) {
+      if (!extractedData.newInsights || (extractedData.confidence || 0) < 0.3) {
         console.log(`⏭️  Skipping contact update - low confidence or no insights`);
         return;
       }

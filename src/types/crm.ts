@@ -88,10 +88,3 @@ export interface ExtractedConversationData {
   // Which conversation it came from
   conversationId?: string;
 }
-
-export default {
-  CommunicationPreferences,
-  CustomerInsights,
-  ContactCRMData,
-  ExtractedConversationData,
-};

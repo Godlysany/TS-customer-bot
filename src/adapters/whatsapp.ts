@@ -277,6 +277,16 @@ async function handleMessage(msg: WAMessage) {
     customerAnalyticsService.updateCustomerAnalytics(contact.id).catch(err =>
       console.warn('⚠️ Analytics update failed:', err)
     );
+
+    // Asynchronously extract and save CRM data from conversation
+    // This doesn't block the response - runs in background
+    aiService.extractCustomerData(conversation.id, messageHistory)
+      .then(extractedData => {
+        if (extractedData.confidence && extractedData.confidence > 0) {
+          return aiService.updateContactWithInsights(contact.id, extractedData);
+        }
+      })
+      .catch(err => console.warn('⚠️ CRM extraction failed:', err));
   } catch (err: any) {
     console.error('❌ Message handling error:', err);
   }

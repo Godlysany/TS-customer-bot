@@ -106,7 +106,7 @@ export class EmailService {
       datetime: new Date(bookingDetails.startTime),
       cost: serviceCost || undefined,
       location: config.business_location,
-      directions: config.directions_info,
+      directions: config.business_directions,
       businessName: config.business_name,
       discountCode: bookingDetails.discountCode,
       discountAmount: bookingDetails.discountAmount,
