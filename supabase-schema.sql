@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS contacts (
     preferred_language VARCHAR(10) DEFAULT 'de',
     
     -- Enhanced CRM fields for customer profiling
-    preferred_staff_member VARCHAR(255), -- Staff member customer prefers
+    preferred_staff_member VARCHAR(255), -- DEPRECATED: Legacy single staff preference
+    preferred_team_member_ids UUID[], -- NEW: Array of preferred team member UUIDs (supports multiple)
+    preference_metadata JSONB, -- Stores preference context: {"detected_from":"conversation", "last_updated":"2025-03-15", "ranking":[uuid1,uuid2]}
     preferred_appointment_times TEXT, -- e.g. "mornings", "weekends only", "Tuesdays after 3pm"
     special_notes TEXT, -- Fears, anxieties, allergies, special requests, medical considerations
     communication_preferences TEXT, -- e.g. "WhatsApp only", "Email reminders needed"
@@ -23,7 +25,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Agents table
+-- Agents table (Admin users who manage the CRM)
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -36,6 +38,79 @@ CREATE TABLE IF NOT EXISTS agents (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Team Members table (Service providers: doctors, instructors, therapists, etc.)
+-- NOTE: Current architecture is SINGLE-TENANT (one business per installation)
+-- Future enhancement: Add business_id for multi-tenant support
+CREATE TABLE IF NOT EXISTS team_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- FUTURE MULTI-TENANT SUPPORT:
+    -- When supporting multiple businesses, uncomment and add migration:
+    -- business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    -- Then change UNIQUE constraint from (name) to (business_id, name)
+    
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(255), -- e.g. "Dentist", "Driving Instructor", "Massage Therapist"
+    bio TEXT, -- Public bio shown to customers
+    avatar_url TEXT, -- Profile picture URL
+    email VARCHAR(255), -- Optional: for internal notifications
+    phone VARCHAR(50), -- Optional: for internal contact
+    
+    -- Calendar Integration (per team member)
+    calendar_provider VARCHAR(50) DEFAULT 'ical' CHECK (calendar_provider IN ('ical', 'google', 'caldav', 'outlook')),
+    calendar_source_url TEXT, -- iCal URL, Google Calendar ID, etc.
+    calendar_secret_ref VARCHAR(255), -- Reference to secret in vault (NOT the actual secret)
+    calendar_last_synced TIMESTAMP WITH TIME ZONE, -- Last successful sync
+    calendar_sync_status VARCHAR(50) DEFAULT 'pending' CHECK (calendar_sync_status IN ('pending', 'active', 'error', 'disabled')),
+    calendar_sync_error TEXT, -- Last error message if sync failed
+    
+    -- Availability & Priority
+    is_active BOOLEAN DEFAULT true, -- Can accept new bookings?
+    is_bookable BOOLEAN DEFAULT false, -- Computed: has calendar + linked to services
+    default_priority INTEGER DEFAULT 0, -- Higher = preferred when multiple options (0-10)
+    working_hours JSONB, -- Optional override: {"monday":"09:00-17:00", ...}
+    
+    -- Metadata
+    metadata JSONB, -- Extra configuration: certifications, specialties, etc.
+    display_order INTEGER DEFAULT 0, -- Order in UI lists
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    
+    -- UNIQUE constraint will be UNIQUE(business_id, name) once business_id is added
+    -- For now: UNIQUE(name) as temporary constraint
+    -- TODO: Change to UNIQUE(business_id, name) when business_id column added
+);
+
+-- Temporary unique constraint (will be replaced with business-scoped constraint)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_team_members_name_temp ON team_members(name);
+
+CREATE INDEX IF NOT EXISTS idx_team_members_active ON team_members(is_active, is_bookable);
+CREATE INDEX IF NOT EXISTS idx_team_members_calendar_sync ON team_members(calendar_sync_status);
+
+-- Team Member Services junction table (many-to-many)
+CREATE TABLE IF NOT EXISTS team_member_services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    
+    -- Priority & Configuration
+    is_primary BOOLEAN DEFAULT false, -- Is this team member the primary provider for this service?
+    priority_order INTEGER DEFAULT 0, -- Order preference when multiple team members offer same service
+    custom_duration_minutes INTEGER, -- Override service duration for this team member
+    custom_cost_chf DECIMAL(10,2), -- Override service cost for this team member
+    notes TEXT, -- Special notes about this team member's approach to this service
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(team_member_id, service_id) -- No duplicate assignments
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_member_services_team ON team_member_services(team_member_id);
+CREATE INDEX IF NOT EXISTS idx_team_member_services_service ON team_member_services(service_id);
+CREATE INDEX IF NOT EXISTS idx_team_member_services_primary ON team_member_services(service_id, is_primary);
 
 -- Conversations table
 CREATE TABLE IF NOT EXISTS conversations (
@@ -83,6 +158,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     service_id UUID REFERENCES services(id) ON DELETE SET NULL,
+    
+    -- Team Member Assignment (NEW)
+    team_member_id UUID REFERENCES team_members(id) ON DELETE SET NULL, -- Which team member provides this service
+    assigned_strategy VARCHAR(50) DEFAULT 'auto', -- How was team member selected: 'preference', 'availability', 'manual', 'auto'
+    preference_snapshot JSONB, -- Snapshot of customer preferences at booking time
+    
     calendar_event_id VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -303,6 +384,8 @@ CREATE INDEX idx_conversations_assigned_agent_id ON conversations(assigned_agent
 CREATE INDEX idx_bookings_contact_id ON bookings(contact_id);
 CREATE INDEX idx_bookings_start_time ON bookings(start_time);
 CREATE INDEX idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_team_member ON bookings(team_member_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_assigned_strategy ON bookings(assigned_strategy);
 CREATE INDEX idx_contacts_phone_number ON contacts(phone_number);
 CREATE INDEX idx_waitlist_contact_id ON waitlist(contact_id);
 CREATE INDEX idx_waitlist_status ON waitlist(status);
@@ -714,10 +797,79 @@ INSERT INTO settings (key, value, category, description, is_secret) VALUES
 ('email_confirmation_subject', 'Booking Confirmation - {{service}} on {{date}}', 'bot_config', 'Email subject line template', false)
 ON CONFLICT (key) DO NOTHING;
 
--- Escalation Triggers
+-- Escalation Triggers (DEPRECATED - moved to escalation_config)
 INSERT INTO settings (key, value, category, description, is_secret) VALUES
-('escalation_trigger_words', '["complaint","angry","refund","cancel subscription","speak to manager","terrible","awful","disappointed"]', 'bot_config', 'JSON array of keywords that trigger human escalation', false)
+('escalation_trigger_words', '["complaint","angry","refund","cancel subscription","speak to manager","terrible","awful","disappointed"]', 'bot_config', 'DEPRECATED: Use escalation_config instead', false)
 ON CONFLICT (key) DO NOTHING;
+
+-- Escalation Configuration (Consolidated, User-Friendly)
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('escalation_config', '{
+  "mode": "sentiment_and_keyword",
+  "enabled": true,
+  "triggers": {
+    "keywords": ["complaint", "angry", "refund", "cancel subscription", "speak to manager", "terrible", "awful", "disappointed", "lawyer", "legal"],
+    "sentiment_threshold": -0.3,
+    "inactivity_timeout_minutes": 30,
+    "manual_flags": ["urgent", "vip_customer"]
+  },
+  "behavior": {
+    "auto_takeover": false,
+    "notify_agents": true,
+    "pause_bot": true,
+    "escalation_message": "I understand this is important. Let me connect you with our team right away.",
+    "agent_notification": "🚨 Escalation: {reason} | Customer: {name} | Sentiment: {sentiment}"
+  },
+  "modes_available": {
+    "keyword_only": "Escalate only when trigger keywords detected",
+    "sentiment_only": "Escalate only when sentiment drops below threshold",
+    "sentiment_and_keyword": "Escalate when EITHER sentiment is low OR keywords detected",
+    "sentiment_then_keyword": "Escalate when sentiment is low AND keywords detected",
+    "manual_only": "Only escalate when manually flagged by agent"
+  },
+  "test_scenarios": {
+    "negative_sentiment": "Test with: I am very disappointed and frustrated",
+    "trigger_word": "Test with: I want a refund immediately",
+    "combined": "Test with: This is terrible, I want to speak to a manager"
+  }
+}', 'bot_config', 'Comprehensive escalation configuration with modes, triggers, and behavior', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- ============================================
+-- MULTI-TEAM MEMBER SYSTEM - MIGRATION & SEED DATA
+-- ============================================
+
+-- Create default "General Calendar" team member for backward compatibility
+-- This allows existing installations to continue working without immediate team member setup
+INSERT INTO team_members (
+    id, 
+    name, 
+    role, 
+    bio, 
+    calendar_provider, 
+    calendar_source_url,
+    calendar_secret_ref,
+    is_active, 
+    is_bookable,
+    default_priority,
+    display_order
+) VALUES (
+    '00000000-0000-0000-0000-000000000001', -- Fixed UUID for default team member
+    'General Calendar',
+    'Default Provider',
+    'Default calendar for appointments when no specific team member is selected.',
+    'google', -- Or 'ical' depending on existing setup
+    '', -- Will be populated from existing calendar settings
+    'GOOGLE_CALENDAR_DEFAULT', -- Reference to existing calendar secret
+    true,
+    true,
+    0,
+    999 -- Display last in lists
+) ON CONFLICT (id) DO NOTHING;
+
+-- Note: Admins should configure proper team members and deprecate this default
+
+-- ============================================
 -- WhatsApp CRM Bot - Promotion & Payment System Schema Updates
 -- Date: October 16, 2025
 
