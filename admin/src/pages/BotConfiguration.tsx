@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Bot, Brain, Building2, MessageSquare, Shield, Mail, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 
 // Import all configuration sections
 import BusinessDetailsSection from '../components/bot-config/BusinessDetailsSection';

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tantml:invoke>
-<parameter name="name">react-query';
-import { botConfigApi, settingsApi } from '../../lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { settingsApi } from '../../lib/api';
 import { Save, Building2, MapPin, Phone, Mail, Clock, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,7 +16,6 @@ const BusinessDetailsSection = () => {
     opening_hours: '',
   });
 
-  // Fetch current settings
   const { data: settings } = useQuery({
     queryKey: ['settings', 'bot_config'],
     queryFn: async () => {
@@ -47,7 +45,6 @@ const BusinessDetailsSection = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Save each setting individually
       const promises = Object.entries(data).map(([key, value]) =>
         settingsApi.update(key, value)
       );
@@ -68,7 +65,6 @@ const BusinessDetailsSection = () => {
 
   return (
     <div className="space-y-6">
-      {/* Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <strong>Business Details</strong> are used by the bot to personalize conversations, 
@@ -76,7 +72,6 @@ const BusinessDetailsSection = () => {
         </p>
       </div>
 
-      {/* Business Name & Contact */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Building2 className="w-5 h-5 text-blue-600" />
@@ -144,7 +139,6 @@ const BusinessDetailsSection = () => {
         </div>
       </div>
 
-      {/* Location & Directions */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Navigation className="w-5 h-5 text-blue-600" />
@@ -186,7 +180,6 @@ const BusinessDetailsSection = () => {
         </div>
       </div>
 
-      {/* Opening Hours */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Clock className="w-5 h-5 text-blue-600" />
@@ -217,7 +210,6 @@ const BusinessDetailsSection = () => {
         </div>
       </div>
 
-      {/* Save Button */}
       <div className="flex justify-end">
         <button
           onClick={handleSave}

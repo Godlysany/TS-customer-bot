@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { questionnaireApi } from '../../lib/api';
-import { Save, MessageSquare, Plus, Trash2, Link as LinkIcon, Tag } from 'lucide-react';
+import { Save, MessageSquare, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Question {
@@ -26,7 +26,6 @@ interface Questionnaire {
 const QuestionnaireSection = () => {
   const queryClient = useQueryClient();
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [newQuestionnaire, setNewQuestionnaire] = useState<Questionnaire>({
     name: '',
     description: '',
@@ -67,7 +66,6 @@ const QuestionnaireSection = () => {
         linked_promotions: [],
         active: true,
       });
-      setEditingId(null);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to save questionnaire');
