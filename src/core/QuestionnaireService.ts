@@ -9,13 +9,22 @@ interface Question {
   required: boolean;
 }
 
+type QuestionnaireTriggerType = 
+  | 'manual'             // Agent manually triggers
+  | 'before_booking'     // Auto-trigger before any booking
+  | 'after_booking'      // After booking confirmation
+  | 'first_contact'      // New customer first interaction
+  | 'service_specific';  // Linked to specific services
+
 interface Questionnaire {
   id: string;
   name: string;
   description?: string;
   questions: Question[];
   isActive: boolean;
-  triggerType?: 'new_contact' | 'first_booking' | 'manual';
+  triggerType?: QuestionnaireTriggerType;
+  linkedServices?: string[];     // Service UUIDs for service_specific trigger
+  linkedPromotions?: string[];   // Promotion UUIDs for promotion linking
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -36,7 +45,9 @@ export class QuestionnaireService {
     name: string;
     description?: string;
     questions: Question[];
-    triggerType?: 'new_contact' | 'first_booking' | 'manual';
+    triggerType?: QuestionnaireTriggerType;
+    linkedServices?: string[];
+    linkedPromotions?: string[];
     createdBy?: string;
   }): Promise<Questionnaire> {
     const { data: questionnaire, error } = await supabase
@@ -46,6 +57,8 @@ export class QuestionnaireService {
         description: data.description,
         questions: data.questions,
         triggerType: data.triggerType,
+        linkedServices: data.linkedServices,
+        linkedPromotions: data.linkedPromotions,
         isActive: true,
         createdBy: data.createdBy,
       }))
@@ -149,4 +162,64 @@ export class QuestionnaireService {
       .update({ is_active: false })
       .eq('id', id);
   }
+
+  /**
+   * Get questionnaires for a specific service
+   * Used for service_specific trigger type
+   */
+  async getQuestionnairesForService(serviceId: string): Promise<Questionnaire[]> {
+    const { data, error } = await supabase
+      .from('questionnaires')
+      .select('*')
+      .eq('is_active', true)
+      .eq('trigger_type', 'service_specific')
+      .contains('linked_services', [serviceId]);
+
+    if (error) {
+      console.error('Failed to get service questionnaires:', error.message);
+      return [];
+    }
+    
+    return (data || []).map(toCamelCase) as Questionnaire[];
+  }
+
+  /**
+   * Check if contact has already completed a specific questionnaire
+   * Prevents duplicate questionnaire completion
+   */
+  async hasContactCompletedQuestionnaire(
+    contactId: string, 
+    questionnaireId: string
+  ): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('questionnaire_responses')
+      .select('id')
+      .eq('contact_id', contactId)
+      .eq('questionnaire_id', questionnaireId)
+      .not('completed_at', 'is', null)
+      .limit(1);
+
+    if (error) {
+      console.error('Failed to check questionnaire completion:', error.message);
+      return false;
+    }
+
+    return (data?.length || 0) > 0;
+  }
+
+  /**
+   * Get all questionnaires (including inactive) for admin management
+   */
+  async getAllQuestionnaires(): Promise<Questionnaire[]> {
+    const { data, error } = await supabase
+      .from('questionnaires')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to get all questionnaires: ${error.message}`);
+    return (data || []).map(toCamelCase) as Questionnaire[];
+  }
 }
+
+// Export types for use in other files
+export type { Questionnaire, QuestionnaireResponse, Question, QuestionnaireTriggerType };

@@ -16,6 +16,8 @@ import settingsService from '../core/SettingsService';
 import conversationTakeoverService from '../core/ConversationTakeoverService';
 import customerAnalyticsService from '../core/CustomerAnalyticsService';
 import bookingChatHandler from '../core/BookingChatHandler';
+import questionnaireRuntimeService from '../core/QuestionnaireRuntimeService';
+import { QuestionnaireService } from '../core/QuestionnaireService';
 
 const debounceTimers = new Map();
 const messageBuffers = new Map();
@@ -113,6 +115,106 @@ function cleanText(text: string): string {
     .trim();
 }
 
+/**
+ * Trigger questionnaires based on trigger type
+ * Returns a questionnaire message if one should be started, null otherwise
+ */
+async function checkAndTriggerQuestionnaires(
+  conversationId: string,
+  contactId: string,
+  triggerType: 'first_contact' | 'before_booking' | 'after_booking',
+  serviceId?: string
+): Promise<string | null> {
+  const questionnaireService = new QuestionnaireService();
+
+  // Get active questionnaires for this trigger type
+  const questionnaires = await questionnaireService.getActiveQuestionnaires(triggerType);
+
+  if (questionnaires.length === 0) {
+    return null; // No questionnaires configured for this trigger
+  }
+
+  // For service_specific, filter by service ID
+  let targetQuestionnaire = questionnaires[0]; // Default to first one
+
+  if (triggerType === 'before_booking' && serviceId) {
+    // Check for service-specific questionnaires first
+    const serviceQuestionnaires = await questionnaireService.getQuestionnairesForService(serviceId);
+    if (serviceQuestionnaires.length > 0) {
+      targetQuestionnaire = serviceQuestionnaires[0];
+    }
+  }
+
+  // Check if contact already completed this questionnaire
+  const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(
+    contactId,
+    targetQuestionnaire.id
+  );
+
+  if (alreadyCompleted) {
+    console.log(`📋 Customer already completed questionnaire "${targetQuestionnaire.name}"`);
+    return null;
+  }
+
+  // Start the questionnaire
+  questionnaireRuntimeService.startQuestionnaire(
+    conversationId,
+    contactId,
+    targetQuestionnaire
+  );
+
+  // Return the first question
+  const firstQuestion = questionnaireRuntimeService.formatCurrentQuestion(conversationId);
+  return firstQuestion;
+}
+
+/**
+ * Handle customer's response to a questionnaire question
+ */
+async function handleQuestionnaireResponse(
+  conversationId: string,
+  response: string,
+  contactId: string
+): Promise<string> {
+  const questionnaireService = new QuestionnaireService();
+
+  // Save the response to current question
+  const result = questionnaireRuntimeService.saveResponse(conversationId, response);
+
+  if (!result.valid) {
+    // Invalid response - ask again with error message
+    const currentQuestion = questionnaireRuntimeService.formatCurrentQuestion(conversationId);
+    return `${result.error}\n\n${currentQuestion}`;
+  }
+
+  // Check if questionnaire is complete
+  if (result.completed) {
+    const responses = questionnaireRuntimeService.getResponses(conversationId);
+    const questionnaireId = questionnaireRuntimeService.getQuestionnaireId(conversationId);
+
+    // Save responses to database
+    try {
+      await questionnaireService.saveResponse({
+        questionnaireId: questionnaireId!,
+        contactId,
+        conversationId,
+        responses: responses!,
+      });
+
+      questionnaireRuntimeService.clearContext(conversationId);
+
+      return `✅ Thank you for completing the questionnaire! Your responses have been saved.\n\nHow else can I help you today?`;
+    } catch (error: any) {
+      console.error('Failed to save questionnaire responses:', error.message);
+      return `Thank you for completing the questionnaire! However, there was an error saving your responses. Please contact support.`;
+    }
+  }
+
+  // More questions remaining - ask next question
+  const nextQuestion = questionnaireRuntimeService.formatCurrentQuestion(conversationId);
+  return nextQuestion || 'Error loading next question. Please try again.';
+}
+
 let isStarting = false;
 let sock: any;
 
@@ -182,17 +284,22 @@ async function handleMessage(msg: WAMessage) {
     let replyText: string | null = null;
 
     try {
-      // CRITICAL: Check for active booking context BEFORE intent detection
-      // This ensures follow-up messages (like "1" or "next Monday") route to the handler
-      if (bookingChatHandler.hasActiveContext(conversation.id)) {
+      // PRIORITY 1: Check for active questionnaire (customer is answering questions)
+      if (questionnaireRuntimeService.hasActiveQuestionnaire(conversation.id)) {
+        console.log('📋 Customer is answering questionnaire');
+        replyText = await handleQuestionnaireResponse(conversation.id, text, contact.id);
+      }
+      // PRIORITY 2: Check for active booking context
+      else if (bookingChatHandler.hasActiveContext(conversation.id)) {
         console.log('🔄 Continuing booking conversation flow');
         replyText = await bookingChatHandler.handleContextMessage(
           conversation.id,
           text,
           messageHistory
         );
-      } else {
-        // No active context - detect intent normally
+      } 
+      // PRIORITY 3: Normal intent detection
+      else {
         const intent = await aiService.detectIntent(text);
         console.log('🎯 Intent detected:', intent);
 
