@@ -408,7 +408,7 @@ router.post('/api/marketing/filter', async (req, res) => {
 
 router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
   try {
-    const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, createdBy } = req.body;
+    const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, status, createdBy } = req.body;
     const campaign = await marketingService.createCampaign(
       name,
       messageTemplate,
@@ -416,7 +416,8 @@ router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), a
       promotionId,
       questionnaireId,
       promotionAfterCompletion,
-      scheduledAt ? new Date(scheduledAt) : undefined,
+      scheduledAt,  // Pass as-is (string or Date), service handles it
+      status,       // Pass status from frontend
       createdBy
     );
     res.json(campaign);

@@ -11,6 +11,7 @@ const Marketing = () => {
   const [filterCriteria, setFilterCriteria] = useState({
     sentiment: '',
     hasAppointment: '',
+    interactionType: 'all',  // 'all' | 'active' | 'inactive' | 'never'
     lastInteractionDays: '',
   });
   const [campaignName, setCampaignName] = useState('');
@@ -68,7 +69,7 @@ const Marketing = () => {
       setScheduledDate('');
       setScheduledTime('');
       setSendImmediately(true);
-      setFilterCriteria({ sentiment: '', hasAppointment: '', lastInteractionDays: '' });
+      setFilterCriteria({ sentiment: '', hasAppointment: '', interactionType: 'all', lastInteractionDays: '' });
       setFilteredCount(null);
       toast.success('Campaign created successfully');
     },
@@ -79,9 +80,24 @@ const Marketing = () => {
 
   const handlePreviewFilter = () => {
     const criteria: any = {};
-    if (filterCriteria.sentiment) criteria.sentiment = filterCriteria.sentiment;
-    if (filterCriteria.hasAppointment) criteria.hasAppointment = filterCriteria.hasAppointment === 'true';
-    if (filterCriteria.lastInteractionDays) criteria.lastInteractionDays = parseInt(filterCriteria.lastInteractionDays);
+    
+    // Sentiment filter
+    if (filterCriteria.sentiment) {
+      criteria.sentiment = filterCriteria.sentiment;
+    }
+    
+    // Appointment filter
+    if (filterCriteria.hasAppointment) {
+      criteria.hasAppointment = filterCriteria.hasAppointment === 'true';
+    }
+    
+    // Interaction type filter
+    if (filterCriteria.interactionType === 'never') {
+      criteria.interactionType = 'never';
+    } else if (filterCriteria.interactionType !== 'all' && filterCriteria.lastInteractionDays) {
+      criteria.interactionType = filterCriteria.interactionType;
+      criteria.lastInteractionDays = parseInt(filterCriteria.lastInteractionDays);
+    }
     
     filterContactsMutation.mutate(criteria);
   };
@@ -93,10 +109,23 @@ const Marketing = () => {
       return;
     }
 
+    // Build filter criteria matching backend expectations
     const criteria: any = {};
-    if (filterCriteria.sentiment) criteria.sentiment = filterCriteria.sentiment;
-    if (filterCriteria.hasAppointment) criteria.hasAppointment = filterCriteria.hasAppointment === 'true';
-    if (filterCriteria.lastInteractionDays) criteria.lastInteractionDays = parseInt(filterCriteria.lastInteractionDays);
+    
+    if (filterCriteria.sentiment) {
+      criteria.sentiment = filterCriteria.sentiment;
+    }
+    
+    if (filterCriteria.hasAppointment) {
+      criteria.hasAppointment = filterCriteria.hasAppointment === 'true';
+    }
+    
+    if (filterCriteria.interactionType === 'never') {
+      criteria.interactionType = 'never';
+    } else if (filterCriteria.interactionType !== 'all' && filterCriteria.lastInteractionDays) {
+      criteria.interactionType = filterCriteria.interactionType;
+      criteria.lastInteractionDays = parseInt(filterCriteria.lastInteractionDays);
+    }
 
     // Calculate scheduledAt
     let scheduledAt = null;
@@ -352,49 +381,124 @@ const Marketing = () => {
                     <h3 className="text-lg font-semibold text-gray-900">Filter Audience</h3>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Sentiment
+                        Customer Sentiment
                       </label>
                       <select
                         value={filterCriteria.sentiment}
                         onChange={(e) => setFilterCriteria({ ...filterCriteria, sentiment: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       >
-                        <option value="">All</option>
-                        <option value="positive">Positive</option>
-                        <option value="neutral">Neutral</option>
-                        <option value="negative">Negative</option>
+                        <option value="">All Sentiments</option>
+                        <option value="positive">Positive Only</option>
+                        <option value="neutral">Neutral Only</option>
+                        <option value="negative">Negative Only</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Has Appointment
+                        Booking Status
                       </label>
                       <select
                         value={filterCriteria.hasAppointment}
                         onChange={(e) => setFilterCriteria({ ...filterCriteria, hasAppointment: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       >
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
+                        <option value="">All Customers</option>
+                        <option value="true">Has Bookings</option>
+                        <option value="false">No Bookings</option>
                       </select>
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Last Interaction (days)
-                      </label>
-                      <input
-                        type="number"
-                        value={filterCriteria.lastInteractionDays}
-                        onChange={(e) => setFilterCriteria({ ...filterCriteria, lastInteractionDays: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                        placeholder="30"
-                      />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      WhatsApp Interaction Filter
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="interactionAll"
+                          name="interactionType"
+                          value="all"
+                          checked={filterCriteria.interactionType === 'all'}
+                          onChange={(e) => setFilterCriteria({ ...filterCriteria, interactionType: e.target.value })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <label htmlFor="interactionAll" className="text-sm text-gray-700 cursor-pointer">
+                          All customers (regardless of interaction history)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="interactionActive"
+                          name="interactionType"
+                          value="active"
+                          checked={filterCriteria.interactionType === 'active'}
+                          onChange={(e) => setFilterCriteria({ ...filterCriteria, interactionType: e.target.value })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <label htmlFor="interactionActive" className="text-sm text-gray-700 cursor-pointer">
+                          Active in last X days (had conversation recently)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="interactionInactive"
+                          name="interactionType"
+                          value="inactive"
+                          checked={filterCriteria.interactionType === 'inactive'}
+                          onChange={(e) => setFilterCriteria({ ...filterCriteria, interactionType: e.target.value })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <label htmlFor="interactionInactive" className="text-sm text-gray-700 cursor-pointer">
+                          Inactive for X days (no conversation recently)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="interactionNever"
+                          name="interactionType"
+                          value="never"
+                          checked={filterCriteria.interactionType === 'never'}
+                          onChange={(e) => setFilterCriteria({ ...filterCriteria, interactionType: e.target.value })}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <label htmlFor="interactionNever" className="text-sm text-gray-700 cursor-pointer">
+                          Never contacted via WhatsApp (e.g., CSV imports only)
+                        </label>
+                      </div>
+
+                      {(filterCriteria.interactionType === 'active' || filterCriteria.interactionType === 'inactive') && (
+                        <div className="ml-6 mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Number of days
+                          </label>
+                          <input
+                            type="number"
+                            value={filterCriteria.lastInteractionDays}
+                            onChange={(e) => setFilterCriteria({ ...filterCriteria, lastInteractionDays: e.target.value })}
+                            className="w-48 px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="e.g., 7 or 30"
+                            min="1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {filterCriteria.interactionType === 'active' 
+                              ? 'Customers who messaged in the last X days'
+                              : 'Customers who haven\'t messaged in X+ days'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
