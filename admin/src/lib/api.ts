@@ -101,6 +101,33 @@ export const reviewApi = {
 };
 
 export const botConfigApi = {
+  // Business Details
+  getBusinessDetails: () => api.get('/bot-config/business-details'),
+  saveBusinessDetails: (data: any) => api.post('/bot-config/business-details', data),
+  
+  // GPT Prompts & Tone
+  getPromptConfig: () => api.get('/bot-config/prompt-config'),
+  savePromptConfig: (data: any) => api.post('/bot-config/prompt-config', data),
+  getMasterPrompt: () => api.get('/bot-config/master-prompt'),
+  
+  // Escalation Configuration
+  getEscalationConfig: () => api.get('/bot-config/escalation'),
+  saveEscalationConfig: (data: any) => api.post('/bot-config/escalation', data),
+  testEscalation: (message: string) => api.post('/bot-config/escalation/test', { message }),
+  
+  // Confirmation Templates
+  getConfirmationTemplates: () => api.get('/bot-config/confirmations'),
+  saveConfirmationTemplates: (data: any) => api.post('/bot-config/confirmations', data),
+  
+  // Service Configuration
+  getServiceConfig: () => api.get('/bot-config/services'),
+  saveServiceConfig: (data: any) => api.post('/bot-config/services', data),
+  
+  // Email Collection
+  getEmailConfig: () => api.get('/bot-config/email-collection'),
+  saveEmailConfig: (data: any) => api.post('/bot-config/email-collection', data),
+  
+  // Legacy endpoints (keep for backward compatibility)
   getContext: () => api.get('/bot-config/context'),
   saveContext: (data: any) => api.post('/bot-config/context', data),
   getPrompts: () => api.get('/bot-config/prompts'),
