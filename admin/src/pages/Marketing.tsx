@@ -18,6 +18,9 @@ const Marketing = () => {
   const [selectedPromotionId, setSelectedPromotionId] = useState('');
   const [selectedQuestionnaireId, setSelectedQuestionnaireId] = useState('');
   const [promotionAfterCompletion, setPromotionAfterCompletion] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [sendImmediately, setSendImmediately] = useState(true);
   const [filteredCount, setFilteredCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
@@ -62,6 +65,9 @@ const Marketing = () => {
       setSelectedPromotionId('');
       setSelectedQuestionnaireId('');
       setPromotionAfterCompletion(false);
+      setScheduledDate('');
+      setScheduledTime('');
+      setSendImmediately(true);
       setFilterCriteria({ sentiment: '', hasAppointment: '', lastInteractionDays: '' });
       setFilteredCount(null);
       toast.success('Campaign created successfully');
@@ -81,10 +87,28 @@ const Marketing = () => {
   };
 
   const handleCreateCampaign = () => {
+    // Validation: Check if scheduling for later without both date and time
+    if (!sendImmediately && (!scheduledDate || !scheduledTime)) {
+      toast.error('Please select both date and time for scheduled campaigns');
+      return;
+    }
+
     const criteria: any = {};
     if (filterCriteria.sentiment) criteria.sentiment = filterCriteria.sentiment;
     if (filterCriteria.hasAppointment) criteria.hasAppointment = filterCriteria.hasAppointment === 'true';
     if (filterCriteria.lastInteractionDays) criteria.lastInteractionDays = parseInt(filterCriteria.lastInteractionDays);
+
+    // Calculate scheduledAt
+    let scheduledAt = null;
+    let status = 'draft';
+    
+    if (sendImmediately) {
+      scheduledAt = new Date().toISOString();
+      status = 'ready'; // Ready to be sent by scheduler
+    } else if (scheduledDate && scheduledTime) {
+      scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+      status = 'scheduled';
+    }
 
     createCampaignMutation.mutate({
       name: campaignName,
@@ -93,7 +117,8 @@ const Marketing = () => {
       promotionId: selectedPromotionId || null,
       questionnaireId: selectedQuestionnaireId || null,
       promotionAfterCompletion: promotionAfterCompletion,
-      status: 'draft',
+      scheduledAt,
+      status,
     });
   };
 
@@ -164,8 +189,8 @@ const Marketing = () => {
         </div>
 
         {showFilterModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Campaign</h2>
 
               <div className="space-y-6">
@@ -258,6 +283,71 @@ const Marketing = () => {
 
                 <div className="border-t pt-6">
                   <div className="flex items-center gap-2 mb-4">
+                    <CalendarIcon className="w-5 h-5 text-gray-700" />
+                    <h3 className="text-lg font-semibold text-gray-900">Schedule Campaign</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        id="sendNow"
+                        name="sendTiming"
+                        checked={sendImmediately}
+                        onChange={() => setSendImmediately(true)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <label htmlFor="sendNow" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        Send immediately (processed by scheduler within 60 minutes)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        id="sendLater"
+                        name="sendTiming"
+                        checked={!sendImmediately}
+                        onChange={() => setSendImmediately(false)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <label htmlFor="sendLater" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        Schedule for specific date/time
+                      </label>
+                    </div>
+
+                    {!sendImmediately && (
+                      <div className="ml-6 grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Date
+                          </label>
+                          <input
+                            type="date"
+                            value={scheduledDate}
+                            onChange={(e) => setScheduledDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Time
+                          </label>
+                          <input
+                            type="time"
+                            value={scheduledTime}
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <div className="flex items-center gap-2 mb-4">
                     <Filter className="w-5 h-5 text-gray-700" />
                     <h3 className="text-lg font-semibold text-gray-900">Filter Audience</h3>
                   </div>
@@ -335,10 +425,10 @@ const Marketing = () => {
                 </button>
                 <button
                   onClick={handleCreateCampaign}
-                  disabled={!campaignName || !campaignMessage}
+                  disabled={!campaignName || !campaignMessage || (!sendImmediately && (!scheduledDate || !scheduledTime))}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
-                  Create Campaign
+                  {sendImmediately ? 'Create & Queue for Sending' : 'Schedule Campaign'}
                 </button>
               </div>
             </div>
