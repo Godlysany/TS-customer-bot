@@ -468,4 +468,5 @@ export async function sendApprovedMessage(message: any): Promise<string | null> 
 }
 
 export { startSock };
+export const getSock = () => sock;
 export default sock;

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearQrCode = exports.getQrCode = void 0;
+exports.getSock = exports.clearQrCode = exports.getQrCode = void 0;
 exports.sendProactiveMessage = sendProactiveMessage;
 exports.sendApprovedMessage = sendApprovedMessage;
 exports.startSock = startSock;
@@ -437,4 +437,6 @@ async function sendApprovedMessage(message) {
         return null;
     }
 }
+const getSock = () => sock;
+exports.getSock = getSock;
 exports.default = sock;

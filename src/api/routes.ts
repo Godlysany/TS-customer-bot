@@ -222,8 +222,8 @@ router.post('/api/settings/bot/toggle', async (req, res) => {
 router.get('/api/settings/whatsapp/status', async (req, res) => {
   try {
     // Check actual socket connection, not just database setting
-    const whatsappModule = await import('../adapters/whatsapp');
-    const sock = whatsappModule.default;
+    const { getSock } = await import('../adapters/whatsapp');
+    const sock = getSock();
     const actuallyConnected = !!(sock && sock.user); // Coerce to boolean
     
     // Update database setting if it's stale
@@ -346,8 +346,8 @@ router.post('/api/whatsapp/connect', authMiddleware, async (req, res) => {
 
 router.post('/api/whatsapp/disconnect', authMiddleware, async (req, res) => {
   try {
-    const whatsappModule = await import('../adapters/whatsapp');
-    const sock = whatsappModule.default;
+    const { getSock } = await import('../adapters/whatsapp');
+    const sock = getSock();
     if (sock) {
       await sock.end(undefined);
       await settingsService.setWhatsAppConnected(false);
