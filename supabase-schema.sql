@@ -18,8 +18,19 @@ CREATE TABLE IF NOT EXISTS contacts (
     preference_metadata JSONB, -- Stores preference context: {"detected_from":"conversation", "last_updated":"2025-03-15", "ranking":[uuid1,uuid2]}
     preferred_appointment_times TEXT, -- e.g. "mornings", "weekends only", "Tuesdays after 3pm"
     special_notes TEXT, -- Fears, anxieties, allergies, special requests, medical considerations
-    communication_preferences TEXT, -- e.g. "WhatsApp only", "Email reminders needed"
-    preferred_services JSONB DEFAULT '[]', -- Array of service IDs or names customer typically books
+    
+    -- Phase 1: AI-Extracted CRM Data (October 21, 2025)
+    -- These columns store automatically extracted customer insights from conversations
+    preferred_times TEXT, -- When customer prefers appointments (extracted from conversations)
+    preferred_staff TEXT, -- Preferred staff members mentioned in conversations
+    preferred_services TEXT, -- Services customer is interested in
+    fears_anxieties TEXT, -- Dental anxiety, needle phobia, claustrophobia, nervousness
+    allergies TEXT, -- Latex, medications, materials allergies
+    physical_limitations TEXT, -- Wheelchair access, hearing/vision issues, mobility concerns
+    special_requests TEXT, -- Quiet environment, companion, child-friendly, cultural/religious needs
+    communication_preferences JSONB DEFAULT '{}'::jsonb, -- How customer prefers to be contacted (structured data)
+    behavioral_notes TEXT, -- Punctuality patterns, communication style, personality traits
+    customer_insights TEXT, -- General observations and other relevant insights
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -387,6 +398,10 @@ CREATE INDEX idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_team_member ON bookings(team_member_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_assigned_strategy ON bookings(assigned_strategy);
 CREATE INDEX idx_contacts_phone_number ON contacts(phone_number);
+-- Phase 1 CRM indexes for efficient querying (October 21, 2025)
+CREATE INDEX IF NOT EXISTS idx_contacts_preferred_staff ON contacts(preferred_staff) WHERE preferred_staff IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_allergies ON contacts(allergies) WHERE allergies IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_physical_limitations ON contacts(physical_limitations) WHERE physical_limitations IS NOT NULL;
 CREATE INDEX idx_waitlist_contact_id ON waitlist(contact_id);
 CREATE INDEX idx_waitlist_status ON waitlist(status);
 CREATE INDEX idx_questionnaire_responses_contact_id ON questionnaire_responses(contact_id);
