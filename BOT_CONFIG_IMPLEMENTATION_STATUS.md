@@ -1,9 +1,12 @@
 # Bot Configuration Implementation Status
+**Last Updated: October 21, 2025**
 
 ## ✅ COMPLETED
 
 ### 1. Database Schema - READY FOR PRODUCTION
 All necessary database tables and columns have been added to `supabase-schema.sql`:
+
+**October 21, 2025 - MAJOR ENHANCEMENTS ADDED:**
 
 #### New Settings (in `settings` table):
 - `business_name` - Your business name
@@ -33,6 +36,31 @@ CREATE TABLE emergency_slots (
 ```
 Purpose: Times when bot should NEVER book appointments
 
+#### Enhanced Contacts Table (CRM Data Extraction):
+- `preferred_staff_member` - Customer's preferred staff
+- `preferred_appointment_times` - Time/day preferences
+- `special_notes` - Fears, allergies, special requests, medical needs
+- `communication_preferences` - How customer prefers to be contacted
+- `preferred_services` (JSONB) - Services customer typically books
+
+Purpose: Build comprehensive customer profiles through conversation
+
+#### Enhanced Services Table (Multi-Session Booking):
+- `requires_multiple_sessions` - Service needs multiple appointments
+- `total_sessions_required` - How many sessions (3, 10, etc.)
+- `multi_session_strategy` - immediate/sequential/flexible
+- `session_buffer_config` (JSONB) - Buffer times between sessions
+
+Purpose: Handle complex multi-appointment services (dental implants, driving lessons, etc.)
+
+#### Enhanced Bookings Table (Session Tracking):
+- `is_part_of_multi_session` - Part of multi-session service?
+- `session_group_id` - Links all sessions together
+- `session_number` - Which session (1, 2, 3...)
+- `total_sessions` - Total in group
+
+Purpose: Track progress through multi-session treatments
+
 ### 2. Master System Prompt - DOCUMENTED
 Created `MASTER_SYSTEM_PROMPT.md` with comprehensive core instructions covering:
 - Appointment booking flow and duties
@@ -54,6 +82,26 @@ Created `BOT_CONFIGURATION_GUIDE.md` - Complete user manual explaining:
 - Testing procedures
 - Troubleshooting guide
 
+### 4. CRM Data Extraction System - DOCUMENTED
+Created `CRM_DATA_EXTRACTION_GUIDE.md` - Comprehensive guide covering:
+- What customer information to extract (5 categories)
+- How to extract data through conversation
+- Listening actively vs asking strategically
+- Privacy and GDPR compliance
+- Integration with sentiment analysis
+- 30+ real conversation examples
+- Success metrics and KPIs
+
+### 5. Multi-Session Booking System - DOCUMENTED
+Created `MULTI_SESSION_BOOKING_GUIDE.md` - Complete guide covering:
+- Three booking strategies (immediate, sequential, flexible)
+- Buffer time configuration (simple, complex, range)
+- Progress tracking and notifications
+- Real use cases (dentist, driving school, physiotherapy)
+- 15+ detailed conversation examples
+- Admin dashboard features
+- Business benefits and analytics
+
 ---
 
 ## 🔄 NEXT STEPS - TO IMPLEMENT
@@ -63,7 +111,37 @@ Created `BOT_CONFIGURATION_GUIDE.md` - Complete user manual explaining:
 2. GitHub Actions will apply changes via Supavisor
 3. Verify all new settings exist in production database
 
-### Step 2: Update AIService.ts
+### Step 2: Implement CRM Data Extraction in AIService.ts
+After generating GPT response, extract and store customer data:
+
+```typescript
+async generateReply() {
+  // ... existing GPT call ...
+  
+  // NEW: Extract CRM data from conversation
+  const extractedData = this.extractCustomerData(response, messageHistory);
+  
+  if (extractedData) {
+    await this.updateCustomerProfile(contactId, extractedData);
+  }
+}
+
+private extractCustomerData(gptResponse, history) {
+  // Analyze conversation for:
+  // - Preferred staff mentions
+  // - Time preferences
+  // - Fears/anxieties
+  // - Special requests
+  // - Communication preferences
+  return {
+    preferred_staff_member: ...,
+    special_notes: ...,
+    preferred_appointment_times: ...
+  };
+}
+```
+
+### Step 3: Update AIService.ts - Prompt Hydration
 The `src/core/AIService.ts` needs to be updated to:
 
 ```typescript
@@ -108,7 +186,50 @@ async generateReply() {
 }
 ```
 
-### Step 3: Update BookingChatHandler.ts
+### Step 4: Update BookingChatHandler.ts - Multi-Session Support
+Add multi-session booking logic:
+
+```typescript
+async handleMultiSessionBooking(service, customer, strategy) {
+  if (!service.requires_multiple_sessions) {
+    // Regular single booking
+    return this.createSingleBooking();
+  }
+  
+  switch (service.multi_session_strategy) {
+    case 'immediate':
+      return this.bookAllSessionsNow(service, customer);
+    case 'sequential':
+      return this.bookFirstSessionOnly(service, customer);
+    case 'flexible':
+      return this.askCustomerHowMany(service, customer);
+  }
+}
+
+async bookAllSessionsNow(service, customer) {
+  // Calculate all session dates with buffer times
+  const sessions = this.calculateSessionDates(
+    service.total_sessions_required,
+    service.session_buffer_config
+  );
+  
+  // Create session_group_id for linking
+  const groupId = uuid();
+  
+  // Book all sessions
+  for (let i = 0; i < sessions.length; i++) {
+    await this.createBooking({
+      ...sessions[i],
+      is_part_of_multi_session: true,
+      session_group_id: groupId,
+      session_number: i + 1,
+      total_sessions: sessions.length
+    });
+  }
+}
+```
+
+### Step 5: Update BookingChatHandler.ts - Original Features
 Needs to:
 - Check service trigger words to identify which service customer wants
 - Check service `booking_time_restrictions` before offering slots
@@ -116,7 +237,7 @@ Needs to:
 - Use email collection logic based on `booking_email_mandatory` setting
 - Send confirmations using templates with placeholder replacement
 
-### Step 4: Create Bot Configuration UI Section in Settings.tsx
+### Step 6: Create Bot Configuration UI Section in Settings.tsx
 
 **New Section: "Bot Configuration" (Master Role Only)**
 
@@ -158,15 +279,54 @@ Link to Services Management with note:
 Link to Bookings/Calendar with note:
 "Manage emergency blocker slots in Calendar Management →"
 
-### Step 5: Add Service Configuration to Services Management UI
+### Step 7: Enhance Customer Profile UI
+Add new CRM fields to customer detail view:
 
-When editing a service, add fields for:
+- **Preferred Staff:** Dropdown of available staff
+- **Preferred Times:** Text input with examples
+- **Special Notes:** Large textarea with privacy notice
+- **Communication Preferences:** Multi-select (WhatsApp, Email, Phone)
+- **Preferred Services:** Multi-select from available services
+
+Show extraction history:
+- "Last updated: March 15, 2025 during booking conversation"
+- "Bot-extracted vs manually entered" indicator
+
+### Step 8: Add Service Configuration to Services Management UI
+
+When editing a service, add TWO new sections:
+
+**Section 1: Bot Recognition (Existing)**
 - **Trigger Words** (tag input, add/remove keywords)
 - **Booking Time Restrictions** (optional)
   - Days selector: Monday-Sunday checkboxes
   - Hours range: Start time - End time
 
-### Step 6: Add Emergency Slots Management to Bookings UI
+**Section 2: Multi-Session Configuration (NEW)**
+- **Requires Multiple Sessions:** Toggle (Yes/No)
+- If Yes, show:
+  - **Total Sessions Required:** Number input (1-100)
+  - **Booking Strategy:** Radio buttons (Immediate / Sequential / Flexible)
+  - **Buffer Configuration:** Advanced JSON editor or visual builder
+    - Simple: "Default buffer between all sessions: ___ days"
+    - Advanced: "Session 1→2: ___ days, Session 2→3: ___ days"
+  - **Preview:** Show example booking flow based on configuration
+
+### Step 9: Add Session Progress Tracking to Bookings UI
+
+**Multi-Session Booking View:**
+- Group related bookings visually
+- Show progress bar: "Session 2 of 3 complete"
+- Display session_group_id relationships
+- Filter: "Show only multi-session bookings"
+- Alert if customer hasn't booked next session (sequential strategy)
+
+**Actions:**
+- "View all sessions in group"
+- "Cancel entire session group" (with confirmation)
+- "Manually trigger next session reminder" (sequential)
+
+### Step 10: Add Emergency Slots Management to Bookings UI
 
 Add ability to:
 - Create emergency/blocker slot
@@ -275,12 +435,34 @@ Add ability to:
 🔄 Bookings UI for emergency slots  
 
 **Estimated Development Time:**
-- AIService updates: 4-6 hours
-- Settings UI: 8-10 hours
-- Services UI additions: 2-3 hours
-- Bookings UI additions: 2-3 hours
-- Testing & refinement: 4-5 hours
+- CRM data extraction logic: 6-8 hours
+- AIService prompt hydration: 4-6 hours
+- Multi-session booking logic: 8-10 hours
+- Settings UI (bot config): 8-10 hours
+- Customer profile UI enhancements: 4-5 hours
+- Services UI (multi-session config): 5-6 hours
+- Bookings UI (session tracking): 4-5 hours
+- Emergency slots UI: 2-3 hours
+- Testing & refinement: 6-8 hours
 
-**Total: ~20-27 hours of development**
+**Total: ~47-61 hours of development**
+
+## 🎯 PRIORITY IMPLEMENTATION ORDER
+
+**Phase 1: Foundation (15-20 hours)**
+1. AIService prompt hydration (enables two-tier system)
+2. Basic CRM data extraction (name, email, language)
+3. Settings UI for bot configuration
+
+**Phase 2: Advanced CRM (12-15 hours)**
+4. Full CRM data extraction (fears, preferences, notes)
+5. Customer profile UI enhancements
+6. Data privacy controls
+
+**Phase 3: Multi-Session Booking (20-26 hours)**
+7. Multi-session booking logic (all 3 strategies)
+8. Services UI for multi-session config
+9. Bookings UI for session tracking
+10. Progress notifications and reminders
 
 This comprehensive system will give you professional-grade bot configuration with full control over business personality while maintaining core functionality integrity.

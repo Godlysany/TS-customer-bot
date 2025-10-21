@@ -11,6 +11,14 @@ CREATE TABLE IF NOT EXISTS contacts (
     name VARCHAR(255),
     email VARCHAR(255),
     preferred_language VARCHAR(10) DEFAULT 'de',
+    
+    -- Enhanced CRM fields for customer profiling
+    preferred_staff_member VARCHAR(255), -- Staff member customer prefers
+    preferred_appointment_times TEXT, -- e.g. "mornings", "weekends only", "Tuesdays after 3pm"
+    special_notes TEXT, -- Fears, anxieties, allergies, special requests, medical considerations
+    communication_preferences TEXT, -- e.g. "WhatsApp only", "Email reminders needed"
+    preferred_services JSONB DEFAULT '[]', -- Array of service IDs or names customer typically books
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -93,6 +101,13 @@ CREATE TABLE IF NOT EXISTS bookings (
     promo_voucher VARCHAR(100),
     email_sent BOOLEAN DEFAULT false,
     reminder_sent BOOLEAN DEFAULT false,
+    
+    -- Multi-session booking tracking
+    is_part_of_multi_session BOOLEAN DEFAULT false, -- Is this booking part of a multi-session service?
+    session_group_id UUID, -- Links all sessions together (all sessions share same group ID)
+    session_number INTEGER DEFAULT 1, -- Which session is this? (1, 2, 3, etc.)
+    total_sessions INTEGER DEFAULT 1, -- Total sessions in this group (3, 10, etc.)
+    
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -392,6 +407,14 @@ CREATE TABLE IF NOT EXISTS services (
     cancellation_penalty_type VARCHAR(20) DEFAULT 'fixed' CHECK (cancellation_penalty_type IN ('fixed', 'percentage')),
     trigger_words JSONB DEFAULT '[]', -- Keywords bot recognizes for this service e.g. ["massage", "therapy", "treatment"]
     booking_time_restrictions JSONB, -- Time restrictions JSON: {"days":["monday","wednesday"],"hours":"09:00-17:00"}
+    
+    -- Multi-session booking configuration
+    requires_multiple_sessions BOOLEAN DEFAULT false, -- Service needs multiple appointments
+    total_sessions_required INTEGER DEFAULT 1, -- How many sessions total (e.g. 3 for implant, 10 for driving lessons)
+    multi_session_strategy VARCHAR(20) DEFAULT 'flexible' CHECK (multi_session_strategy IN ('immediate', 'sequential', 'flexible')),
+    -- immediate = book all sessions upfront; sequential = book one at a time after completion; flexible = customer chooses
+    session_buffer_config JSONB, -- Buffer times between sessions e.g. {"default_days": 7, "session_2_to_3_days": 30}
+    
     metadata JSONB, -- Extra configuration
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -868,6 +891,8 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_link_sent BOOLEAN DEFAULT 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_link_sent_at TIMESTAMP WITH TIME ZONE;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_promotion ON bookings(promotion_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_session_group ON bookings(session_group_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_multi_session ON bookings(is_part_of_multi_session, session_group_id);
 
 -- ============================================
 -- 7. CSV IMPORT BATCHES (Track bulk uploads)
