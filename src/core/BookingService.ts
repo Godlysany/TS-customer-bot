@@ -9,6 +9,7 @@ import { SettingsService } from './SettingsService';
 import { DocumentService } from './DocumentService';
 import NoShowService from './NoShowService';
 import PaymentService from './PaymentService';
+import botConfigService from './BotConfigService';
 
 export class BookingService {
   private calendarProvider: CalendarProvider | null = null;
@@ -75,6 +76,9 @@ export class BookingService {
 
     const actualEndTime = new Date(event.endTime);
     actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferTimeAfter);
+
+    // Check dynamic bot configuration before booking
+    await this.checkConfigurationRestrictions(event, options?.serviceId);
 
     await this.checkBufferedConflicts(
       actualStartTime,
@@ -294,6 +298,181 @@ export class BookingService {
         `Booking conflict detected (including buffer times). Overlaps with: ${conflictTitles}. Please choose a different time slot.`
       );
     }
+  }
+
+  private async checkConfigurationRestrictions(event: CalendarEvent, serviceId?: string): Promise<void> {
+    const config = await botConfigService.getConfig();
+
+    // Check if booking feature is enabled
+    if (!config.enable_booking) {
+      throw new Error('Booking feature is currently disabled. Please contact us for assistance.');
+    }
+
+    const startTime = new Date(event.startTime);
+    const endTime = new Date(event.endTime);
+
+    // Check opening hours for both start AND end time
+    await this.checkOpeningHours(startTime, config.opening_hours);
+    await this.checkOpeningHours(endTime, config.opening_hours);
+    
+    // Check emergency blocker slots
+    for (const blocker of config.emergency_blocker_slots) {
+      const blockerStart = new Date(blocker.start_date);
+      const blockerEnd = new Date(blocker.end_date);
+      blockerEnd.setHours(23, 59, 59); // End of day
+      
+      if (startTime >= blockerStart && startTime <= blockerEnd) {
+        throw new Error(`This time slot is unavailable. ${blocker.reason}. Please choose a different date.`);
+      }
+    }
+
+    // Check service-specific time restrictions if service is provided
+    if (serviceId) {
+      // Get service name from ID to lookup restrictions
+      const { data: service } = await supabase
+        .from('services')
+        .select('name')
+        .eq('id', serviceId)
+        .single();
+
+      if (!service) {
+        console.warn(`Service ${serviceId} not found in database`);
+        return;
+      }
+
+      const serviceName = service.name;
+      
+      // Try lookup by service ID first, then by service name
+      let serviceRestrictions = config.service_time_restrictions[serviceId] || config.service_time_restrictions[serviceName];
+      
+      if (serviceRestrictions) {
+        console.log(`✅ Found restrictions for "${serviceName}"`);
+        const dayOfWeek = startTime.getDay(); // 0 = Sunday, 6 = Saturday
+        const hour = startTime.getHours();
+        const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+
+        // Check minimum slot duration
+        if (serviceRestrictions.min_slot_hours && durationHours < serviceRestrictions.min_slot_hours) {
+          throw new Error(`${serviceName} requires a minimum of ${serviceRestrictions.min_slot_hours} hours. Please choose a longer time slot.`);
+        }
+
+        // Check maximum slot duration
+        if (serviceRestrictions.max_slot_hours && durationHours > serviceRestrictions.max_slot_hours) {
+          throw new Error(`${serviceName} has a maximum duration of ${serviceRestrictions.max_slot_hours} hours. Please choose a shorter time slot.`);
+        }
+
+        // Check if only mornings
+        if (serviceRestrictions.only_mornings && hour >= 12) {
+          throw new Error(`${serviceName} is only available in the morning (before 12:00 PM). Please choose an earlier time.`);
+        }
+
+        // Check if only afternoons
+        if (serviceRestrictions.only_afternoons && hour < 12) {
+          throw new Error(`${serviceName} is only available in the afternoon (after 12:00 PM). Please choose a later time.`);
+        }
+
+        // Check if only weekdays
+        if (serviceRestrictions.only_weekdays && (dayOfWeek === 0 || dayOfWeek === 6)) {
+          throw new Error(`${serviceName} is only available on weekdays (Monday-Friday). Please choose a weekday.`);
+        }
+
+        // Check excluded days
+        if (serviceRestrictions.excluded_days && serviceRestrictions.excluded_days.length > 0) {
+          const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const currentDay = dayNames[dayOfWeek];
+          if (serviceRestrictions.excluded_days.includes(currentDay)) {
+            throw new Error(`${serviceName} is not available on ${currentDay}. Please choose a different day.`);
+          }
+        }
+      }
+    }
+
+    console.log('✅ Configuration restrictions check passed');
+  }
+
+  private async checkOpeningHours(requestedTime: Date, openingHoursConfig: string): Promise<void> {
+    if (!openingHoursConfig || openingHoursConfig.trim() === '') {
+      // No opening hours configured, allow all times
+      return;
+    }
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const requestedDay = dayNames[requestedTime.getDay()];
+    const requestedHour = requestedTime.getHours();
+    const requestedMinute = requestedTime.getMinutes();
+    const requestedTimeInMinutes = requestedHour * 60 + requestedMinute;
+
+    // Parse opening hours (example format: "Monday-Friday: 09:00-18:00\nSaturday: 09:00-14:00\nSunday: Closed")
+    const lines = openingHoursConfig.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+
+      // Parse line format: "Day(s): HH:MM-HH:MM" or "Day: Closed"
+      const parts = trimmedLine.split(':');
+      if (parts.length < 2) continue;
+
+      const dayPart = parts[0].trim();
+      const timePart = parts.slice(1).join(':').trim().toLowerCase();
+
+      // Check if this line applies to the requested day
+      let appliesToDay = false;
+
+      if (dayPart.includes('-')) {
+        // Range format: "Monday-Friday"
+        const [startDay, endDay] = dayPart.split('-').map(d => d.trim());
+        const startIdx = dayNames.indexOf(startDay);
+        const endIdx = dayNames.indexOf(endDay);
+        const requestedIdx = dayNames.indexOf(requestedDay);
+
+        if (startIdx !== -1 && endIdx !== -1 && requestedIdx !== -1) {
+          // Handle wrap-around (e.g., Friday-Monday)
+          if (startIdx <= endIdx) {
+            appliesToDay = requestedIdx >= startIdx && requestedIdx <= endIdx;
+          } else {
+            appliesToDay = requestedIdx >= startIdx || requestedIdx <= endIdx;
+          }
+        }
+      } else {
+        // Single day or comma-separated days
+        const days = dayPart.split(',').map(d => d.trim());
+        appliesToDay = days.some(d => requestedDay.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(requestedDay.toLowerCase()));
+      }
+
+      if (!appliesToDay) continue;
+
+      // Check if closed
+      if (timePart.includes('closed')) {
+        throw new Error(`We are closed on ${requestedDay}. Please choose a different day.`);
+      }
+
+      // Parse time range: "09:00-18:00"
+      const timeMatch = timePart.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+      if (!timeMatch) continue;
+
+      const [, startHour, startMin, endHour, endMin] = timeMatch.map(Number);
+      const openingTimeInMinutes = startHour * 60 + startMin;
+      const closingTimeInMinutes = endHour * 60 + endMin;
+
+      if (requestedTimeInMinutes < openingTimeInMinutes) {
+        throw new Error(
+          `This time is before our opening hours on ${requestedDay}. We open at ${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}.`
+        );
+      }
+
+      if (requestedTimeInMinutes >= closingTimeInMinutes) {
+        throw new Error(
+          `This time is after our closing hours on ${requestedDay}. We close at ${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}.`
+        );
+      }
+
+      // Time is within hours
+      return;
+    }
+
+    // If we get here and didn't find a matching day, assume closed
+    throw new Error(`Opening hours not configured for ${requestedDay}. Please contact us for available times.`);
   }
 
   async getAvailability(startDate: Date, endDate: Date) {
