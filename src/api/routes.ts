@@ -180,6 +180,86 @@ router.get('/api/bookings', async (req, res) => {
   }
 });
 
+// Create new booking (with before_booking questionnaire trigger)
+router.post('/api/bookings', authMiddleware, async (req, res) => {
+  try {
+    const { contactId, conversationId, event, serviceId, discountCode, discountAmount, promoVoucher, teamMemberId } = req.body;
+
+    if (!contactId || !conversationId || !event) {
+      return res.status(400).json({ error: 'Missing required fields: contactId, conversationId, event' });
+    }
+
+    // BEFORE_BOOKING TRIGGER: Check if questionnaire should be triggered
+    const { QuestionnaireService } = await import('../core/QuestionnaireService');
+    const questionnaireService = new QuestionnaireService();
+    
+    const beforeBookingQuestionnaires = await questionnaireService.getActiveQuestionnaires('before_booking');
+    let questionnaireTriggered = false;
+    
+    if (beforeBookingQuestionnaires.length > 0) {
+      // Check service-specific questionnaires first
+      let targetQuestionnaire = beforeBookingQuestionnaires[0];
+      
+      if (serviceId) {
+        const serviceQuestionnaires = await questionnaireService.getQuestionnairesForService(serviceId);
+        if (serviceQuestionnaires.length > 0) {
+          targetQuestionnaire = serviceQuestionnaires[0];
+        }
+      }
+
+      // Check if contact already completed this questionnaire
+      const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(
+        contactId,
+        targetQuestionnaire.id
+      );
+
+      if (!alreadyCompleted) {
+        questionnaireTriggered = true;
+        // Return questionnaire to frontend - booking will be pending
+        return res.json({
+          questionnairePending: true,
+          questionnaireId: targetQuestionnaire.id,
+          questionnaire: targetQuestionnaire,
+          message: 'Please complete the questionnaire before booking',
+        });
+      }
+    }
+
+    // Create the booking
+    const booking = await bookingService.createBooking(contactId, conversationId, event, {
+      serviceId,
+      discountCode,
+      discountAmount,
+      promoVoucher,
+    });
+
+    // AFTER_BOOKING TRIGGER: Check if questionnaire should be triggered
+    const afterBookingQuestionnaires = await questionnaireService.getActiveQuestionnaires('after_booking');
+    
+    if (afterBookingQuestionnaires.length > 0) {
+      const targetQuestionnaire = afterBookingQuestionnaires[0];
+      const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(
+        contactId,
+        targetQuestionnaire.id
+      );
+
+      if (!alreadyCompleted) {
+        // Trigger after-booking questionnaire (can be sent async)
+        // Store it in response so frontend/WhatsApp can trigger it
+        return res.json({
+          booking,
+          afterBookingQuestionnaire: targetQuestionnaire,
+        });
+      }
+    }
+
+    res.json({ booking });
+  } catch (error: any) {
+    console.error('Error creating booking:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/api/bookings/:id/cancel', async (req, res) => {
   try {
     await bookingService.cancelBooking(req.params.id);

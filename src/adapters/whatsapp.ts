@@ -194,7 +194,7 @@ async function handleQuestionnaireResponse(
 
     // Save responses to database
     try {
-      await questionnaireService.saveResponse({
+      const savedResponse = await questionnaireService.saveResponse({
         questionnaireId: questionnaireId!,
         contactId,
         conversationId,
@@ -202,6 +202,19 @@ async function handleQuestionnaireResponse(
       });
 
       questionnaireRuntimeService.clearContext(conversationId);
+
+      // PROMOTION REWARD: Check if this questionnaire completion should award a promotion
+      try {
+        const marketingCampaignExecutor = (await import('../core/MarketingCampaignExecutor')).default;
+        await marketingCampaignExecutor.handleQuestionnaireCompletion(
+          savedResponse.id,
+          contactId,
+          questionnaireId!
+        );
+      } catch (promoError: any) {
+        console.error('Error handling promotion reward:', promoError.message);
+        // Don't fail the questionnaire completion if promotion handling fails
+      }
 
       return `✅ Thank you for completing the questionnaire! Your responses have been saved.\n\nHow else can I help you today?`;
     } catch (error: any) {

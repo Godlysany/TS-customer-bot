@@ -19,6 +19,7 @@ import messageApprovalRoutes from './api/message-approval';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
+import { startMarketingCampaignScheduler, stopMarketingCampaignScheduler } from './core/MarketingCampaignScheduler';
 import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
 import fs from 'fs';
@@ -143,6 +144,9 @@ const server = app.listen(config.port, config.host, () => {
   // Start no-show scheduler (checks every 60 minutes)
   noShowScheduler.start(60);
   
+  // Start marketing campaign scheduler (checks every 60 minutes)
+  startMarketingCampaignScheduler(60);
+  
   // Auto-reconnect WhatsApp if credentials exist
   const authInfoPath = path.join(__dirname, '../auth_info');
   if (fs.existsSync(authInfoPath)) {
@@ -202,6 +206,7 @@ process.on('SIGTERM', () => {
   reminderScheduler.stop();
   stopEngagementScheduler();
   stopRecurringScheduler();
+  stopMarketingCampaignScheduler();
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);
