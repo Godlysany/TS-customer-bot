@@ -390,10 +390,27 @@ CREATE TABLE IF NOT EXISTS services (
     cancellation_policy_hours INTEGER DEFAULT 24, -- Override default policy
     cancellation_penalty_amount DECIMAL(10,2), -- Override default penalty
     cancellation_penalty_type VARCHAR(20) DEFAULT 'fixed' CHECK (cancellation_penalty_type IN ('fixed', 'percentage')),
+    trigger_words JSONB DEFAULT '[]', -- Keywords bot recognizes for this service e.g. ["massage", "therapy", "treatment"]
+    booking_time_restrictions JSONB, -- Time restrictions JSON: {"days":["monday","wednesday"],"hours":"09:00-17:00"}
     metadata JSONB, -- Extra configuration
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Emergency/Blocker Slots (times when bot should NOT book appointments)
+CREATE TABLE IF NOT EXISTS emergency_slots (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(255) NOT NULL, -- e.g. "Emergency Surgery", "Staff Meeting", "Blocked for Maintenance"
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    reason TEXT, -- Optional explanation
+    is_recurring BOOLEAN DEFAULT false, -- If true, repeats weekly
+    created_by UUID REFERENCES agents(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_emergency_slots_time ON emergency_slots(start_time, end_time);
 
 -- Service documents (documents associated with services)
 CREATE TABLE IF NOT EXISTS service_documents (
@@ -616,6 +633,67 @@ ON CONFLICT DO NOTHING;
 -- Insert default language setting (GPT supports all languages, no limitation)
 INSERT INTO settings (key, value, category, description, is_secret)
 VALUES ('default_bot_language', 'de', 'bot', 'Default language for bot responses (GPT supports all languages)', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- ============================================
+-- BOT CONFIGURATION SETTINGS (Comprehensive)
+-- ============================================
+
+-- Business Information
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('business_name', 'My Business', 'bot_config', 'Business name displayed to customers', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('business_location', '', 'bot_config', 'Physical business address for appointments', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('business_directions', '', 'bot_config', 'How to reach the business (Anfahrtsbeschreibung)', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('business_opening_hours', '{"monday":"09:00-18:00","tuesday":"09:00-18:00","wednesday":"09:00-18:00","thursday":"09:00-18:00","friday":"09:00-18:00","saturday":"10:00-14:00","sunday":"closed"}', 'bot_config', 'JSON object with opening hours per day', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- Bot Prompts (Two-Tier System)
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('bot_business_prompt', 'We are a professional service provider focused on quality and customer satisfaction. Maintain a friendly yet professional tone. Show empathy and patience. Use clear, concise language. Always confirm customer understanding before proceeding with bookings.', 'bot_config', 'Business fine-tuning prompt (editable) - defines tone, style, and personality', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- Email Collection Settings
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('booking_email_mandatory', 'false', 'bot_config', 'Require email before confirming bookings (true/false)', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('booking_email_collection_prompt', 'gentle', 'bot_config', 'How to ask for email: "gentle" (optional, ask once) or "mandatory" (required for booking)', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- Confirmation Templates
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('whatsapp_confirmation_enabled', 'true', 'bot_config', 'Send WhatsApp booking confirmations', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('whatsapp_confirmation_template', '✅ *Booking Confirmed*\n\nHello {{name}}!\n\nYour appointment is confirmed:\n\n📅 *Service:* {{service}}\n🕐 *Date & Time:* {{datetime}}\n💰 *Cost:* CHF {{cost}}\n📍 *Location:* {{location}}\n\n{{directions}}\n\nWe look forward to seeing you!', 'bot_config', 'WhatsApp confirmation message template with placeholders', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('email_confirmation_enabled', 'true', 'bot_config', 'Send email booking confirmations', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('email_confirmation_template', 'Dear {{name}},\n\nYour appointment has been confirmed.\n\nService: {{service}}\nDate & Time: {{datetime}}\nCost: CHF {{cost}}\nLocation: {{location}}\n\n{{directions}}\n\nIf you need to cancel or reschedule, please contact us at least 24 hours in advance.\n\nBest regards,\n{{business_name}}', 'bot_config', 'Email confirmation message template with placeholders', false)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('email_confirmation_subject', 'Booking Confirmation - {{service}} on {{date}}', 'bot_config', 'Email subject line template', false)
+ON CONFLICT (key) DO NOTHING;
+
+-- Escalation Triggers
+INSERT INTO settings (key, value, category, description, is_secret) VALUES
+('escalation_trigger_words', '["complaint","angry","refund","cancel subscription","speak to manager","terrible","awful","disappointed"]', 'bot_config', 'JSON array of keywords that trigger human escalation', false)
 ON CONFLICT (key) DO NOTHING;
 -- WhatsApp CRM Bot - Promotion & Payment System Schema Updates
 -- Date: October 16, 2025
