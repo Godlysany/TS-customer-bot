@@ -1,5 +1,7 @@
 import { supabase } from '../infrastructure/supabase';
 import { SettingsService } from './SettingsService';
+import botConfigService from './BotConfigService';
+import { replacePlaceholders, TemplateData } from '../utils/templateReplacer';
 
 interface EmailOptions {
   to: string;
@@ -81,23 +83,71 @@ export class EmailService {
   }
 
   async sendBookingConfirmation(bookingId: string, contactEmail: string, bookingDetails: any): Promise<void> {
-    const html = `
-      <h2>Appointment Confirmed</h2>
-      <p>Dear ${bookingDetails.contactName},</p>
-      <p>Your appointment has been confirmed:</p>
-      <ul>
-        <li><strong>Service:</strong> ${bookingDetails.title}</li>
-        <li><strong>Date & Time:</strong> ${new Date(bookingDetails.startTime).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</li>
-        ${bookingDetails.discountCode ? `<li><strong>Discount Applied:</strong> ${bookingDetails.discountCode} (-€${bookingDetails.discountAmount})</li>` : ''}
-        ${bookingDetails.promoVoucher ? `<li><strong>Promo Voucher:</strong> ${bookingDetails.promoVoucher}</li>` : ''}
-      </ul>
-      <p>We look forward to seeing you!</p>
-      <p style="color: #666; font-size: 12px;">Please arrive 10 minutes early. Cancellations within 24 hours may incur a fee.</p>
-    `;
+    const config = await botConfigService.getConfig();
+    
+    // Fetch service cost if available
+    let serviceCost = '';
+    if (bookingDetails.serviceId) {
+      const { data: service } = await supabase
+        .from('services')
+        .select('cost')
+        .eq('id', bookingDetails.serviceId)
+        .single();
+      
+      if (service) {
+        serviceCost = service.cost;
+      }
+    }
+
+    // Prepare template data
+    const templateData: TemplateData = {
+      name: bookingDetails.contactName || 'Customer',
+      service: bookingDetails.title,
+      datetime: new Date(bookingDetails.startTime),
+      cost: serviceCost || undefined,
+      location: config.business_location,
+      directions: config.directions_info,
+      businessName: config.business_name,
+      discountCode: bookingDetails.discountCode,
+      discountAmount: bookingDetails.discountAmount,
+      promoVoucher: bookingDetails.promoVoucher,
+    };
+
+    // Use configured email template or fallback to default
+    let emailTemplate = config.email_confirmation_template;
+    if (!emailTemplate || emailTemplate.trim() === '') {
+      // Fallback to default template if none configured
+      emailTemplate = `Dear {{name}},
+
+Your appointment has been confirmed.
+
+Service: {{service}}
+Date & Time: {{datetime}}
+${serviceCost ? 'Cost: {{cost}}' : ''}
+Location: {{location}}
+
+{{directions}}
+
+We look forward to seeing you!
+
+Best regards,
+{{business_name}}`;
+    }
+
+    // Replace placeholders in template
+    const html = replacePlaceholders(emailTemplate, templateData)
+      .replace(/\n/g, '<br>'); // Convert line breaks to HTML
+
+    // Use configured subject or fallback
+    let subject = config.email_confirmation_subject;
+    if (!subject || subject.trim() === '') {
+      subject = 'Booking Confirmation - {{service}} on {{date}}';
+    }
+    subject = replacePlaceholders(subject, templateData);
 
     await this.sendEmail({
       to: contactEmail,
-      subject: `Appointment Confirmation - ${new Date(bookingDetails.startTime).toLocaleDateString()}`,
+      subject,
       html,
       bookingId,
       contactId: bookingDetails.contactId,

@@ -3,6 +3,7 @@ import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 import BookingService from './BookingService';
 import { MultiServiceBookingService } from './MultiServiceBookingService';
 import getOpenAIClient from '../infrastructure/openai';
+import botConfigService from './BotConfigService';
 
 interface BookingContext {
   conversationId: string;
@@ -13,6 +14,8 @@ interface BookingContext {
   selectedBookingId?: string;
   proposedDateTime?: Date;
   cancellationReason?: string;
+  emailCollectionAsked?: boolean;
+  contactEmail?: string;
 }
 
 export class BookingChatHandler {
@@ -331,6 +334,12 @@ export class BookingChatHandler {
     message: string,
     messageHistory: any[]
   ): Promise<string> {
+    // Check email collection before allowing booking to complete
+    const emailCheckResult = await this.checkEmailCollection(context, message);
+    if (emailCheckResult) {
+      return emailCheckResult; // Return email collection prompt if needed
+    }
+
     const { data: services } = await supabase
       .from('services')
       .select('id, name')
@@ -410,6 +419,79 @@ export class BookingChatHandler {
 
   private clearContext(conversationId: string): void {
     this.contexts.delete(conversationId);
+  }
+
+  /**
+   * Check and enforce email collection based on configured mode
+   * Returns null if email is collected or not required, or a prompt string if email collection is needed
+   */
+  private async checkEmailCollection(context: BookingContext, message: string): Promise<string | null> {
+    const config = await botConfigService.getConfig();
+    
+    // If email collection is disabled, skip
+    if (config.email_collection_mode === 'disabled') {
+      return null;
+    }
+
+    // Get current contact email from database
+    if (!context.contactEmail) {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('email')
+        .eq('id', context.contactId)
+        .single();
+      
+      context.contactEmail = contact?.email || undefined;
+    }
+
+    // If contact already has email, no need to ask
+    if (context.contactEmail) {
+      return null;
+    }
+
+    // Try to extract email from current message
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    const emailMatch = message.match(emailRegex);
+
+    if (emailMatch) {
+      // Email found in message - save it
+      const extractedEmail = emailMatch[0];
+      await supabase
+        .from('contacts')
+        .update({ email: extractedEmail, updated_at: new Date().toISOString() })
+        .eq('id', context.contactId);
+      
+      context.contactEmail = extractedEmail;
+      context.emailCollectionAsked = true;
+      
+      console.log(`✅ Email collected from message: ${extractedEmail}`);
+      return null; // Email collected, can proceed
+    }
+
+    // Email not found - check if we need to ask for it
+    if (!context.emailCollectionAsked) {
+      context.emailCollectionAsked = true;
+
+      if (config.email_collection_mode === 'mandatory') {
+        // Mandatory mode - require email before proceeding
+        return config.email_collection_prompt_mandatory;
+      } else if (config.email_collection_mode === 'gentle') {
+        // Gentle mode - ask politely but allow skip
+        return config.email_collection_prompt_gentle;
+      }
+    }
+
+    // If gentle mode and already asked, allow to proceed without email
+    if (config.email_collection_mode === 'gentle') {
+      return null;
+    }
+
+    // Mandatory mode and still no email - keep asking
+    if (config.email_collection_mode === 'mandatory') {
+      return "I still need your email address to complete the booking. Could you please provide it? (e.g., yourname@example.com)";
+    }
+
+    return null;
   }
 }
 

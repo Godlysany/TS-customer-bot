@@ -2,6 +2,7 @@ import getOpenAIClient from '../infrastructure/openai';
 import { supabase } from '../infrastructure/supabase';
 import { Message } from '../types';
 import botConfigService from './BotConfigService';
+import { ExtractedConversationData } from '../types/crm';
 
 export class AIService {
   async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string): Promise<string> {
@@ -190,6 +191,219 @@ If you detect a service request, include it in entities: { "service": "service_n
       return 0.9;
     }
     return 0.7;
+  }
+
+  /**
+   * Extract customer insights from conversation history
+   * Analyzes messages to find preferences, fears, allergies, special needs, etc.
+   */
+  async extractCustomerData(conversationId: string, messageHistory: Message[]): Promise<ExtractedConversationData> {
+    try {
+      const config = await botConfigService.getConfig();
+
+      // Check if CRM extraction is enabled
+      if (!config.enable_crm_extraction) {
+        console.log('🚫 CRM data extraction disabled in configuration');
+        return { confidence: 0 };
+      }
+
+      const openai = await getOpenAIClient();
+
+      // Build conversation context for analysis
+      const conversationText = messageHistory
+        .map(msg => `${msg.direction === 'inbound' ? 'Customer' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
+
+      if (!conversationText || conversationText.trim() === '') {
+        return { confidence: 0 };
+      }
+
+      const extractionPrompt = `You are a CRM data analyst for ${config.business_name}. Analyze this conversation and extract ANY relevant customer information.
+
+CONVERSATION:
+${conversationText}
+
+Extract the following information if mentioned (explicitly or implicitly):
+
+1. **Preferred Times**: When customer prefers appointments (mornings, afternoons, specific days/times)
+2. **Preferred Staff**: Any staff member they mention positively or request
+3. **Preferred Services**: Services they're interested in or frequently book
+4. **Fears/Anxieties**: Dental anxiety, needle phobia, claustrophobia, nervousness, etc.
+5. **Allergies**: Latex, medications, materials, foods, etc.
+6. **Physical Limitations**: Wheelchair access, hearing issues, vision problems, mobility concerns
+7. **Special Requests**: Quiet environment, bring companion, child-friendly, cultural/religious needs
+8. **Behavioral Notes**: Punctuality patterns, communication style, personality traits
+
+IMPORTANT:
+- Only extract information that is clearly stated or strongly implied
+- Be conversational and natural in your extraction
+- If nothing is found in a category, leave it null
+- Combine similar information into coherent notes
+
+Respond with JSON only:
+{
+  "newInsights": {
+    "preferredTimes": "string or null",
+    "preferredStaff": "string or null",
+    "preferredServices": "string or null",
+    "fearsAnxieties": "string or null",
+    "allergies": "string or null",
+    "physicalLimitations": "string or null",
+    "specialRequests": "string or null",
+    "behavioralNotes": "string or null",
+    "other": "any other relevant insights"
+  },
+  "confidence": 0-1 (how confident you are in the extraction)
+}`;
+
+      console.log(`🔍 Extracting CRM data from conversation ${conversationId} (${messageHistory.length} messages)`);
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: extractionPrompt,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3, // Lower temperature for more factual extraction
+      });
+
+      const extracted: ExtractedConversationData = JSON.parse(
+        response.choices[0]?.message?.content || '{"newInsights":{},"confidence":0}'
+      );
+
+      extracted.conversationId = conversationId;
+      extracted.extractedAt = new Date();
+
+      // Log what was extracted
+      const insightCount = Object.values(extracted.newInsights || {}).filter(v => v && v !== 'null').length;
+      if (insightCount > 0) {
+        console.log(`✅ Extracted ${insightCount} customer insights (confidence: ${extracted.confidence})`);
+        console.log(`   Insights: ${JSON.stringify(extracted.newInsights, null, 2)}`);
+      } else {
+        console.log(`ℹ️  No new customer insights extracted from conversation`);
+      }
+
+      return extracted;
+    } catch (error: any) {
+      console.error('❌ CRM data extraction error:', error.message);
+      return {
+        confidence: 0,
+        conversationId,
+        extractedAt: new Date(),
+      };
+    }
+  }
+
+  /**
+   * Update contact profile with extracted CRM data
+   * Intelligently merges new insights with existing data
+   */
+  async updateContactWithInsights(contactId: string, extractedData: ExtractedConversationData): Promise<void> {
+    try {
+      if (!extractedData.newInsights || extractedData.confidence < 0.3) {
+        console.log(`⏭️  Skipping contact update - low confidence or no insights`);
+        return;
+      }
+
+      const { newInsights } = extractedData;
+      
+      // Fetch existing contact data
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', contactId)
+        .single();
+
+      if (!contact) {
+        console.error(`❌ Contact ${contactId} not found`);
+        return;
+      }
+
+      // Prepare update data - only update fields with new information
+      const updateData: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      // Helper function to merge text fields (append new info, don't overwrite)
+      const mergeField = (existingValue: string | null, newValue: string | null | undefined, fieldName: string): string | null => {
+        if (!newValue || newValue === 'null') return existingValue;
+        
+        if (!existingValue || existingValue.trim() === '') {
+          console.log(`   ✨ Adding ${fieldName}: ${newValue}`);
+          return newValue;
+        }
+
+        // Check if new info is already mentioned
+        if (existingValue.toLowerCase().includes(newValue.toLowerCase())) {
+          return existingValue; // No change needed
+        }
+
+        // Append new information
+        console.log(`   📝 Updating ${fieldName}: adding "${newValue}"`);
+        return `${existingValue}\n• ${newValue}`;
+      };
+
+      if (newInsights.preferredTimes) {
+        updateData.preferred_times = mergeField(contact.preferred_times, newInsights.preferredTimes, 'preferred times');
+      }
+
+      if (newInsights.preferredStaff) {
+        updateData.preferred_staff = mergeField(contact.preferred_staff, newInsights.preferredStaff, 'preferred staff');
+      }
+
+      if (newInsights.preferredServices) {
+        updateData.preferred_services = mergeField(contact.preferred_services, newInsights.preferredServices, 'preferred services');
+      }
+
+      if (newInsights.fearsAnxieties) {
+        updateData.fears_anxieties = mergeField(contact.fears_anxieties, newInsights.fearsAnxieties, 'fears/anxieties');
+      }
+
+      if (newInsights.allergies) {
+        updateData.allergies = mergeField(contact.allergies, newInsights.allergies, 'allergies');
+      }
+
+      if (newInsights.physicalLimitations) {
+        updateData.physical_limitations = mergeField(contact.physical_limitations, newInsights.physicalLimitations, 'physical limitations');
+      }
+
+      if (newInsights.specialRequests) {
+        updateData.special_requests = mergeField(contact.special_requests, newInsights.specialRequests, 'special requests');
+      }
+
+      if (newInsights.behavioralNotes) {
+        updateData.behavioral_notes = mergeField(contact.behavioral_notes, newInsights.behavioralNotes, 'behavioral notes');
+      }
+
+      if (newInsights.other) {
+        updateData.customer_insights = mergeField(contact.customer_insights, newInsights.other, 'customer insights');
+      }
+
+      // Only update if we have new data
+      const hasUpdates = Object.keys(updateData).length > 1; // More than just updated_at
+      if (!hasUpdates) {
+        console.log(`ℹ️  No new CRM data to save for contact ${contactId}`);
+        return;
+      }
+
+      // Update contact in database
+      const { error } = await supabase
+        .from('contacts')
+        .update(updateData)
+        .eq('id', contactId);
+
+      if (error) {
+        console.error(`❌ Failed to update contact CRM data:`, error);
+        throw error;
+      }
+
+      console.log(`✅ Updated contact ${contactId} with CRM insights (${Object.keys(updateData).length - 1} fields)`);
+    } catch (error: any) {
+      console.error('❌ Error updating contact with insights:', error.message);
+    }
   }
 }
 
