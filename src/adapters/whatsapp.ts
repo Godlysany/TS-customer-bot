@@ -281,6 +281,33 @@ async function handleMessage(msg: WAMessage) {
       return;
     }
 
+    // Check for first_contact trigger (only inbound messages, so count should be 1)
+    const isFirstContact = messageHistory.filter(m => m.direction === 'inbound').length === 1;
+    if (isFirstContact) {
+      const questionnaireMessage = await checkAndTriggerQuestionnaires(
+        conversation.id,
+        contact.id,
+        'first_contact'
+      );
+
+      if (questionnaireMessage) {
+        console.log('📋 Triggered first_contact questionnaire');
+        // Save outbound message and send
+        const messageRecord = await messageService.createMessage({
+          conversationId: conversation.id,
+          content: questionnaireMessage,
+          messageType: 'text',
+          direction: 'outbound',
+          sender: 'bot',
+          approvalStatus: 'approved',
+        });
+
+        await messageService.updateConversationLastMessage(conversation.id);
+        await sock.sendMessage(sender, { text: questionnaireMessage });
+        return; // Stop here - wait for customer's response to first question
+      }
+    }
+
     let replyText: string | null = null;
 
     try {

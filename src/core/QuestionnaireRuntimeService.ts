@@ -91,8 +91,13 @@ export class QuestionnaireRuntimeService {
       message += ` *`;
     }
 
-    // Add options for multiple choice questions
-    if (question.type === 'multiple_choice' && question.options) {
+    // Add options for choice questions
+    if (question.type === 'single_choice' && question.options) {
+      message += '\n\nPlease choose one:\n';
+      question.options.forEach((opt, i) => {
+        message += `${i + 1}. ${opt}\n`;
+      });
+    } else if (question.type === 'multiple_choice' && question.options) {
       message += '\n\nPlease choose one or more (comma-separated):\n';
       question.options.forEach((opt, i) => {
         message += `${i + 1}. ${opt}\n`;
@@ -191,6 +196,31 @@ export class QuestionnaireRuntimeService {
             error: 'Please answer with "Yes" or "No".',
           };
         }
+
+      case 'single_choice':
+        if (!question.options) {
+          return { valid: true, parsedValue: trimmedResponse };
+        }
+
+        // Check if it's a number (option index)
+        const optionIndex = parseInt(trimmedResponse) - 1;
+        if (!isNaN(optionIndex) && optionIndex >= 0 && optionIndex < question.options.length) {
+          return { valid: true, parsedValue: question.options[optionIndex] };
+        }
+
+        // Check if it matches an option text
+        const matchedOption = question.options.find(
+          opt => opt.toLowerCase() === trimmedResponse.toLowerCase()
+        );
+
+        if (matchedOption) {
+          return { valid: true, parsedValue: matchedOption };
+        }
+
+        return {
+          valid: false,
+          error: `"${trimmedResponse}" is not a valid option. Please choose from the listed options or use a number (1-${question.options.length}).`,
+        };
 
       case 'multiple_choice':
         if (!question.options) {
