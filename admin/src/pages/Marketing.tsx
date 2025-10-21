@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { marketingApi } from '../lib/api';
+import { marketingApi, questionnaireApi } from '../lib/api';
 import { promotionApi } from '../lib/promotion-api';
 import type { MarketingCampaign } from '../types';
 import { Filter, Send, Calendar as CalendarIcon, Tag } from 'lucide-react';
@@ -16,6 +16,8 @@ const Marketing = () => {
   const [campaignName, setCampaignName] = useState('');
   const [campaignMessage, setCampaignMessage] = useState('');
   const [selectedPromotionId, setSelectedPromotionId] = useState('');
+  const [selectedQuestionnaireId, setSelectedQuestionnaireId] = useState('');
+  const [promotionAfterCompletion, setPromotionAfterCompletion] = useState(false);
   const [filteredCount, setFilteredCount] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
@@ -35,6 +37,14 @@ const Marketing = () => {
     },
   });
 
+  const { data: questionnaires } = useQuery({
+    queryKey: ['questionnaires'],
+    queryFn: async () => {
+      const res = await questionnaireApi.getAll();
+      return res.data;
+    },
+  });
+
   const filterContactsMutation = useMutation({
     mutationFn: (criteria: any) => marketingApi.filterContacts(criteria),
     onSuccess: (res) => {
@@ -50,6 +60,8 @@ const Marketing = () => {
       setCampaignName('');
       setCampaignMessage('');
       setSelectedPromotionId('');
+      setSelectedQuestionnaireId('');
+      setPromotionAfterCompletion(false);
       setFilterCriteria({ sentiment: '', hasAppointment: '', lastInteractionDays: '' });
       setFilteredCount(null);
       toast.success('Campaign created successfully');
@@ -79,6 +91,8 @@ const Marketing = () => {
       filterCriteria: criteria,
       messageTemplate: campaignMessage,
       promotionId: selectedPromotionId || null,
+      questionnaireId: selectedQuestionnaireId || null,
+      promotionAfterCompletion: promotionAfterCompletion,
       status: 'draft',
     });
   };
@@ -202,6 +216,45 @@ const Marketing = () => {
                     When linked, the bot can intelligently offer this promotion during customer conversations.
                   </p>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Link Questionnaire (Optional)
+                  </label>
+                  <select
+                    value={selectedQuestionnaireId}
+                    onChange={(e) => setSelectedQuestionnaireId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No questionnaire</option>
+                    {questionnaires?.map((q: any) => (
+                      <option key={q.id} value={q.id}>
+                        {q.name} ({q.type})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Send a questionnaire to customers matching the campaign criteria.
+                  </p>
+                </div>
+
+                {selectedQuestionnaireId && selectedPromotionId && (
+                  <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <input
+                      type="checkbox"
+                      id="promotionAfterCompletion"
+                      checked={promotionAfterCompletion}
+                      onChange={(e) => setPromotionAfterCompletion(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="promotionAfterCompletion" className="text-sm font-medium text-gray-700 cursor-pointer">
+                      Give promotion after questionnaire completion
+                    </label>
+                    <p className="text-xs text-gray-600 ml-6">
+                      Bot will automatically offer the linked promotion once the customer completes the questionnaire.
+                    </p>
+                  </div>
+                )}
 
                 <div className="border-t pt-6">
                   <div className="flex items-center gap-2 mb-4">

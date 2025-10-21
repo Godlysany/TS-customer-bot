@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { dashboardApi, reviewApi } from '../lib/api';
 
 type TimeFrame = 'today' | 'week' | 'month' | 'all';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('today');
 
   const getDateRange = () => {
@@ -77,6 +79,33 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Business Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500 mb-2">Total Customers</h3>
+          <p className="text-3xl font-bold">{stats?.totalCustomers || 0}</p>
+          <div className="mt-2 text-sm text-gray-600">
+            Active contacts in CRM
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500 mb-2">Total Conversations</h3>
+          <p className="text-3xl font-bold">{stats?.totalConversations || 0}</p>
+          <div className="mt-2 text-sm text-gray-600">
+            Unique customer conversations
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h3 className="text-sm font-medium text-gray-500 mb-2">Message Activity</h3>
+          <p className="text-3xl font-bold">{stats?.totalMessages || 0}</p>
+          <div className="mt-2 text-sm text-gray-600">
+            Total messages exchanged
+          </div>
+        </div>
+      </div>
+
       {/* Booking Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white p-6 rounded-lg shadow">
@@ -99,9 +128,9 @@ export default function Dashboard() {
 
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500 mb-2">Financial Summary</h3>
-          <p className="text-lg font-bold text-green-600">+€{stats?.totalPenaltyFees || '0.00'}</p>
+          <p className="text-lg font-bold text-green-600">+CHF {stats?.totalPenaltyFees || '0.00'}</p>
           <p className="text-sm text-gray-600">Penalty Fees Collected</p>
-          <p className="text-lg font-bold text-red-600 mt-2">-€{stats?.totalDiscounts || '0.00'}</p>
+          <p className="text-lg font-bold text-red-600 mt-2">-CHF {stats?.totalDiscounts || '0.00'}</p>
           <p className="text-sm text-gray-600">Discounts Given</p>
         </div>
       </div>
@@ -155,15 +184,24 @@ export default function Dashboard() {
       <div className="bg-white p-6 rounded-lg shadow">
         <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+          <button 
+            onClick={() => navigate('/bookings')}
+            className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+          >
             <h3 className="font-semibold mb-1">View Waitlist</h3>
             <p className="text-sm text-gray-600">Manage appointment queue</p>
           </button>
-          <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+          <button 
+            onClick={() => navigate('/bookings')}
+            className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+          >
             <h3 className="font-semibold mb-1">Pending Reviews</h3>
             <p className="text-sm text-gray-600">Follow up on feedback</p>
           </button>
-          <button className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left">
+          <button 
+            onClick={() => navigate('/marketing')}
+            className="p-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-left transition-colors"
+          >
             <h3 className="font-semibold mb-1">Send Campaign</h3>
             <p className="text-sm text-gray-600">Start marketing outreach</p>
           </button>

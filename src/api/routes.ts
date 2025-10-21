@@ -313,12 +313,14 @@ router.post('/api/marketing/filter', async (req, res) => {
 
 router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
   try {
-    const { name, messageTemplate, filterCriteria, promotionId, scheduledAt, createdBy } = req.body;
+    const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, createdBy } = req.body;
     const campaign = await marketingService.createCampaign(
       name,
       messageTemplate,
       filterCriteria,
       promotionId,
+      questionnaireId,
+      promotionAfterCompletion,
       scheduledAt ? new Date(scheduledAt) : undefined,
       createdBy
     );
@@ -404,11 +406,49 @@ router.get('/api/whatsapp/qr', async (req, res) => {
 router.get('/api/dashboard/stats', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    
+    // Get booking stats
     const bookingStats = await bookingService.getBookingStats(
       startDate ? new Date(startDate as string) : undefined,
       endDate ? new Date(endDate as string) : undefined
     );
-    res.json(bookingStats);
+
+    // Get customer count
+    let customerQuery = supabase.from('contacts').select('id', { count: 'exact', head: true });
+    if (startDate) {
+      customerQuery = customerQuery.gte('created_at', new Date(startDate as string).toISOString());
+    }
+    if (endDate) {
+      customerQuery = customerQuery.lte('created_at', new Date(endDate as string).toISOString());
+    }
+    const { count: customerCount } = await customerQuery;
+
+    // Get conversation count
+    let conversationQuery = supabase.from('conversations').select('id', { count: 'exact', head: true });
+    if (startDate) {
+      conversationQuery = conversationQuery.gte('created_at', new Date(startDate as string).toISOString());
+    }
+    if (endDate) {
+      conversationQuery = conversationQuery.lte('created_at', new Date(endDate as string).toISOString());
+    }
+    const { count: conversationCount } = await conversationQuery;
+
+    // Get message activity count
+    let messageQuery = supabase.from('conversation_messages').select('id', { count: 'exact', head: true });
+    if (startDate) {
+      messageQuery = messageQuery.gte('created_at', new Date(startDate as string).toISOString());
+    }
+    if (endDate) {
+      messageQuery = messageQuery.lte('created_at', new Date(endDate as string).toISOString());
+    }
+    const { count: messageCount } = await messageQuery;
+
+    res.json({
+      ...bookingStats,
+      totalCustomers: customerCount || 0,
+      totalConversations: conversationCount || 0,
+      totalMessages: messageCount || 0,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

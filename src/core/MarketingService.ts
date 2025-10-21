@@ -79,7 +79,16 @@ export class MarketingService {
     return toCamelCaseArray(filtered);
   }
 
-  async createCampaign(name: string, messageTemplate: string, filterCriteria: MarketingFilter, promotionId?: string, scheduledAt?: Date, createdBy?: string) {
+  async createCampaign(
+    name: string, 
+    messageTemplate: string, 
+    filterCriteria: MarketingFilter, 
+    promotionId?: string, 
+    questionnaireId?: string,
+    promotionAfterCompletion?: boolean,
+    scheduledAt?: Date, 
+    createdBy?: string
+  ) {
     const contacts = await this.getFilteredContacts(filterCriteria);
 
     const { data, error } = await supabase
@@ -89,6 +98,8 @@ export class MarketingService {
         message_template: messageTemplate,
         filter_criteria: filterCriteria,
         promotion_id: promotionId || null,
+        questionnaire_id: questionnaireId || null,
+        promotion_after_completion: promotionAfterCompletion || false,
         scheduled_at: scheduledAt?.toISOString(),
         total_recipients: contacts.length,
         created_by: createdBy,

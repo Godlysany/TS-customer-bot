@@ -15,6 +15,15 @@ const CustomersManagement = () => {
   const [sourceFilter, setSourceFilter] = useState('');
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
+  const getSentimentDisplay = (score: number | null) => {
+    if (score === null || score === undefined) {
+      return { label: 'Unknown', color: 'bg-gray-100 text-gray-700' };
+    }
+    if (score >= 0.3) return { label: 'Positive', color: 'bg-green-100 text-green-800' };
+    if (score >= -0.3) return { label: 'Neutral', color: 'bg-yellow-100 text-yellow-800' };
+    return { label: 'Negative', color: 'bg-red-100 text-red-800' };
+  };
+
   const [formData, setFormData] = useState({
     phone_number: '',
     name: '',
@@ -23,6 +32,7 @@ const CustomersManagement = () => {
     notes: '',
     tags: ''
   });
+  const [customLanguage, setCustomLanguage] = useState('');
 
   const { data: contacts, isLoading } = useQuery({
     queryKey: ['contacts', sourceFilter],
@@ -106,6 +116,7 @@ const CustomersManagement = () => {
       notes: '',
       tags: ''
     });
+    setCustomLanguage('');
     setShowCreateModal(false);
     setEditingContact(null);
   };
@@ -114,6 +125,7 @@ const CustomersManagement = () => {
     e.preventDefault();
     const payload = {
       ...formData,
+      preferred_language: formData.preferred_language === 'custom' ? customLanguage : formData.preferred_language,
       tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : []
     };
 
@@ -280,6 +292,7 @@ const CustomersManagement = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sentiment</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -306,6 +319,19 @@ const CustomersManagement = () => {
                   <td className="px-6 py-4 text-sm text-gray-900">{contact.phone_number}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{contact.email || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-900">{contact.preferred_language || '-'}</td>
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const sentiment = getSentimentDisplay(contact.sentiment_score);
+                      return (
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${sentiment.color}`}>
+                          {sentiment.label}
+                          {contact.sentiment_score !== null && contact.sentiment_score !== undefined && (
+                            <span className="ml-1 opacity-75">({contact.sentiment_score.toFixed(2)})</span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded ${
                       contact.source === 'whatsapp' ? 'bg-green-100 text-green-800' :
@@ -413,7 +439,10 @@ const CustomersManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Language</label>
                 <select
                   value={formData.preferred_language}
-                  onChange={(e) => setFormData({ ...formData, preferred_language: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, preferred_language: e.target.value });
+                    if (e.target.value !== 'custom') setCustomLanguage('');
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Not specified</option>
@@ -421,7 +450,20 @@ const CustomersManagement = () => {
                   <option value="fr">French (fr)</option>
                   <option value="it">Italian (it)</option>
                   <option value="en">English (en)</option>
+                  <option value="es">Spanish (es)</option>
+                  <option value="pt">Portuguese (pt)</option>
+                  <option value="custom">Custom Language...</option>
                 </select>
+                {formData.preferred_language === 'custom' && (
+                  <input
+                    type="text"
+                    value={customLanguage}
+                    onChange={(e) => setCustomLanguage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-2"
+                    placeholder="Enter custom language code (e.g., zh, ar, ru)"
+                    required
+                  />
+                )}
               </div>
 
               <div>
