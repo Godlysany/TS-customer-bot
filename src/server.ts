@@ -155,6 +155,27 @@ const server = app.listen(config.port, config.host, () => {
   } else {
     console.log('📱 No WhatsApp credentials - connect via Settings page');
   }
+
+  // Initialize Google Calendar if credentials exist
+  import('./infrastructure/GoogleCalendarClient').then(({ GoogleCalendarClient }) => {
+    import('./core/BookingService').then(({ default: bookingService }) => {
+      try {
+        const calendarClient = new GoogleCalendarClient();
+        calendarClient.initialize().then((initialized) => {
+          if (initialized) {
+            bookingService.setCalendarProvider(calendarClient);
+            console.log('📅 Google Calendar provider initialized');
+          } else {
+            console.log('📅 Google Calendar not connected - connect via Settings page');
+          }
+        }).catch((err: any) => {
+          console.warn('⚠️ Could not initialize Google Calendar:', err.message);
+        });
+      } catch (err: any) {
+        console.warn('⚠️ Google Calendar initialization skipped:', err.message);
+      }
+    });
+  });
 });
 
 server.on('error', (error: any) => {

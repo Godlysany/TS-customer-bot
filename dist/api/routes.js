@@ -51,6 +51,7 @@ const promotion_routes_1 = __importDefault(require("./promotion-routes"));
 const contact_routes_1 = __importDefault(require("./contact-routes"));
 const payment_routes_1 = __importDefault(require("./payment-routes"));
 const bot_discount_routes_1 = __importDefault(require("./bot-discount-routes"));
+const calendar_routes_1 = __importDefault(require("./calendar-routes"));
 const router = (0, express_1.Router)();
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'WhatsApp CRM Bot' });
@@ -564,4 +565,5 @@ router.use('/api', promotion_routes_1.default);
 router.use('/api', contact_routes_1.default);
 router.use('/api', payment_routes_1.default);
 router.use('/api', bot_discount_routes_1.default);
+router.use('/api/calendar', calendar_routes_1.default);
 exports.default = router;

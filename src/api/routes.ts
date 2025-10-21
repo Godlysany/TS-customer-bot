@@ -15,6 +15,7 @@ import promotionRoutes from './promotion-routes';
 import contactRoutes from './contact-routes';
 import paymentRoutes from './payment-routes';
 import botDiscountRoutes from './bot-discount-routes';
+import calendarRoutes from './calendar-routes';
 
 const router = Router();
 
@@ -556,5 +557,6 @@ router.use('/api', promotionRoutes);
 router.use('/api', contactRoutes);
 router.use('/api', paymentRoutes);
 router.use('/api', botDiscountRoutes);
+router.use('/api/calendar', calendarRoutes);
 
 export default router;
