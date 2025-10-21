@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { botConfigApi } from '../lib/api';
 import { Bot, Brain, MessageSquare, Shield, Plus, Trash2, Save } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -327,6 +327,7 @@ const PromptConfigSection = () => {
 };
 
 const QuestionnaireSection = () => {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -346,12 +347,13 @@ const QuestionnaireSection = () => {
   const saveMutation = useMutation({
     mutationFn: (data: any) => botConfigApi.saveQuestionnaire(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['questionnaires'] });
       toast.success('Questionnaire saved successfully');
       setEditing(null);
       setFormData({ name: '', type: 'anamnesis', triggerType: 'before_booking', questions: [] });
     },
-    onError: () => {
-      toast.error('Failed to save questionnaire');
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to save questionnaire');
     },
   });
 

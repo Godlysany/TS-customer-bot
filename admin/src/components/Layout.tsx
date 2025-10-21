@@ -13,8 +13,7 @@ const Layout = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['master', 'support'] },
     { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'support'] },
-    { path: '/customers', label: 'Customers', icon: Users, roles: ['master', 'support'] },
-    { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master'] },
+    { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'support'] },
     { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
