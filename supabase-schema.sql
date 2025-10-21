@@ -313,7 +313,12 @@ CREATE TABLE IF NOT EXISTS questionnaires (
     description TEXT,
     questions JSONB NOT NULL, -- Array of question objects with type, options, required
     is_active BOOLEAN DEFAULT true,
-    trigger_type VARCHAR(100), -- 'new_contact', 'first_booking', 'manual'
+    trigger_type VARCHAR(100), -- 'manual', 'before_booking', 'after_booking', 'first_contact', 'service_specific'
+    
+    -- Phase 2: Service & Promotion Linking (October 21, 2025)
+    linked_services UUID[], -- Service IDs for service-specific questionnaires
+    linked_promotions UUID[], -- Promotion IDs for promotion-linked questionnaires
+    
     created_by UUID REFERENCES agents(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -405,6 +410,10 @@ CREATE INDEX IF NOT EXISTS idx_contacts_physical_limitations ON contacts(physica
 CREATE INDEX idx_waitlist_contact_id ON waitlist(contact_id);
 CREATE INDEX idx_waitlist_status ON waitlist(status);
 CREATE INDEX idx_questionnaire_responses_contact_id ON questionnaire_responses(contact_id);
+-- Phase 2 questionnaire indexes (October 21, 2025)
+CREATE INDEX IF NOT EXISTS idx_questionnaires_trigger_type ON questionnaires(trigger_type) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_questionnaires_linked_services ON questionnaires USING GIN(linked_services) WHERE linked_services IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_questionnaires_active ON questionnaires(is_active);
 CREATE INDEX idx_reviews_booking_id ON reviews(booking_id);
 CREATE INDEX idx_reviews_contact_id ON reviews(contact_id);
 CREATE INDEX idx_email_logs_contact_id ON email_logs(contact_id);
