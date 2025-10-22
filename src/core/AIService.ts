@@ -5,7 +5,7 @@ import botConfigService from './BotConfigService';
 import { ExtractedConversationData } from '../types/crm';
 
 export class AIService {
-  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string): Promise<string> {
+  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string, intent?: string): Promise<string> {
     try {
       const openai = await getOpenAIClient();
       const config = await botConfigService.getConfig();
@@ -47,8 +47,8 @@ export class AIService {
 
       const reply = response.choices[0]?.message?.content || config.fallback_message;
       
-      // Check confidence and escalate if needed
-      const confidence = this.estimateConfidence(reply);
+      // Check confidence and escalate if needed (pass intent for context-aware confidence)
+      const confidence = this.estimateConfidence(reply, intent);
       if (config.require_approval_low_confidence && confidence < config.confidence_threshold) {
         console.log(`⚠️  Low confidence reply (${confidence}), may require approval`);
         // TODO: Implement approval workflow
@@ -178,19 +178,39 @@ If you detect a service request, include it in entities: { "service": "service_n
     }
   }
 
-  private estimateConfidence(reply: string): number {
-    // Simple heuristic: longer, well-structured replies are likely more confident
-    // In production, you'd use OpenAI's logprobs or a separate confidence model
-    if (reply.includes('I\'m not sure') || reply.includes('I don\'t know')) {
-      return 0.3;
+  private estimateConfidence(reply: string, intent?: string): number {
+    // Confidence based on reply complexity and intent, NOT length
+    // Length is a bot configuration setting (concise vs detailed), not a confidence indicator
+    
+    // HIGH CONFIDENCE: Clear uncertainty indicators mean we should flag it
+    if (reply.includes('I\'m not sure') || reply.includes('I don\'t know') || 
+        reply.includes('uncertain') || reply.includes('nicht sicher') ||
+        reply.includes('weiss nicht')) {
+      return 0.3; // Low confidence - bot is explicitly uncertain
     }
-    if (reply.length < 50) {
-      return 0.5;
+    
+    // BYPASS CONFIDENCE CHECK: Simple intents that don't need approval
+    // Greetings, confirmations, and standard booking flows are always high confidence
+    const safeIntents = ['greeting', 'booking_confirm', 'booking_cancel', 'booking_modify'];
+    if (intent && safeIntents.includes(intent)) {
+      return 1.0; // High confidence - these are simple, safe interactions
     }
-    if (reply.length > 200) {
-      return 0.9;
+    
+    // COMPLEX SITUATIONS: Check for indicators of uncertainty in complex situations
+    const hasHedging = reply.match(/might|maybe|perhaps|possibly|vielleicht|möglicherweise/i);
+    const hasQuestions = (reply.match(/\?/g) || []).length > 1; // Multiple questions = uncertainty
+    const hasApology = reply.match(/sorry|entschuldigung|leider/i);
+    
+    if (hasHedging && hasQuestions) {
+      return 0.4; // Medium-low confidence - hedging + questions indicates uncertainty
     }
-    return 0.7;
+    
+    if (hasApology && hasQuestions) {
+      return 0.5; // Medium confidence - apologetic + questions
+    }
+    
+    // DEFAULT: Most replies are confident unless they show uncertainty markers
+    return 0.8;
   }
 
   /**

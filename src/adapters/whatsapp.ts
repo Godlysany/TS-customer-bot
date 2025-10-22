@@ -354,7 +354,8 @@ async function handleMessage(msg: WAMessage) {
             messageHistory
           );
         } else {
-          replyText = await aiService.generateReply(conversation.id, messageHistory, text);
+          // Pass intent to generateReply for context-aware confidence scoring
+          replyText = await aiService.generateReply(conversation.id, messageHistory, text, intent.intent);
         }
       }
     } catch (aiError: any) {
