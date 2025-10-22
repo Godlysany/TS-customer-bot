@@ -122,18 +122,26 @@ export class EscalationService {
   async createEscalation(conversationId: string, reason?: string): Promise<Escalation> {
     try {
       // Check if escalation already exists for this conversation
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('escalations')
         .select('id, status')
         .eq('conversation_id', conversationId)
         .in('status', ['pending', 'in_progress'])
-        .maybeSingle();
+        .limit(1)
+        .single();
 
-      if (existing) {
+      // If we found an existing escalation, return it
+      if (existing && !checkError) {
         console.log(`Escalation already exists for conversation ${conversationId}`);
         return toCamelCase(existing) as Escalation;
       }
 
+      // Only throw if error is NOT "no rows found" (PGRST116)
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      // No existing escalation found, create new one
       const { data, error } = await supabase
         .from('escalations')
         .insert({
