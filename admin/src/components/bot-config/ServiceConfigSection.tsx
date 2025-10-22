@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesApi, settingsApi } from '../../lib/api';
-import { Save, Settings, Clock, Ban, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { Save, Settings, Ban, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Service {
