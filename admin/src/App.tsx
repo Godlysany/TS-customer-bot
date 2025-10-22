@@ -14,7 +14,7 @@ import AdminManagement from './pages/AdminManagement';
 import BotConfiguration from './pages/BotConfiguration';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
-import QuestionnaireResponses from './pages/QuestionnaireResponses';
+import Questionnaires from './pages/Questionnaires';
 import Services from './pages/Services';
 import Promotions from './pages/Promotions';
 import BotDiscounts from './pages/BotDiscounts';
@@ -48,7 +48,7 @@ function App() {
               <Route path="conversations" element={<Conversations />} />
               <Route path="customers" element={<Customers />} />
               <Route path="customers/:id" element={<CustomerDetail />} />
-              <Route path="questionnaires" element={<QuestionnaireResponses />} />
+              <Route path="questionnaires" element={<Questionnaires />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="bookings" element={<Bookings />} />
               <Route

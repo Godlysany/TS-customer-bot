@@ -665,6 +665,22 @@ router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), asy
   }
 });
 
+router.delete('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('questionnaires')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/api/questionnaires/responses', async (req, res) => {
   try {
     const { QuestionnaireService } = await import('../core/QuestionnaireService');

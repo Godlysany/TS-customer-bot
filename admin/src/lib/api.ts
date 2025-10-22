@@ -91,6 +91,7 @@ export const questionnaireApi = {
     api.get('/questionnaires', { params: { triggerType } }),
   create: (data: any) => api.post('/questionnaires', data),
   update: (id: string, data: any) => api.put(`/questionnaires/${id}`, data),
+  delete: (id: string) => api.delete(`/questionnaires/${id}`),
   getResponses: (contactId: string) => 
     api.get(`/contacts/${contactId}/questionnaires`),
   saveResponse: (data: any) => api.post('/questionnaires/responses', data),

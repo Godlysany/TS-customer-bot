@@ -112,6 +112,12 @@ const Settings = () => {
     { key: 'elevenlabs_api_key', label: 'ElevenLabs API Key', isSecret: true },
   ];
 
+  const paymentSettings = [
+    { key: 'payments_enabled', label: 'Enable Payments', type: 'select', options: ['true', 'false'] },
+    { key: 'stripe_api_key', label: 'Stripe API Key (Secret Key)', isSecret: true },
+    { key: 'stripe_webhook_secret', label: 'Stripe Webhook Secret', isSecret: true },
+  ];
+
   const calendarSettings = [
     { key: 'calendar_provider', label: 'Calendar Provider', type: 'select', options: ['google', 'outlook', 'apple', 'other'] },
     { key: 'calendar_ical_url', label: 'iCal URL', type: 'text' },
@@ -292,6 +298,31 @@ const Settings = () => {
           
           <div className="space-y-4">
             {apiIntegrations.map(renderSettingField)}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <svg className="w-6 h-6 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" />
+              <path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clipRule="evenodd" />
+            </svg>
+            <h2 className="text-xl font-semibold text-gray-900">Payment Settings (Stripe)</h2>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Important:</strong> Enable payments to allow customers to pay for bookings, deposits, and penalties via Stripe. 
+              You'll need a Stripe account to get your API keys. Get them from: <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="underline">Stripe Dashboard</a>
+            </p>
+            <p className="text-sm text-yellow-800 mt-2">
+              <strong>Webhook Secret:</strong> Required for production security. Set it up in Stripe Dashboard → Webhooks → Add endpoint. 
+              Endpoint URL: <code className="bg-yellow-100 px-2 py-1 rounded">https://your-domain.com/api/payments/webhook</code>
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {paymentSettings.map(renderSettingField)}
           </div>
         </div>
 
