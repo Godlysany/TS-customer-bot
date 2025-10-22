@@ -192,12 +192,46 @@ class PaymentLinkService {
      */
     async handleCheckoutSessionExpired(session) {
         try {
+            // Get payment link to find associated booking(s)
+            const { data: paymentLink } = await supabase_1.supabase
+                .from('payment_links')
+                .select('booking_id')
+                .eq('stripe_checkout_session_id', session.id)
+                .single();
+            // Update payment link status
             await supabase_1.supabase
                 .from('payment_links')
                 .update({
                 payment_status: 'expired',
             })
                 .eq('stripe_checkout_session_id', session.id);
+            // CRITICAL: Cancel all pending bookings for this payment link to free up availability
+            if (paymentLink?.booking_id) {
+                // Find all bookings in pending status for this contact and service
+                // (covers multi-session bookings created together)
+                const { data: booking } = await supabase_1.supabase
+                    .from('bookings')
+                    .select('contact_id, service_id, session_group_id')
+                    .eq('id', paymentLink.booking_id)
+                    .single();
+                if (booking) {
+                    // Cancel the primary booking
+                    await supabase_1.supabase
+                        .from('bookings')
+                        .update({ status: 'cancelled', cancellation_reason: 'Payment link expired' })
+                        .eq('id', paymentLink.booking_id)
+                        .eq('status', 'pending');
+                    // If part of multi-session group, cancel all pending bookings in the group
+                    if (booking.session_group_id) {
+                        await supabase_1.supabase
+                            .from('bookings')
+                            .update({ status: 'cancelled', cancellation_reason: 'Payment link expired for session group' })
+                            .eq('session_group_id', booking.session_group_id)
+                            .eq('status', 'pending');
+                    }
+                    console.log(`✅ Payment expired: cancelled pending booking(s) for payment link ${paymentLink.booking_id}`);
+                }
+            }
             console.log(`Payment link expired for session: ${session.id}`);
         }
         catch (error) {
@@ -231,12 +265,76 @@ class PaymentLinkService {
      */
     async handlePaymentIntentFailed(paymentIntent) {
         try {
+            // CRITICAL FIX: stripe_payment_intent_id is only populated on successful completion
+            // For failed payments, we need to look up via checkout session ID from charges metadata
+            const stripe = await this.getStripeClient();
+            let checkoutSessionId = null;
+            // Try metadata first (fastest)
+            if (paymentIntent.metadata?.checkout_session_id) {
+                checkoutSessionId = paymentIntent.metadata.checkout_session_id;
+            }
+            else if (paymentIntent.latest_charge) {
+                // Get the latest charge to check its metadata
+                const charge = await stripe.charges.retrieve(paymentIntent.latest_charge);
+                if (charge?.metadata?.checkout_session_id) {
+                    checkoutSessionId = charge.metadata.checkout_session_id;
+                }
+            }
+            // CRITICAL: If metadata lookup fails OR latest_charge is null (early failures like authentication_cancelled),
+            // use Stripe API to find the checkout session by payment intent ID
+            if (!checkoutSessionId) {
+                const sessions = await stripe.checkout.sessions.list({
+                    limit: 100,
+                    payment_intent: paymentIntent.id,
+                });
+                if (sessions.data.length > 0) {
+                    checkoutSessionId = sessions.data[0].id;
+                }
+            }
+            if (!checkoutSessionId) {
+                console.error(`⚠️ Could not find checkout session for failed payment intent: ${paymentIntent.id}`);
+                return;
+            }
+            // Get payment link using checkout session ID (which is always populated)
+            const { data: paymentLink } = await supabase_1.supabase
+                .from('payment_links')
+                .select('booking_id')
+                .eq('stripe_checkout_session_id', checkoutSessionId)
+                .single();
+            // Update payment link status
             await supabase_1.supabase
                 .from('payment_links')
                 .update({
                 payment_status: 'cancelled',
+                stripe_payment_intent_id: paymentIntent.id, // Store it now for reference
             })
-                .eq('stripe_payment_intent_id', paymentIntent.id);
+                .eq('stripe_checkout_session_id', checkoutSessionId);
+            // CRITICAL: Cancel all pending bookings for this payment link to free up availability
+            if (paymentLink?.booking_id) {
+                // Find all bookings in pending status for this contact and service
+                const { data: booking } = await supabase_1.supabase
+                    .from('bookings')
+                    .select('contact_id, service_id, session_group_id')
+                    .eq('id', paymentLink.booking_id)
+                    .single();
+                if (booking) {
+                    // Cancel the primary booking
+                    await supabase_1.supabase
+                        .from('bookings')
+                        .update({ status: 'cancelled', cancellation_reason: 'Payment failed' })
+                        .eq('id', paymentLink.booking_id)
+                        .eq('status', 'pending');
+                    // If part of multi-session group, cancel all pending bookings in the group
+                    if (booking.session_group_id) {
+                        await supabase_1.supabase
+                            .from('bookings')
+                            .update({ status: 'cancelled', cancellation_reason: 'Payment failed for session group' })
+                            .eq('session_group_id', booking.session_group_id)
+                            .eq('status', 'pending');
+                    }
+                    console.log(`✅ Payment failed: cancelled pending booking(s) for payment link ${paymentLink.booking_id}`);
+                }
+            }
             console.log(`Payment intent failed: ${paymentIntent.id}`);
         }
         catch (error) {

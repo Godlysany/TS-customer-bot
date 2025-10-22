@@ -624,6 +624,39 @@ router.get('/api/questionnaires', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        const { data, error } = await supabase_1.supabase
+            .from('questionnaires')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error)
+            throw error;
+        res.json(data);
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.delete('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabase_1.supabase
+            .from('questionnaires')
+            .delete()
+            .eq('id', id);
+        if (error)
+            throw error;
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 router.post('/api/questionnaires/responses', async (req, res) => {
     try {
         const { QuestionnaireService } = await Promise.resolve().then(() => __importStar(require('../core/QuestionnaireService')));

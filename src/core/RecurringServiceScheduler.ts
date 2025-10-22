@@ -1,5 +1,5 @@
 import { supabase } from '../infrastructure/supabase';
-import { sendWhatsAppMessage } from '../adapters/whatsapp';
+import { sendProactiveMessage } from '../adapters/whatsapp';
 import { toCamelCase } from '../infrastructure/mapper';
 
 interface RecurringService {
@@ -98,7 +98,7 @@ export class RecurringServiceScheduler {
     if (servicesError) throw servicesError;
     if (!recurringServices || recurringServices.length === 0) return [];
 
-    const camelServices: RecurringService[] = recurringServices.map((s: any) => toCamelCase(s));
+    const camelServices: RecurringService[] = recurringServices.map((s: any) => toCamelCase(s) as RecurringService);
     const dueSoon: PastBooking[] = [];
 
     for (const service of camelServices) {
@@ -200,7 +200,7 @@ export class RecurringServiceScheduler {
       .replace(/\{\{last_date\}\}/g, lastDate)
       .replace(/\{\{next_date\}\}/g, nextDate);
 
-    await sendWhatsAppMessage(reminder.contactPhone, message);
+    await sendProactiveMessage(reminder.contactPhone, message, reminder.contactId);
 
     await supabase.from('reminder_logs').insert({
       contact_id: reminder.contactId,

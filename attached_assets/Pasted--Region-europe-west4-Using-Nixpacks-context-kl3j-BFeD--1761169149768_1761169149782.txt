@@ -1,0 +1,85 @@
+[Region: europe-west4]
+==============
+Using Nixpacks
+==============
+
+context: kl3j-BFeD
+╔══════════════════════════════ Nixpacks v1.38.0 ══════════════════════════════╗
+║ setup      │ nodejs_22, npm-9_x                                              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ install    │ npm ci                                                          ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ build      │ npm install && npm run build && cd admin && rm -rf dist         ║
+║            │ node_modules/.vite && npm install && npm run build              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ start      │ node dist/server.js                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+360ms
+
+internal
+load .dockerignore
+0ms
+
+internal
+load build context
+0ms
+
+[ 2/10] WORKDIR /app/ cached
+0ms
+
+[ 3/10] COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix
+166ms
+
+[ 4/10] RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d
+50s
+61 store paths deleted, 559.40 MiB freed
+
+[ 5/10] COPY . /app/.
+202ms
+
+[ 6/10] RUN  npm ci
+10s
+Run `npm audit` for details.
+
+[ 7/10] COPY . /app/.
+257ms
+
+[ 8/10] RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+20s
+npm warn config production Use `--omit=dev` instead.
+up to date, audited 461 packages in 3s
+86 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (5 low, 1 high)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues, run:
+  npm audit fix --force
+Run `npm audit` for details.
+npm warn config production Use `--omit=dev` instead.
+> whatsapp-crm-bot@2.0.0 build
+> tsc
+src/core/BookingChatHandler.ts(10,10): error TS2614: Module '"../adapters/whatsapp"' has no exported member 'sendWhatsAppMessage'. Did you mean to use 'import sendWhatsAppMessage from "../adapters/whatsapp"' instead?
+
+src/core/RecurringServiceScheduler.ts(2,10): error TS2614: Module '"../adapters/whatsapp"' has no exported member 'sendWhatsAppMessage'. Did you mean to use 'import sendWhatsAppMessage from "../adapters/whatsapp"' instead?
+
+src/core/RecurringServiceScheduler.ts(101,11): error TS2322: Type 'Record<string, any>[]' is not assignable to type 'RecurringService[]'.
+
+  Type 'Record<string, any>' is missing the following properties from type 'RecurringService': id, name, recurringIntervalDays, recurringReminderDaysBefore
+Dockerfile:24
+-------------------
+22 |     # build phase
+23 |     COPY . /app/.
+24 | >>> RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+25 |
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build" did not complete successfully: exit code: 2
+Error: Docker build failed

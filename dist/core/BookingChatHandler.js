@@ -11,6 +11,9 @@ const MultiServiceBookingService_1 = require("./MultiServiceBookingService");
 const MultiSessionBookingLogic_1 = __importDefault(require("./MultiSessionBookingLogic"));
 const openai_1 = __importDefault(require("../infrastructure/openai"));
 const BotConfigService_1 = __importDefault(require("./BotConfigService"));
+const PaymentLinkService_1 = __importDefault(require("./PaymentLinkService"));
+const SettingsService_1 = __importDefault(require("./SettingsService"));
+const whatsapp_1 = require("../adapters/whatsapp");
 class BookingChatHandler {
     bookingService;
     multiServiceService;
@@ -34,6 +37,13 @@ class BookingChatHandler {
         const context = this.contexts.get(conversationId);
         if (!context) {
             return "I'm sorry, I seem to have lost track of our conversation. Could you please start over?";
+        }
+        // PRIORITY CHECK: If user is in payment flow, check payment status first
+        if (context.multiSessionStep === 'awaiting_payment' || context.paymentLinkId) {
+            const paymentResponse = await this.handlePaymentConfirmation(context);
+            if (paymentResponse) {
+                return paymentResponse;
+            }
         }
         // Route to appropriate handler based on context intent
         if (context.intent === 'cancel') {
@@ -331,6 +341,170 @@ class BookingChatHandler {
         ];
         return suggestions[Math.floor(Math.random() * suggestions.length)];
     }
+    /**
+     * ========================================
+     * PAYMENT INTEGRATION METHODS
+     * ========================================
+     */
+    /**
+     * Check if payments are enabled system-wide
+     */
+    async isPaymentEnabled() {
+        const paymentsEnabled = await SettingsService_1.default.getSetting('payments_enabled');
+        const stripeKey = await SettingsService_1.default.getSetting('stripe_api_key');
+        return paymentsEnabled === 'true' && !!stripeKey && stripeKey.trim() !== '';
+    }
+    /**
+     * Check if service requires payment
+     */
+    async requiresPayment(serviceId) {
+        const { data: service } = await supabase_1.supabase
+            .from('services')
+            .select('requires_payment, cost, deposit_amount')
+            .eq('id', serviceId)
+            .single();
+        if (!service) {
+            return { required: false, amount: 0, depositAmount: 0 };
+        }
+        const serviceData = (0, mapper_1.toCamelCase)(service);
+        return {
+            required: serviceData.requiresPayment || false,
+            amount: serviceData.cost || 0,
+            depositAmount: serviceData.depositAmount || 0,
+        };
+    }
+    /**
+     * Create payment link and send to customer via WhatsApp
+     */
+    async createAndSendPaymentLink(context, bookingId, serviceName, amount) {
+        try {
+            const paymentEnabled = await this.isPaymentEnabled();
+            if (!paymentEnabled) {
+                console.warn('⚠️ Payment required but payments not enabled - allowing booking without payment');
+                return ''; // Allow booking to proceed without payment if system not configured
+            }
+            // Create payment link
+            const paymentLink = await PaymentLinkService_1.default.createPaymentLink({
+                booking_id: bookingId,
+                contact_id: context.contactId,
+                amount_chf: amount,
+                description: `Payment for ${serviceName} appointment`,
+                metadata: {
+                    conversation_id: context.conversationId,
+                },
+            });
+            // Store payment link in context
+            context.paymentLinkId = paymentLink.payment_link_id;
+            context.paymentStatus = 'pending';
+            context.paymentExpiresAt = new Date(paymentLink.expires_at);
+            context.paymentAmount = amount;
+            // Send payment link via WhatsApp
+            const paymentMessage = `💳 Payment Required\n\n` +
+                `To confirm your ${serviceName} appointment, please complete the payment of CHF ${amount.toFixed(2)}.\n\n` +
+                `Click here to pay securely with Stripe:\n${paymentLink.checkout_url}\n\n` +
+                `Payment link expires in 24 hours.\n\n` +
+                `Once payment is confirmed, I'll finalize your booking! 🎉`;
+            await (0, whatsapp_1.sendProactiveMessage)(context.phoneNumber, paymentMessage, context.contactId);
+            // Update payment_link record with WhatsApp message sent
+            await supabase_1.supabase
+                .from('payment_links')
+                .update({ whatsapp_message_sent_at: new Date().toISOString() })
+                .eq('id', paymentLink.payment_link_id);
+            return `I've sent you a secure payment link via WhatsApp. Please complete the payment to confirm your booking. I'll be here when you're ready! 😊`;
+        }
+        catch (error) {
+            console.error('❌ Error creating payment link:', error);
+            throw new Error(`Payment system error: ${error.message}`);
+        }
+    }
+    /**
+     * Check payment status from database
+     */
+    async checkPaymentStatus(paymentLinkId) {
+        const { data: paymentLink } = await supabase_1.supabase
+            .from('payment_links')
+            .select('payment_status, expires_at')
+            .eq('id', paymentLinkId)
+            .single();
+        if (!paymentLink) {
+            return 'failed';
+        }
+        const paymentData = (0, mapper_1.toCamelCase)(paymentLink);
+        // Check if expired
+        const now = new Date();
+        const expiresAt = new Date(paymentData.expiresAt);
+        if (now > expiresAt && paymentData.paymentStatus === 'pending') {
+            return 'expired';
+        }
+        return paymentData.paymentStatus;
+    }
+    /**
+     * Handle payment confirmation check during conversation
+     */
+    async handlePaymentConfirmation(context) {
+        if (!context.paymentLinkId) {
+            return null; // No payment required
+        }
+        const status = await this.checkPaymentStatus(context.paymentLinkId);
+        context.paymentStatus = status;
+        switch (status) {
+            case 'paid':
+                // Payment successful - finalize booking
+                if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
+                    // Confirm all pending bookings
+                    for (const bookingId of context.pendingBookingIds) {
+                        await supabase_1.supabase
+                            .from('bookings')
+                            .update({ status: 'confirmed' })
+                            .eq('id', bookingId);
+                    }
+                }
+                this.clearContext(context.conversationId);
+                return `✅ Payment confirmed! Your booking is now complete. You'll receive a confirmation email shortly. Looking forward to seeing you!`;
+            case 'expired':
+                // Payment link expired - cancel pending bookings to free availability
+                if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
+                    for (const bookingId of context.pendingBookingIds) {
+                        await supabase_1.supabase
+                            .from('bookings')
+                            .update({
+                            status: 'cancelled',
+                            cancellation_reason: 'Payment link expired (conversational timeout)'
+                        })
+                            .eq('id', bookingId)
+                            .eq('status', 'pending'); // Only cancel if still pending
+                    }
+                    console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment expiration`);
+                }
+                this.clearContext(context.conversationId);
+                return `⏰ Your payment link has expired. To proceed with the booking, please start over and I'll generate a new payment link for you.`;
+            case 'failed':
+                // Payment failed - cancel pending bookings to free availability
+                if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
+                    for (const bookingId of context.pendingBookingIds) {
+                        await supabase_1.supabase
+                            .from('bookings')
+                            .update({
+                            status: 'cancelled',
+                            cancellation_reason: 'Payment failed (conversational check)'
+                        })
+                            .eq('id', bookingId)
+                            .eq('status', 'pending');
+                    }
+                    console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment failure`);
+                }
+                this.clearContext(context.conversationId);
+                return `❌ There was an issue with your payment. Please try booking again, and I'll assist you with a new payment link.`;
+            case 'pending':
+                // Still waiting for payment
+                const minutesRemaining = context.paymentExpiresAt
+                    ? Math.floor((context.paymentExpiresAt.getTime() - Date.now()) / (1000 * 60))
+                    : 0;
+                return `I'm still waiting for your payment confirmation. You have ${minutesRemaining} minutes remaining to complete the payment. Once done, your booking will be automatically confirmed! 💳`;
+            default:
+                return null;
+        }
+    }
     getOrCreateContext(conversationId, contactId, phoneNumber) {
         if (!this.contexts.has(conversationId)) {
             this.contexts.set(conversationId, {
@@ -451,8 +625,10 @@ class BookingChatHandler {
             }
             return `Please confirm by replying "yes" to book all ${totalSessionsRequired} sessions, or "no" to cancel.`;
         }
-        // Step 5: Book all sessions using MultiSessionBookingLogic
+        // Step 5: Check if payment is required BEFORE booking
+        const paymentInfo = await this.requiresPayment(service.id);
         try {
+            // Book all sessions using MultiSessionBookingLogic
             const bookings = await this.multiSessionLogic.bookImmediateStrategy({
                 serviceId: service.id,
                 contactId: context.contactId,
@@ -466,6 +642,38 @@ class BookingChatHandler {
                 serviceName: name,
                 serviceCost: service.cost,
             });
+            // If payment required, create payment link and wait for confirmation
+            if (paymentInfo.required && paymentInfo.amount > 0) {
+                const amountToCharge = paymentInfo.depositAmount > 0 ? paymentInfo.depositAmount : paymentInfo.amount;
+                // Store booking IDs in context for later confirmation
+                context.pendingBookingIds = bookings.map((b) => b.id);
+                context.multiSessionStep = 'awaiting_payment';
+                context.requiresPayment = true;
+                // Create and send payment link
+                try {
+                    const paymentResponse = await this.createAndSendPaymentLink(context, bookings[0].id, // Use first booking ID for payment link
+                    name, amountToCharge * totalSessionsRequired // Total for all sessions
+                    );
+                    return paymentResponse;
+                }
+                catch (paymentError) {
+                    // If payment system fails, log error but allow booking if payments not strictly enforced
+                    console.error('Payment link creation failed:', paymentError);
+                    // Check if payments are strictly enforced
+                    const strictPayments = await SettingsService_1.default.getSetting('strict_payment_enforcement');
+                    if (strictPayments === 'true') {
+                        // Cancel bookings if strict enforcement
+                        for (const booking of bookings) {
+                            await supabase_1.supabase.from('bookings').delete().eq('id', booking.id);
+                        }
+                        this.clearContext(context.conversationId);
+                        return `I'm sorry, our payment system is temporarily unavailable. Please try again later or contact our support team.`;
+                    }
+                    // Otherwise, allow booking without payment
+                    console.warn('⚠️ Allowing booking without payment due to payment system error');
+                }
+            }
+            // No payment required OR payment system failed with non-strict enforcement - confirm immediately
             // Generate confirmation message
             let confirmationMsg = `✅ Perfect! All ${totalSessionsRequired} ${name} sessions are now confirmed:\n\n`;
             bookings.forEach((booking, idx) => {
@@ -540,8 +748,10 @@ class BookingChatHandler {
                 return "I couldn't understand the date and time. Please try again (e.g., 'March 15 at 2pm').";
             }
         }
-        // Step 2: Book FIRST session only
+        // Step 2: Check if payment is required BEFORE booking
+        const paymentInfo = await this.requiresPayment(service.id);
         try {
+            // Book FIRST session only
             const booking = await this.multiSessionLogic.bookSequentialStrategy({
                 serviceId: service.id,
                 contactId: context.contactId,
@@ -555,6 +765,28 @@ class BookingChatHandler {
                 serviceName: name,
                 serviceCost: service.cost,
             });
+            // If payment required, create payment link and wait for confirmation
+            if (paymentInfo.required && paymentInfo.amount > 0) {
+                const amountToCharge = paymentInfo.depositAmount > 0 ? paymentInfo.depositAmount : paymentInfo.amount;
+                context.pendingBookingIds = [booking.id];
+                context.multiSessionStep = 'awaiting_payment';
+                context.requiresPayment = true;
+                try {
+                    const paymentResponse = await this.createAndSendPaymentLink(context, booking.id, `${name} - Session 1`, amountToCharge);
+                    return paymentResponse;
+                }
+                catch (paymentError) {
+                    console.error('Payment link creation failed:', paymentError);
+                    const strictPayments = await SettingsService_1.default.getSetting('strict_payment_enforcement');
+                    if (strictPayments === 'true') {
+                        await supabase_1.supabase.from('bookings').delete().eq('id', booking.id);
+                        this.clearContext(context.conversationId);
+                        return `I'm sorry, our payment system is temporarily unavailable. Please try again later or contact our support team.`;
+                    }
+                    console.warn('⚠️ Allowing booking without payment due to payment system error');
+                }
+            }
+            // No payment required OR payment system failed - confirm immediately
             const bookingDate = new Date(booking.startTime);
             const dateStr = bookingDate.toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -686,7 +918,8 @@ class BookingChatHandler {
             }
             return `Please confirm by replying "yes" to book these sessions, or "no" to cancel.`;
         }
-        // Step 5: Book all collected sessions
+        // Step 5: Check if payment is required BEFORE booking
+        const paymentInfo = await this.requiresPayment(service.id);
         try {
             // For flexible strategy, we book each date separately but link them
             const bookings = [];
@@ -709,6 +942,30 @@ class BookingChatHandler {
                 });
                 bookings.push(...booking);
             }
+            // If payment required, create payment link and wait for confirmation
+            if (paymentInfo.required && paymentInfo.amount > 0) {
+                const amountToCharge = paymentInfo.depositAmount > 0 ? paymentInfo.depositAmount : paymentInfo.amount;
+                context.pendingBookingIds = bookings.map(b => b.id);
+                context.multiSessionStep = 'awaiting_payment';
+                context.requiresPayment = true;
+                try {
+                    const paymentResponse = await this.createAndSendPaymentLink(context, bookings[0].id, `${name} - ${bookings.length} sessions`, amountToCharge * bookings.length);
+                    return paymentResponse;
+                }
+                catch (paymentError) {
+                    console.error('Payment link creation failed:', paymentError);
+                    const strictPayments = await SettingsService_1.default.getSetting('strict_payment_enforcement');
+                    if (strictPayments === 'true') {
+                        for (const booking of bookings) {
+                            await supabase_1.supabase.from('bookings').delete().eq('id', booking.id);
+                        }
+                        this.clearContext(context.conversationId);
+                        return `I'm sorry, our payment system is temporarily unavailable. Please try again later or contact our support team.`;
+                    }
+                    console.warn('⚠️ Allowing booking without payment due to payment system error');
+                }
+            }
+            // No payment required OR payment system failed - confirm immediately
             // Generate confirmation with progress
             const newProgress = await this.multiSessionLogic.getMultiSessionProgress(context.contactId, service.id);
             let confirmationMsg = `✅ Sessions confirmed!\n\n`;

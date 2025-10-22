@@ -7,7 +7,7 @@ import getOpenAIClient from '../infrastructure/openai';
 import botConfigService from './BotConfigService';
 import paymentLinkService from './PaymentLinkService';
 import settingsService from './SettingsService';
-import { sendWhatsAppMessage } from '../adapters/whatsapp';
+import { sendProactiveMessage } from '../adapters/whatsapp';
 
 interface BookingContext {
   conversationId: string;
@@ -520,7 +520,7 @@ export class BookingChatHandler {
         `Payment link expires in 24 hours.\n\n` +
         `Once payment is confirmed, I'll finalize your booking! 🎉`;
 
-      await sendWhatsAppMessage(context.phoneNumber, paymentMessage);
+      await sendProactiveMessage(context.phoneNumber, paymentMessage, context.contactId);
 
       // Update payment_link record with WhatsApp message sent
       await supabase
