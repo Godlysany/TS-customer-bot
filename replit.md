@@ -6,12 +6,26 @@ This project is a professional B2B customer service platform integrating WhatsAp
 ## Recent System Health Audit (October 22, 2025)
 **Status: Production-Ready** - Comprehensive audit completed with all critical systems verified operational.
 
-### Fixes Applied:
+### Latest Fixes (Evening Session):
+1. **Bot Config Persistence RESOLVED**: Fixed critical routing bug where bot-config endpoints were never wired to main routes. Added ALL missing REST endpoints:
+   - `/api/bot-config/business-details` (GET/POST) - business info
+   - `/api/bot-config/prompt-config` (GET/POST) - GPT fine-tuning
+   - `/api/bot-config/master-prompt` (GET) - read-only master prompt
+   - `/api/bot-config/escalation` (GET/POST) - escalation configuration
+   - `/api/bot-config/escalation/test` (POST) - test escalation logic with `.maybeSingle()` for empty state handling
+   - `/api/bot-config/confirmations` (GET/POST) - booking templates
+   - `/api/bot-config/email-collection` (GET/POST) - email collection settings
+   - All endpoints properly mounted to routes with master role protection
+2. **Default Bot Language Setting**: Added to Settings page with dropdown for de/en/fr/it/es/pt with explanatory text about persistence behavior
+3. **Dashboard Stats Diagnostics**: Added comprehensive error logging to identify production zero-stats issue (logs each query error and actual counts retrieved)
+
+### Previous Fixes:
 1. **Server Stability**: Fixed RecurringServiceScheduler crash caused by querying non-existent schema columns. Temporarily disabled until schema deployment completes (GitHub Actions).
-2. **Dashboard Accuracy**: Corrected Dashboard stats endpoint querying wrong table ('conversation_messages' → 'messages') and wrong timestamp column ('created_at' → 'timestamp'). Verified with test data.
+2. **Dashboard Accuracy**: Corrected Dashboard stats endpoint querying wrong table ('conversation_messages' → 'messages') and wrong timestamp column ('created_at' → 'timestamp').
 3. **Feature Connectivity**: Verified all major features properly wired: Contact creation (manual/CSV), Bookings, Stripe payments with webhook signature verification, Marketing campaigns, Escalations system.
 
 ### Known Pending Items:
+- Dashboard showing 0 stats in production despite data existence - enhanced logging deployed to diagnose (check Railway logs)
 - Recurring service schema deployment via GitHub Actions (columns: recurring_interval_days, recurring_reminder_days_before, recurring_reminder_message)
 - Once schema deployed: Re-enable RecurringServiceScheduler in src/server.ts line 158
 
