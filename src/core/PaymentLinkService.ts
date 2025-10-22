@@ -309,11 +309,44 @@ class PaymentLinkService {
    */
   private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
     try {
-      // Get payment link to find associated booking(s)
+      // CRITICAL FIX: stripe_payment_intent_id is only populated on successful completion
+      // For failed payments, we need to look up via checkout session ID from charges metadata
+      const stripe = await this.getStripeClient();
+      
+      // Get the latest charge to find the checkout session
+      const charge = paymentIntent.latest_charge 
+        ? await stripe.charges.retrieve(paymentIntent.latest_charge as string)
+        : null;
+      
+      let checkoutSessionId: string | null = null;
+      
+      // Try to get session ID from charge metadata or payment_intent metadata
+      if (charge?.metadata?.checkout_session_id) {
+        checkoutSessionId = charge.metadata.checkout_session_id;
+      } else if (paymentIntent.metadata?.checkout_session_id) {
+        checkoutSessionId = paymentIntent.metadata.checkout_session_id;
+      } else if (charge) {
+        // If metadata doesn't have it, try to find it via invoice or payment method
+        // As last resort, look up sessions created around the same time with matching amount
+        const sessions = await stripe.checkout.sessions.list({
+          limit: 100,
+          payment_intent: paymentIntent.id,
+        });
+        if (sessions.data.length > 0) {
+          checkoutSessionId = sessions.data[0].id;
+        }
+      }
+
+      if (!checkoutSessionId) {
+        console.error(`⚠️ Could not find checkout session for failed payment intent: ${paymentIntent.id}`);
+        return;
+      }
+
+      // Get payment link using checkout session ID (which is always populated)
       const { data: paymentLink } = await supabase
         .from('payment_links')
         .select('booking_id')
-        .eq('stripe_payment_intent_id', paymentIntent.id)
+        .eq('stripe_checkout_session_id', checkoutSessionId)
         .single();
 
       // Update payment link status
@@ -321,8 +354,9 @@ class PaymentLinkService {
         .from('payment_links')
         .update({
           payment_status: 'cancelled',
+          stripe_payment_intent_id: paymentIntent.id, // Store it now for reference
         })
-        .eq('stripe_payment_intent_id', paymentIntent.id);
+        .eq('stripe_checkout_session_id', checkoutSessionId);
 
       // CRITICAL: Cancel all pending bookings for this payment link to free up availability
       if (paymentLink?.booking_id) {
