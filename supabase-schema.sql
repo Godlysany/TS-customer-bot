@@ -1,6 +1,7 @@
--- WhatsApp CRM Bot - Supabase Database Schema
+-- WhatsApp CRM Bot - Supabase Database Schema  
 -- Production deployment: October 22, 2025 (Complete end-to-end payment integration + critical production fixes)
--- Latest update: Payment integration + confidence logic fix + escalations page deployment
+-- Latest update: Route integration fixes - mounted bot-config, escalations, services, customers, message-approval, questionnaire-responses routes
+-- All route modules now properly connected to main router (Evening session - Oct 22, 2025)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
