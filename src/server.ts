@@ -22,6 +22,7 @@ import { startRecurringScheduler, stopRecurringScheduler } from './core/Recurrin
 import { startMarketingCampaignScheduler, stopMarketingCampaignScheduler } from './core/MarketingCampaignScheduler';
 import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
+import recurringServiceScheduler from './core/RecurringServiceScheduler';
 import fs from 'fs';
 
 // Validate critical environment variables
@@ -146,6 +147,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start marketing campaign scheduler (checks every 60 minutes)
   startMarketingCampaignScheduler(60);
+  
+  // Start recurring service reminder scheduler (checks daily - 1440 minutes)
+  recurringServiceScheduler.start(1440);
   
   // Auto-reconnect WhatsApp if credentials exist
   const authInfoPath = path.join(__dirname, '../auth_info');

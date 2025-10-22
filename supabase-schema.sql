@@ -522,6 +522,12 @@ CREATE TABLE IF NOT EXISTS services (
     -- immediate = book all sessions upfront; sequential = book one at a time after completion; flexible = customer chooses
     session_buffer_config JSONB, -- Buffer times between sessions e.g. {"default_days": 7, "session_2_to_3_days": 30}
     
+    -- Recurring service reminder configuration (for services like yearly dental checkups, quarterly maintenance, etc.)
+    recurring_reminder_enabled BOOLEAN DEFAULT false, -- Enable automatic reminders for this service
+    recurring_interval_days INTEGER DEFAULT 365, -- Days between recurring appointments (365 = yearly, 90 = quarterly, 30 = monthly)
+    recurring_reminder_days_before INTEGER DEFAULT 14, -- Start reminding customer X days before next due date
+    recurring_reminder_message TEXT, -- Custom message template for recurring reminders (supports {{name}}, {{service}}, {{last_date}}, {{next_date}})
+    
     metadata JSONB, -- Extra configuration
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

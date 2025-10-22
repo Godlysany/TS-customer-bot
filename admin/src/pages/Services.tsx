@@ -23,6 +23,10 @@ interface Service {
   totalSessionsRequired?: number;
   multiSessionStrategy?: 'immediate' | 'sequential' | 'flexible';
   sessionBufferConfig?: any;
+  recurringReminderEnabled?: boolean;
+  recurringIntervalDays?: number;
+  recurringReminderDaysBefore?: number;
+  recurringReminderMessage?: string;
 }
 
 const Services = () => {
@@ -88,6 +92,10 @@ const Services = () => {
         totalSessionsRequired: 1,
         multiSessionStrategy: 'flexible',
         sessionBufferConfig: { default_days: 7 },
+        recurringReminderEnabled: false,
+        recurringIntervalDays: 365,
+        recurringReminderDaysBefore: 14,
+        recurringReminderMessage: '',
       });
     }
     setIsModalOpen(true);
@@ -637,6 +645,110 @@ const Services = () => {
                               </>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recurring Service Reminders</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Automatically remind customers when it's time for their next recurring appointment (e.g., yearly dental checkup, quarterly maintenance)
+                </p>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.recurringReminderEnabled || false}
+                        onChange={(e) =>
+                          setFormData({ ...formData, recurringReminderEnabled: e.target.checked })
+                        }
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <label className="text-sm font-medium text-gray-700">
+                        Enable automatic recurring reminders for this service
+                      </label>
+                    </div>
+                  </div>
+
+                  {formData.recurringReminderEnabled && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pl-6 border-l-2 border-green-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Recurrence Interval (days) *
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.recurringIntervalDays || 365}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                recurringIntervalDays: parseInt(e.target.value),
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            min="1"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            365 = yearly, 90 = quarterly, 30 = monthly
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Remind X days before due *
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.recurringReminderDaysBefore || 14}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                recurringReminderDaysBefore: parseInt(e.target.value),
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            min="0"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Start reminding customer this many days before next due date
+                          </p>
+                        </div>
+
+                        <div className="md:col-span-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Custom Reminder Message (optional)
+                          </label>
+                          <textarea
+                            value={formData.recurringReminderMessage || ''}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                recurringReminderMessage: e.target.value,
+                              })
+                            }
+                            placeholder="Hi {{name}}! It's been a while since your last {{service}}. Based on our recommended schedule, it's time to book your next appointment. Would you like to schedule one?"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                            rows={3}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Available placeholders: {`{{name}}, {{service}}, {{last_date}}, {{next_date}}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h4 className="text-sm font-semibold text-green-900 mb-2">How it works:</h4>
+                        <div className="text-sm text-green-800 space-y-1">
+                          <p>✓ System tracks completed appointments for this service</p>
+                          <p>✓ Calculates next due date based on {formData.recurringIntervalDays} day interval</p>
+                          <p>✓ Automatically sends WhatsApp reminder {formData.recurringReminderDaysBefore} days before due date</p>
+                          <p>✓ Prevents duplicate reminders (won't send if already reminded within 7 days)</p>
                         </div>
                       </div>
                     </>
