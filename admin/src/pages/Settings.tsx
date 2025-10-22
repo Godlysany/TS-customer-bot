@@ -124,6 +124,10 @@ const Settings = () => {
   const getSetting = (key: string) => settings?.find((s: Setting) => s.key === key);
   const botEnabled = getSetting('bot_enabled')?.value === 'true';
 
+  const botSettings = [
+    { key: 'default_bot_language', label: 'Default Bot Language', type: 'select', options: ['de', 'en', 'fr', 'it', 'es', 'pt'] },
+  ];
+
   const apiIntegrations = [
     { key: 'openai_api_key', label: 'OpenAI API Key', isSecret: true },
     { key: 'deepgram_api_key', label: 'Deepgram API Key', isSecret: true },
@@ -308,6 +312,24 @@ const Settings = () => {
             </button>
           </div>
 
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Bot className="w-6 h-6 text-gray-700" />
+            <h2 className="text-xl font-semibold text-gray-900">Bot Settings</h2>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-blue-800">
+              <strong>Default Bot Language:</strong> The language the bot will use when chatting with new customers. 
+              Customers can request a language change, which will be stored in their profile.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            {botSettings.map(renderSettingField)}
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">

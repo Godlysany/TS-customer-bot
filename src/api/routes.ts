@@ -16,6 +16,7 @@ import contactRoutes from './contact-routes';
 import paymentRoutes from './payment-routes';
 import botDiscountRoutes from './bot-discount-routes';
 import calendarRoutes from './calendar-routes';
+import botConfigRoutes from './bot-config';
 
 const router = Router();
 
@@ -556,7 +557,10 @@ router.get('/api/dashboard/stats', async (req, res) => {
     if (endDate) {
       customerQuery = customerQuery.lte('created_at', new Date(endDate as string).toISOString());
     }
-    const { count: customerCount } = await customerQuery;
+    const { count: customerCount, error: customerError } = await customerQuery;
+    if (customerError) {
+      console.error('❌ Dashboard: Error counting customers:', customerError);
+    }
 
     // Get conversation count
     let conversationQuery = supabase.from('conversations').select('id', { count: 'exact', head: true });
@@ -566,7 +570,10 @@ router.get('/api/dashboard/stats', async (req, res) => {
     if (endDate) {
       conversationQuery = conversationQuery.lte('created_at', new Date(endDate as string).toISOString());
     }
-    const { count: conversationCount } = await conversationQuery;
+    const { count: conversationCount, error: conversationError } = await conversationQuery;
+    if (conversationError) {
+      console.error('❌ Dashboard: Error counting conversations:', conversationError);
+    }
 
     // Get message activity count
     let messageQuery = supabase.from('messages').select('id', { count: 'exact', head: true });
@@ -576,7 +583,17 @@ router.get('/api/dashboard/stats', async (req, res) => {
     if (endDate) {
       messageQuery = messageQuery.lte('timestamp', new Date(endDate as string).toISOString());
     }
-    const { count: messageCount } = await messageQuery;
+    const { count: messageCount, error: messageError } = await messageQuery;
+    if (messageError) {
+      console.error('❌ Dashboard: Error counting messages:', messageError);
+    }
+
+    console.log('📊 Dashboard stats:', {
+      customers: customerCount,
+      conversations: conversationCount,
+      messages: messageCount,
+      bookings: bookingStats.total
+    });
 
     res.json({
       ...bookingStats,
@@ -585,6 +602,7 @@ router.get('/api/dashboard/stats', async (req, res) => {
       totalMessages: messageCount || 0,
     });
   } catch (error: any) {
+    console.error('❌ Dashboard stats error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -771,5 +789,6 @@ router.use('/api', contactRoutes);
 router.use('/api', paymentRoutes);
 router.use('/api', botDiscountRoutes);
 router.use('/api/calendar', calendarRoutes);
+router.use('/api/bot-config', botConfigRoutes);
 
 export default router;

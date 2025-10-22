@@ -52,6 +52,7 @@ const contact_routes_1 = __importDefault(require("./contact-routes"));
 const payment_routes_1 = __importDefault(require("./payment-routes"));
 const bot_discount_routes_1 = __importDefault(require("./bot-discount-routes"));
 const calendar_routes_1 = __importDefault(require("./calendar-routes"));
+const bot_config_1 = __importDefault(require("./bot-config"));
 const router = (0, express_1.Router)();
 router.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'WhatsApp CRM Bot' });
@@ -537,7 +538,10 @@ router.get('/api/dashboard/stats', async (req, res) => {
         if (endDate) {
             customerQuery = customerQuery.lte('created_at', new Date(endDate).toISOString());
         }
-        const { count: customerCount } = await customerQuery;
+        const { count: customerCount, error: customerError } = await customerQuery;
+        if (customerError) {
+            console.error('❌ Dashboard: Error counting customers:', customerError);
+        }
         // Get conversation count
         let conversationQuery = supabase_1.supabase.from('conversations').select('id', { count: 'exact', head: true });
         if (startDate) {
@@ -546,7 +550,10 @@ router.get('/api/dashboard/stats', async (req, res) => {
         if (endDate) {
             conversationQuery = conversationQuery.lte('created_at', new Date(endDate).toISOString());
         }
-        const { count: conversationCount } = await conversationQuery;
+        const { count: conversationCount, error: conversationError } = await conversationQuery;
+        if (conversationError) {
+            console.error('❌ Dashboard: Error counting conversations:', conversationError);
+        }
         // Get message activity count
         let messageQuery = supabase_1.supabase.from('messages').select('id', { count: 'exact', head: true });
         if (startDate) {
@@ -555,7 +562,16 @@ router.get('/api/dashboard/stats', async (req, res) => {
         if (endDate) {
             messageQuery = messageQuery.lte('timestamp', new Date(endDate).toISOString());
         }
-        const { count: messageCount } = await messageQuery;
+        const { count: messageCount, error: messageError } = await messageQuery;
+        if (messageError) {
+            console.error('❌ Dashboard: Error counting messages:', messageError);
+        }
+        console.log('📊 Dashboard stats:', {
+            customers: customerCount,
+            conversations: conversationCount,
+            messages: messageCount,
+            bookings: bookingStats.total
+        });
         res.json({
             ...bookingStats,
             totalCustomers: customerCount || 0,
@@ -564,6 +580,7 @@ router.get('/api/dashboard/stats', async (req, res) => {
         });
     }
     catch (error) {
+        console.error('❌ Dashboard stats error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -744,4 +761,5 @@ router.use('/api', contact_routes_1.default);
 router.use('/api', payment_routes_1.default);
 router.use('/api', bot_discount_routes_1.default);
 router.use('/api/calendar', calendar_routes_1.default);
+router.use('/api/bot-config', bot_config_1.default);
 exports.default = router;

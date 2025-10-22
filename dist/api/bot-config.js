@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const supabase_1 = require("../infrastructure/supabase");
@@ -7,6 +40,247 @@ const router = (0, express_1.Router)();
 // All bot-config routes require master role
 router.use(auth_1.authMiddleware);
 router.use((0, auth_1.requireRole)('master'));
+// Business Details
+router.get('/business-details', async (req, res) => {
+    try {
+        const { data, error } = await supabase_1.supabase
+            .from('settings')
+            .select('*')
+            .in('key', ['business_name', 'business_description', 'business_hours', 'contact_email', 'contact_phone']);
+        if (error)
+            throw error;
+        res.json({
+            businessName: data?.find(s => s.key === 'business_name')?.value || '',
+            businessDescription: data?.find(s => s.key === 'business_description')?.value || '',
+            businessHours: data?.find(s => s.key === 'business_hours')?.value || '',
+            contactEmail: data?.find(s => s.key === 'contact_email')?.value || '',
+            contactPhone: data?.find(s => s.key === 'contact_phone')?.value || '',
+        });
+    }
+    catch (error) {
+        console.error('Error fetching business details:', error);
+        res.status(500).json({ error: 'Failed to fetch business details' });
+    }
+});
+router.post('/business-details', async (req, res) => {
+    try {
+        const { businessName, businessDescription, businessHours, contactEmail, contactPhone } = req.body;
+        const updates = [
+            { key: 'business_name', value: businessName || '', is_secret: false },
+            { key: 'business_description', value: businessDescription || '', is_secret: false },
+            { key: 'business_hours', value: businessHours || '', is_secret: false },
+            { key: 'contact_email', value: contactEmail || '', is_secret: false },
+            { key: 'contact_phone', value: contactPhone || '', is_secret: false },
+        ];
+        for (const update of updates) {
+            const { error } = await supabase_1.supabase
+                .from('settings')
+                .upsert(update, { onConflict: 'key' });
+            if (error)
+                throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error saving business details:', error);
+        res.status(500).json({ error: 'Failed to save business details' });
+    }
+});
+// Prompt Configuration
+router.get('/prompt-config', async (req, res) => {
+    try {
+        const { data, error } = await supabase_1.supabase
+            .from('settings')
+            .select('*')
+            .in('key', ['business_fine_tuning_prompt', 'tone_of_voice', 'response_style']);
+        if (error)
+            throw error;
+        res.json({
+            fineTuningPrompt: data?.find(s => s.key === 'business_fine_tuning_prompt')?.value || '',
+            toneOfVoice: data?.find(s => s.key === 'tone_of_voice')?.value || 'professional',
+            responseStyle: data?.find(s => s.key === 'response_style')?.value || 'concise',
+        });
+    }
+    catch (error) {
+        console.error('Error fetching prompt config:', error);
+        res.status(500).json({ error: 'Failed to fetch prompt config' });
+    }
+});
+router.post('/prompt-config', async (req, res) => {
+    try {
+        const { fineTuningPrompt, toneOfVoice, responseStyle } = req.body;
+        const updates = [
+            { key: 'business_fine_tuning_prompt', value: fineTuningPrompt || '', is_secret: false },
+            { key: 'tone_of_voice', value: toneOfVoice || 'professional', is_secret: false },
+            { key: 'response_style', value: responseStyle || 'concise', is_secret: false },
+        ];
+        for (const update of updates) {
+            const { error } = await supabase_1.supabase
+                .from('settings')
+                .upsert(update, { onConflict: 'key' });
+            if (error)
+                throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error saving prompt config:', error);
+        res.status(500).json({ error: 'Failed to save prompt config' });
+    }
+});
+// Master Prompt (read-only)
+router.get('/master-prompt', async (req, res) => {
+    try {
+        const fs = await Promise.resolve().then(() => __importStar(require('fs/promises')));
+        const path = await Promise.resolve().then(() => __importStar(require('path')));
+        const promptPath = path.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
+        const content = await fs.readFile(promptPath, 'utf-8');
+        res.json({ content });
+    }
+    catch (error) {
+        console.error('Error reading master prompt:', error);
+        res.status(500).json({ error: 'Failed to read master prompt' });
+    }
+});
+// Escalation Configuration
+router.get('/escalation', async (req, res) => {
+    try {
+        const { data, error } = await supabase_1.supabase
+            .from('settings')
+            .select('*')
+            .in('key', ['escalation_mode', 'escalation_keywords', 'escalation_confidence_threshold']);
+        if (error)
+            throw error;
+        res.json({
+            mode: data?.find(s => s.key === 'escalation_mode')?.value || 'keyword',
+            keywords: JSON.parse(data?.find(s => s.key === 'escalation_keywords')?.value || '[]'),
+            confidenceThreshold: parseFloat(data?.find(s => s.key === 'escalation_confidence_threshold')?.value || '0.3'),
+        });
+    }
+    catch (error) {
+        console.error('Error fetching escalation config:', error);
+        res.status(500).json({ error: 'Failed to fetch escalation config' });
+    }
+});
+router.post('/escalation', async (req, res) => {
+    try {
+        const { mode, keywords, confidenceThreshold } = req.body;
+        const updates = [
+            { key: 'escalation_mode', value: mode || 'keyword', is_secret: false },
+            { key: 'escalation_keywords', value: JSON.stringify(keywords || []), is_secret: false },
+            { key: 'escalation_confidence_threshold', value: String(confidenceThreshold || 0.3), is_secret: false },
+        ];
+        for (const update of updates) {
+            const { error } = await supabase_1.supabase
+                .from('settings')
+                .upsert(update, { onConflict: 'key' });
+            if (error)
+                throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error saving escalation config:', error);
+        res.status(500).json({ error: 'Failed to save escalation config' });
+    }
+});
+router.post('/escalation/test', async (req, res) => {
+    try {
+        const { message } = req.body;
+        // Simple test logic - just check if keywords match
+        const { data } = await supabase_1.supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'escalation_keywords')
+            .maybeSingle();
+        const keywords = JSON.parse(data?.value || '[]');
+        const shouldEscalate = keywords.some((kw) => message.toLowerCase().includes(kw.toLowerCase()));
+        res.json({ shouldEscalate, matchedKeywords: shouldEscalate ? keywords : [] });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Test failed' });
+    }
+});
+// Confirmation Templates
+router.get('/confirmations', async (req, res) => {
+    try {
+        const { data, error } = await supabase_1.supabase
+            .from('settings')
+            .select('*')
+            .in('key', ['booking_confirmation_template', 'cancellation_confirmation_template']);
+        if (error)
+            throw error;
+        res.json({
+            bookingTemplate: data?.find(s => s.key === 'booking_confirmation_template')?.value || '',
+            cancellationTemplate: data?.find(s => s.key === 'cancellation_confirmation_template')?.value || '',
+        });
+    }
+    catch (error) {
+        console.error('Error fetching confirmations:', error);
+        res.status(500).json({ error: 'Failed to fetch confirmations' });
+    }
+});
+router.post('/confirmations', async (req, res) => {
+    try {
+        const { bookingTemplate, cancellationTemplate } = req.body;
+        const updates = [
+            { key: 'booking_confirmation_template', value: bookingTemplate || '', is_secret: false },
+            { key: 'cancellation_confirmation_template', value: cancellationTemplate || '', is_secret: false },
+        ];
+        for (const update of updates) {
+            const { error } = await supabase_1.supabase
+                .from('settings')
+                .upsert(update, { onConflict: 'key' });
+            if (error)
+                throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error saving confirmations:', error);
+        res.status(500).json({ error: 'Failed to save confirmations' });
+    }
+});
+// Email Collection
+router.get('/email-collection', async (req, res) => {
+    try {
+        const { data, error } = await supabase_1.supabase
+            .from('settings')
+            .select('*')
+            .in('key', ['email_collection_enabled', 'email_collection_message']);
+        if (error)
+            throw error;
+        res.json({
+            enabled: data?.find(s => s.key === 'email_collection_enabled')?.value === 'true',
+            message: data?.find(s => s.key === 'email_collection_message')?.value || '',
+        });
+    }
+    catch (error) {
+        console.error('Error fetching email config:', error);
+        res.status(500).json({ error: 'Failed to fetch email config' });
+    }
+});
+router.post('/email-collection', async (req, res) => {
+    try {
+        const { enabled, message } = req.body;
+        const updates = [
+            { key: 'email_collection_enabled', value: String(enabled), is_secret: false },
+            { key: 'email_collection_message', value: message || '', is_secret: false },
+        ];
+        for (const update of updates) {
+            const { error } = await supabase_1.supabase
+                .from('settings')
+                .upsert(update, { onConflict: 'key' });
+            if (error)
+                throw error;
+        }
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error('Error saving email config:', error);
+        res.status(500).json({ error: 'Failed to save email config' });
+    }
+});
 router.get('/context', async (req, res) => {
     try {
         const { data: context, error } = await supabase_1.supabase
