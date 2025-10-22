@@ -19,6 +19,7 @@ import Services from './pages/Services';
 import Promotions from './pages/Promotions';
 import BotDiscounts from './pages/BotDiscounts';
 import CustomersManagement from './pages/CustomersManagement';
+import Escalations from './pages/Escalations';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +47,7 @@ function App() {
             >
               <Route index element={<Dashboard />} />
               <Route path="conversations" element={<Conversations />} />
+              <Route path="escalations" element={<Escalations />} />
               <Route path="customers" element={<Customers />} />
               <Route path="customers/:id" element={<CustomerDetail />} />
               <Route path="questionnaires" element={<Questionnaires />} />

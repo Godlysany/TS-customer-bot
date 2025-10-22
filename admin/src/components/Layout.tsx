@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase, Percent, CheckSquare, UserCog } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase, Percent, CheckSquare, UserCog, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import WhatsAppBanner from './WhatsAppBanner';
 
@@ -13,6 +13,7 @@ const Layout = () => {
   const navItems = [
     { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['master', 'support'] },
     { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'support'] },
+    { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'support'] },
     { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'support'] },
     { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },

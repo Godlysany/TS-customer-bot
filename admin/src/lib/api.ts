@@ -10,6 +10,13 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+export const authApi = {
+  me: () => api.get('/auth/me'),
+  login: (email: string, password: string) => 
+    api.post('/auth/login', { email, password }),
+  logout: () => api.post('/auth/logout'),
+};
+
 export const conversationsApi = {
   getAll: () => api.get('/conversations'),
   getById: (id: string) => api.get(`/conversations/${id}`),
@@ -189,4 +196,20 @@ export const servicesApi = {
   // Validation
   validateBookingTime: (serviceId: string, dateTime: string) =>
     api.post(`/services/${serviceId}/validate-time`, { dateTime }),
+};
+
+export const escalationsApi = {
+  getAll: (filters?: { status?: string; agent_id?: string }) => 
+    api.get('/escalations', { params: filters }),
+  getById: (id: string) => api.get(`/escalations/${id}`),
+  create: (conversationId: string, reason?: string) => 
+    api.post('/escalations', { conversation_id: conversationId, reason }),
+  assign: (id: string, agentId: string) => 
+    api.post(`/escalations/${id}/assign`, { agent_id: agentId }),
+  updateStatus: (id: string, status: string) => 
+    api.put(`/escalations/${id}/status`, { status }),
+  resolve: (id: string) => 
+    api.post(`/escalations/${id}/resolve`),
+  getCounts: () => 
+    api.get('/escalations-stats/counts'),
 };
