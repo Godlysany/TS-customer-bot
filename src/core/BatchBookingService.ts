@@ -1,6 +1,5 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
-import { v4 as uuid_v4 } from 'uuid';
 import type { CalendarProvider } from '../types';
 import { EmailService } from './EmailService';
 import { ReminderService } from './ReminderService';

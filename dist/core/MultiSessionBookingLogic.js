@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MultiSessionBookingLogic = void 0;
 const supabase_1 = require("../infrastructure/supabase");
-const uuid_1 = require("uuid");
+const crypto_1 = require("crypto");
 const BatchBookingService_1 = __importDefault(require("./BatchBookingService"));
 class MultiSessionBookingLogic {
     constructor() { }
@@ -65,7 +65,7 @@ class MultiSessionBookingLogic {
      * Uses BatchBookingService for atomic transactional safety
      */
     async bookImmediateStrategy(params) {
-        const sessionGroupId = (0, uuid_1.v4)();
+        const sessionGroupId = (0, crypto_1.randomUUID)();
         const schedule = this.calculateSessionSchedule(params, params.totalSessions);
         // Prepare batch booking request
         const batchRequest = {
@@ -97,7 +97,7 @@ class MultiSessionBookingLogic {
      * Uses BatchBookingService for atomic transactional safety
      */
     async bookSequentialStrategy(params) {
-        const sessionGroupId = (0, uuid_1.v4)();
+        const sessionGroupId = (0, crypto_1.randomUUID)();
         // Prepare batch booking request for first session only
         const batchRequest = {
             contactId: params.contactId,
@@ -148,7 +148,7 @@ class MultiSessionBookingLogic {
         }
         else {
             // Create new group
-            sessionGroupId = (0, uuid_1.v4)();
+            sessionGroupId = (0, crypto_1.randomUUID)();
             startingSessionNumber = 1;
         }
         const schedule = this.calculateSessionSchedule({ ...params, startDateTime: params.startDateTime }, sessionsToBook);

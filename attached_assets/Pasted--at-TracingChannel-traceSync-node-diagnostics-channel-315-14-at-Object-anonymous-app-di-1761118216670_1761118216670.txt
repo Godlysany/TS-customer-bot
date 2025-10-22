@@ -1,0 +1,95 @@
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0
+/app/dist/core/MultiSessionBookingLogic.js:315
+undefined
+             ^
+Error [ERR_REQUIRE_ESM]: require() of ES Module /app/node_modules/uuid/dist-node/index.js from /app/dist/core/MultiSessionBookingLogic.js not supported.
+Instead change the require of index.js in /app/dist/core/MultiSessionBookingLogic.js to a dynamic import() which is available in all CommonJS modules.
+    at TracingChannel.traceSync (node:diagnostics_channel:315:14)
+    at Object.<anonymous> (/app/dist/core/MultiSessionBookingLogic.js:8:16) {
+  code: 'ERR_REQUIRE_ESM'
+}
+Node.js v22.11.0

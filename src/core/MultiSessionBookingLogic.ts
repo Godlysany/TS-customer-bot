@@ -1,6 +1,6 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase } from '../infrastructure/mapper';
-import { v4 as uuid_v4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import batchBookingService from './BatchBookingService';
 
 export interface MultiSessionBookingParams {
@@ -107,7 +107,7 @@ export class MultiSessionBookingLogic {
    * Uses BatchBookingService for atomic transactional safety
    */
   async bookImmediateStrategy(params: MultiSessionBookingParams): Promise<any[]> {
-    const sessionGroupId = uuid_v4();
+    const sessionGroupId = randomUUID();
     const schedule = this.calculateSessionSchedule(params, params.totalSessions);
 
     // Prepare batch booking request
@@ -144,7 +144,7 @@ export class MultiSessionBookingLogic {
    * Uses BatchBookingService for atomic transactional safety
    */
   async bookSequentialStrategy(params: MultiSessionBookingParams): Promise<any> {
-    const sessionGroupId = uuid_v4();
+    const sessionGroupId = randomUUID();
 
     // Prepare batch booking request for first session only
     const batchRequest = {
@@ -202,7 +202,7 @@ export class MultiSessionBookingLogic {
       startingSessionNumber = existingBookings[0].session_number + 1;
     } else {
       // Create new group
-      sessionGroupId = uuid_v4();
+      sessionGroupId = randomUUID();
       startingSessionNumber = 1;
     }
 
