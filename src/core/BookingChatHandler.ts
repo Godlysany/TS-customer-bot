@@ -588,12 +588,38 @@ export class BookingChatHandler {
         return `✅ Payment confirmed! Your booking is now complete. You'll receive a confirmation email shortly. Looking forward to seeing you!`;
 
       case 'expired':
-        // Payment link expired
+        // Payment link expired - cancel pending bookings to free availability
+        if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
+          for (const bookingId of context.pendingBookingIds) {
+            await supabase
+              .from('bookings')
+              .update({ 
+                status: 'cancelled', 
+                cancellation_reason: 'Payment link expired (conversational timeout)' 
+              })
+              .eq('id', bookingId)
+              .eq('status', 'pending'); // Only cancel if still pending
+          }
+          console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment expiration`);
+        }
         this.clearContext(context.conversationId);
         return `⏰ Your payment link has expired. To proceed with the booking, please start over and I'll generate a new payment link for you.`;
 
       case 'failed':
-        // Payment failed
+        // Payment failed - cancel pending bookings to free availability
+        if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
+          for (const bookingId of context.pendingBookingIds) {
+            await supabase
+              .from('bookings')
+              .update({ 
+                status: 'cancelled', 
+                cancellation_reason: 'Payment failed (conversational check)' 
+              })
+              .eq('id', bookingId)
+              .eq('status', 'pending');
+          }
+          console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment failure`);
+        }
         this.clearContext(context.conversationId);
         return `❌ There was an issue with your payment. Please try booking again, and I'll assist you with a new payment link.`;
 

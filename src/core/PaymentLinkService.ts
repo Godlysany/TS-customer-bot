@@ -228,12 +228,51 @@ class PaymentLinkService {
    */
   private async handleCheckoutSessionExpired(session: Stripe.Checkout.Session): Promise<void> {
     try {
+      // Get payment link to find associated booking(s)
+      const { data: paymentLink } = await supabase
+        .from('payment_links')
+        .select('booking_id')
+        .eq('stripe_checkout_session_id', session.id)
+        .single();
+
+      // Update payment link status
       await supabase
         .from('payment_links')
         .update({
           payment_status: 'expired',
         })
         .eq('stripe_checkout_session_id', session.id);
+
+      // CRITICAL: Cancel all pending bookings for this payment link to free up availability
+      if (paymentLink?.booking_id) {
+        // Find all bookings in pending status for this contact and service
+        // (covers multi-session bookings created together)
+        const { data: booking } = await supabase
+          .from('bookings')
+          .select('contact_id, service_id, multi_session_group_id')
+          .eq('id', paymentLink.booking_id)
+          .single();
+
+        if (booking) {
+          // Cancel the primary booking
+          await supabase
+            .from('bookings')
+            .update({ status: 'cancelled', cancellation_reason: 'Payment link expired' })
+            .eq('id', paymentLink.booking_id)
+            .eq('status', 'pending');
+
+          // If part of multi-session group, cancel all pending bookings in the group
+          if (booking.multi_session_group_id) {
+            await supabase
+              .from('bookings')
+              .update({ status: 'cancelled', cancellation_reason: 'Payment link expired for session group' })
+              .eq('multi_session_group_id', booking.multi_session_group_id)
+              .eq('status', 'pending');
+          }
+
+          console.log(`✅ Payment expired: cancelled pending booking(s) for payment link ${paymentLink.booking_id}`);
+        }
+      }
 
       console.log(`Payment link expired for session: ${session.id}`);
     } catch (error: any) {
@@ -270,12 +309,50 @@ class PaymentLinkService {
    */
   private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
     try {
+      // Get payment link to find associated booking(s)
+      const { data: paymentLink } = await supabase
+        .from('payment_links')
+        .select('booking_id')
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+        .single();
+
+      // Update payment link status
       await supabase
         .from('payment_links')
         .update({
           payment_status: 'cancelled',
         })
         .eq('stripe_payment_intent_id', paymentIntent.id);
+
+      // CRITICAL: Cancel all pending bookings for this payment link to free up availability
+      if (paymentLink?.booking_id) {
+        // Find all bookings in pending status for this contact and service
+        const { data: booking } = await supabase
+          .from('bookings')
+          .select('contact_id, service_id, multi_session_group_id')
+          .eq('id', paymentLink.booking_id)
+          .single();
+
+        if (booking) {
+          // Cancel the primary booking
+          await supabase
+            .from('bookings')
+            .update({ status: 'cancelled', cancellation_reason: 'Payment failed' })
+            .eq('id', paymentLink.booking_id)
+            .eq('status', 'pending');
+
+          // If part of multi-session group, cancel all pending bookings in the group
+          if (booking.multi_session_group_id) {
+            await supabase
+              .from('bookings')
+              .update({ status: 'cancelled', cancellation_reason: 'Payment failed for session group' })
+              .eq('multi_session_group_id', booking.multi_session_group_id)
+              .eq('status', 'pending');
+          }
+
+          console.log(`✅ Payment failed: cancelled pending booking(s) for payment link ${paymentLink.booking_id}`);
+        }
+      }
 
       console.log(`Payment intent failed: ${paymentIntent.id}`);
     } catch (error: any) {
