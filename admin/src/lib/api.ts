@@ -65,6 +65,8 @@ export const bookingsApi = {
   getAll: () => api.get('/bookings'),
   cancel: (id: string, reason: string) => 
     api.post(`/bookings/${id}/cancel`, { reason }),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/bookings/${id}/status`, { status }),
 };
 
 export const promptsApi = {

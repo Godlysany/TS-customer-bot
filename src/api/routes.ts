@@ -269,6 +269,45 @@ router.post('/api/bookings/:id/cancel', async (req, res) => {
   }
 });
 
+// Update booking status (with multi-session completion trigger)
+router.patch('/api/bookings/:id/status', authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const bookingId = req.params.id;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    // Valid status values
+    const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    // Update booking status
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', bookingId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // If status is 'completed', trigger multi-session completion check
+    if (status === 'completed') {
+      const sessionCompletionTrigger = (await import('../core/SessionCompletionTrigger')).default;
+      await sessionCompletionTrigger.onBookingCompleted(bookingId);
+    }
+
+    res.json({ success: true, booking });
+  } catch (error: any) {
+    console.error('Error updating booking status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Settings endpoints
 router.get('/api/settings', authMiddleware, async (req, res) => {
   try {

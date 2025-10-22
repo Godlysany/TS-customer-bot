@@ -37,6 +37,14 @@ const Bookings = () => {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      bookingsApi.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+  });
+
   const cancelWaitlistMutation = useMutation({
     mutationFn: (id: string) => waitlistApi.cancel(id),
     onSuccess: () => {
@@ -112,6 +120,28 @@ const Bookings = () => {
                     key={booking.id}
                     className="bg-white p-6 rounded-lg shadow-sm border border-gray-200"
                   >
+                    {/* Multi-session indicator */}
+                    {booking.isPartOfMultiSession && (
+                      <div className="mb-4 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-semibold text-purple-900">
+                            Multi-Session Treatment: Session {booking.sessionNumber} of {booking.totalSessions}
+                          </p>
+                          <span className="text-xs text-purple-700">
+                            {Math.round((booking.sessionNumber! / booking.totalSessions!) * 100)}% Complete
+                          </span>
+                        </div>
+                        <div className="w-full bg-purple-200 rounded-full h-2">
+                          <div
+                            className="bg-purple-600 h-2 rounded-full transition-all"
+                            style={{
+                              width: `${(booking.sessionNumber! / booking.totalSessions!) * 100}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
@@ -127,9 +157,17 @@ const Bookings = () => {
                               {format(new Date(booking.startTime), 'h:mm a')} - {format(new Date(booking.endTime), 'h:mm a')}
                             </span>
                           </div>
-                          <span className={`px-3 py-1 rounded-full ${getStatusColor(booking.status)}`}>
-                            {booking.status}
-                          </span>
+                          <select
+                            value={booking.status}
+                            onChange={(e) => updateStatusMutation.mutate({ id: booking.id, status: e.target.value })}
+                            className={`px-3 py-1 rounded-full text-sm font-medium border-2 ${getStatusColor(booking.status)} cursor-pointer`}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="no_show">No Show</option>
+                          </select>
                         </div>
                       </div>
                       <button

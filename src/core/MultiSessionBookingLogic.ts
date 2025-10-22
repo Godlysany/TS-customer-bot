@@ -1,6 +1,7 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase } from '../infrastructure/mapper';
 import { v4 as uuid_v4 } from 'uuid';
+import BookingService from './BookingService';
 
 export interface MultiSessionBookingParams {
   serviceId: string;
@@ -26,7 +27,11 @@ export interface SessionSchedule {
 }
 
 export class MultiSessionBookingLogic {
-  constructor() {}
+  private bookingService: typeof BookingService;
+
+  constructor() {
+    this.bookingService = BookingService;
+  }
 
   /**
    * Calculate all session dates based on buffer configuration
@@ -103,44 +108,71 @@ export class MultiSessionBookingLogic {
 
   /**
    * Book multiple sessions for IMMEDIATE strategy
+   * Uses BookingService to ensure all production safety guarantees
    */
   async bookImmediateStrategy(params: MultiSessionBookingParams): Promise<any[]> {
     const sessionGroupId = uuid_v4();
     const schedule = this.calculateSessionSchedule(params, params.totalSessions);
 
     const bookings = [];
+    const failedSessions: number[] = [];
 
     for (const session of schedule) {
       try {
-        // Create booking record directly in database with multi-session fields
-        const { data: booking, error } = await supabase
-          .from('bookings')
-          .insert({
-            contact_id: params.contactId,
-            service_id: params.serviceId,
-            team_member_id: params.teamMemberId,
-            start_time: session.startTime.toISOString(),
-            end_time: new Date(
-              session.startTime.getTime() + params.durationMinutes * 60 * 1000
-            ).toISOString(),
+        // Use BookingService for proper calendar sync, emails, reminders, validations
+        const booking = await this.bookingService.createBooking(
+          params.contactId,
+          params.conversationId,
+          {
             title: `${params.serviceName} - Session ${session.sessionNumber}`,
-            status: 'confirmed',
-            phone_number: params.phoneNumber,
-            is_part_of_multi_session: true,
-            session_group_id: sessionGroupId,
-            session_number: session.sessionNumber,
-            total_sessions: params.totalSessions,
-          })
-          .select()
-          .single();
+            startTime: session.startTime,
+            endTime: new Date(
+              session.startTime.getTime() + params.durationMinutes * 60 * 1000
+            ),
+            description: `Multi-session treatment: Session ${session.sessionNumber} of ${params.totalSessions}`,
+          },
+          {
+            serviceId: params.serviceId,
+          }
+        );
 
-        if (error) throw error;
-        bookings.push(toCamelCase(booking));
+        // Update booking with multi-session metadata and team member
+        const updateData: any = {
+          is_part_of_multi_session: true,
+          session_group_id: sessionGroupId,
+          session_number: session.sessionNumber,
+          total_sessions: params.totalSessions,
+        };
+        
+        if (params.teamMemberId) {
+          updateData.team_member_id = params.teamMemberId;
+        }
+
+        await supabase
+          .from('bookings')
+          .update(updateData)
+          .eq('id', booking.id);
+
+        bookings.push(booking);
       } catch (error) {
         console.error(`Failed to book session ${session.sessionNumber}:`, error);
-        // If any session fails, we should rollback previous ones
-        // For now, just continue and return what succeeded
+        failedSessions.push(session.sessionNumber);
+        
+        // ROLLBACK: If any session fails, cancel all previously booked sessions
+        for (const bookedSession of bookings) {
+          try {
+            await this.bookingService.cancelBooking(bookedSession.id);
+          } catch (rollbackError) {
+            console.error(`Failed to rollback session:`, rollbackError);
+          }
+        }
+        
+        throw new Error(`Failed to book session ${session.sessionNumber}. All sessions rolled back.`);
       }
+    }
+
+    if (failedSessions.length > 0) {
+      throw new Error(`Failed to book sessions: ${failedSessions.join(', ')}`);
     }
 
     return bookings;
@@ -148,33 +180,46 @@ export class MultiSessionBookingLogic {
 
   /**
    * Book first session for SEQUENTIAL strategy
+   * Uses BookingService to ensure all production safety guarantees
    */
   async bookSequentialStrategy(params: MultiSessionBookingParams): Promise<any> {
     const sessionGroupId = uuid_v4();
 
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .insert({
-        contact_id: params.contactId,
-        service_id: params.serviceId,
-        team_member_id: params.teamMemberId,
-        start_time: params.startDateTime.toISOString(),
-        end_time: new Date(
-          params.startDateTime.getTime() + params.durationMinutes * 60 * 1000
-        ).toISOString(),
+    // Use BookingService for proper calendar sync, emails, reminders, validations
+    const booking = await this.bookingService.createBooking(
+      params.contactId,
+      params.conversationId,
+      {
         title: `${params.serviceName} - Session 1`,
-        status: 'confirmed',
-        phone_number: params.phoneNumber,
-        is_part_of_multi_session: true,
-        session_group_id: sessionGroupId,
-        session_number: 1,
-        total_sessions: params.totalSessions,
-      })
-      .select()
-      .single();
+        startTime: params.startDateTime,
+        endTime: new Date(
+          params.startDateTime.getTime() + params.durationMinutes * 60 * 1000
+        ),
+        description: `Multi-session treatment: Session 1 of ${params.totalSessions} (Sequential)`,
+      },
+      {
+        serviceId: params.serviceId,
+      }
+    );
 
-    if (error) throw error;
-    return toCamelCase(booking);
+    // Update booking with multi-session metadata and team member
+    const updateData: any = {
+      is_part_of_multi_session: true,
+      session_group_id: sessionGroupId,
+      session_number: 1,
+      total_sessions: params.totalSessions,
+    };
+    
+    if (params.teamMemberId) {
+      updateData.team_member_id = params.teamMemberId;
+    }
+
+    await supabase
+      .from('bookings')
+      .update(updateData)
+      .eq('id', booking.id);
+
+    return booking;
   }
 
   /**
@@ -212,38 +257,67 @@ export class MultiSessionBookingLogic {
     );
 
     const bookings = [];
+    const failedSessions: number[] = [];
 
     for (let i = 0; i < schedule.length; i++) {
       const session = schedule[i];
       const sessionNumber = startingSessionNumber + i;
 
       try {
-        const { data: booking, error } = await supabase
-          .from('bookings')
-          .insert({
-            contact_id: params.contactId,
-            service_id: params.serviceId,
-            team_member_id: params.teamMemberId,
-            start_time: session.startTime.toISOString(),
-            end_time: new Date(
-              session.startTime.getTime() + params.durationMinutes * 60 * 1000
-            ).toISOString(),
+        // Use BookingService for proper calendar sync, emails, reminders, validations
+        const booking = await this.bookingService.createBooking(
+          params.contactId,
+          params.conversationId,
+          {
             title: `${params.serviceName} - Session ${sessionNumber}`,
-            status: 'confirmed',
-            phone_number: params.phoneNumber,
-            is_part_of_multi_session: true,
-            session_group_id: sessionGroupId,
-            session_number: sessionNumber,
-            total_sessions: params.totalSessions,
-          })
-          .select()
-          .single();
+            startTime: session.startTime,
+            endTime: new Date(
+              session.startTime.getTime() + params.durationMinutes * 60 * 1000
+            ),
+            description: `Multi-session treatment: Session ${sessionNumber} of ${params.totalSessions} (Flexible)`,
+          },
+          {
+            serviceId: params.serviceId,
+          }
+        );
 
-        if (error) throw error;
-        bookings.push(toCamelCase(booking));
+        // Update booking with multi-session metadata and team member
+        const updateData: any = {
+          is_part_of_multi_session: true,
+          session_group_id: sessionGroupId,
+          session_number: sessionNumber,
+          total_sessions: params.totalSessions,
+        };
+        
+        if (params.teamMemberId) {
+          updateData.team_member_id = params.teamMemberId;
+        }
+
+        await supabase
+          .from('bookings')
+          .update(updateData)
+          .eq('id', booking.id);
+
+        bookings.push(booking);
       } catch (error) {
         console.error(`Failed to book session ${sessionNumber}:`, error);
+        failedSessions.push(sessionNumber);
+        
+        // ROLLBACK: If any session fails, cancel all previously booked sessions
+        for (const bookedSession of bookings) {
+          try {
+            await this.bookingService.cancelBooking(bookedSession.id);
+          } catch (rollbackError) {
+            console.error(`Failed to rollback session:`, rollbackError);
+          }
+        }
+        
+        throw new Error(`Failed to book session ${sessionNumber}. All sessions rolled back.`);
       }
+    }
+
+    if (failedSessions.length > 0) {
+      throw new Error(`Failed to book sessions: ${failedSessions.join(', ')}`);
     }
 
     return bookings;

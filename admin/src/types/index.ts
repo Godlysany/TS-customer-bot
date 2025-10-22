@@ -75,9 +75,18 @@ export interface Booking {
   conversationId: string;
   startTime: Date;
   endTime: Date;
-  status: 'scheduled' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'completed' | 'cancelled' | 'confirmed' | 'pending' | 'no_show';
   googleEventId?: string;
   createdAt: Date;
+  // Multi-session fields
+  isPartOfMultiSession?: boolean;
+  sessionGroupId?: string;
+  sessionNumber?: number;
+  totalSessions?: number;
+  // Relations
+  contact?: any;
+  services?: any;
+  title?: string;
 }
 
 export interface Prompt {
