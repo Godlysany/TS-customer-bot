@@ -196,6 +196,11 @@ export class BotConfigService {
       enable_typing_indicator: getSetting('enable_typing_indicator', true),
       block_inappropriate_requests: getSetting('block_inappropriate_requests', true),
       require_human_review_topics: getSetting('require_human_review_topics', 'refunds, complaints, cancellations'),
+      
+      // Language Configuration
+      default_bot_language: getSetting('default_bot_language', 'de'),
+      supported_languages: getSetting('supported_languages', '["de","en","fr","it","es","pt"]'),
+      auto_detect_language: getSetting('auto_detect_language', false),
     };
 
     this.lastFetch = Date.now();
@@ -204,12 +209,26 @@ export class BotConfigService {
     return this.cachedConfig;
   }
 
-  async buildSystemPrompt(): Promise<string> {
+  async buildSystemPrompt(contactLanguage?: string | null): Promise<string> {
     const config = await this.getConfig();
     
     // Load Master System Prompt
     const masterPromptPath = path.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
     let masterPrompt = fs.readFileSync(masterPromptPath, 'utf-8');
+
+    // Determine active language for this conversation
+    const defaultLang = config.default_bot_language || 'de';
+    const customerPreferredLang = contactLanguage || 'Not set (will use default)';
+    const activeLang = contactLanguage || defaultLang;
+    
+    const languageNames: Record<string, string> = {
+      de: 'German (Deutsch)',
+      en: 'English',
+      fr: 'French (Français)',
+      it: 'Italian (Italiano)',
+      es: 'Spanish (Español)',
+      pt: 'Portuguese (Português)',
+    };
 
     // Replace placeholders with actual business details
     const placeholders = {
@@ -227,6 +246,11 @@ export class BotConfigService {
       '{AVAILABLE_SERVICES}': this.getAvailableServices(config),
       '{TEAM_MEMBERS_LIST}': '(Team member configuration to be implemented)',
       '{CUSTOMER_PREFERRED_TEAM_MEMBERS}': '(Customer preferences extracted from CRM)',
+      
+      // Language context placeholders
+      '{DEFAULT_BOT_LANGUAGE}': `${languageNames[defaultLang] || defaultLang} (${defaultLang})`,
+      '{CUSTOMER_PREFERRED_LANGUAGE}': customerPreferredLang === 'Not set (will use default)' ? customerPreferredLang : `${languageNames[contactLanguage as string] || contactLanguage} (${contactLanguage})`,
+      '{ACTIVE_LANGUAGE}': `${languageNames[activeLang] || activeLang} (${activeLang})`,
     };
 
     for (const [placeholder, value] of Object.entries(placeholders)) {

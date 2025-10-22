@@ -5,7 +5,7 @@ import botConfigService from './BotConfigService';
 import { ExtractedConversationData } from '../types/crm';
 
 export class AIService {
-  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string, intent?: string): Promise<string> {
+  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string, intent?: string, contactId?: string): Promise<string> {
     try {
       const openai = await getOpenAIClient();
       const config = await botConfigService.getConfig();
@@ -16,8 +16,21 @@ export class AIService {
         return config.fallback_message;
       }
 
-      // Build dynamic system prompt with business details and fine-tuning
-      const systemPrompt = await botConfigService.buildSystemPrompt();
+      // Fetch contact's preferred language if contactId provided
+      let contactLanguage: string | null = null;
+      if (contactId) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('preferred_language')
+          .eq('id', contactId)
+          .single();
+        
+        contactLanguage = contact?.preferred_language || null;
+        console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
+      }
+
+      // Build dynamic system prompt with business details, fine-tuning, AND language context
+      const systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage);
 
       const messages = [
         {
