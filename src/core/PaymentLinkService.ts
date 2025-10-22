@@ -249,7 +249,7 @@ class PaymentLinkService {
         // (covers multi-session bookings created together)
         const { data: booking } = await supabase
           .from('bookings')
-          .select('contact_id, service_id, multi_session_group_id')
+          .select('contact_id, service_id, session_group_id')
           .eq('id', paymentLink.booking_id)
           .single();
 
@@ -262,11 +262,11 @@ class PaymentLinkService {
             .eq('status', 'pending');
 
           // If part of multi-session group, cancel all pending bookings in the group
-          if (booking.multi_session_group_id) {
+          if (booking.session_group_id) {
             await supabase
               .from('bookings')
               .update({ status: 'cancelled', cancellation_reason: 'Payment link expired for session group' })
-              .eq('multi_session_group_id', booking.multi_session_group_id)
+              .eq('session_group_id', booking.session_group_id)
               .eq('status', 'pending');
           }
 
@@ -329,7 +329,7 @@ class PaymentLinkService {
         // Find all bookings in pending status for this contact and service
         const { data: booking } = await supabase
           .from('bookings')
-          .select('contact_id, service_id, multi_session_group_id')
+          .select('contact_id, service_id, session_group_id')
           .eq('id', paymentLink.booking_id)
           .single();
 
@@ -342,11 +342,11 @@ class PaymentLinkService {
             .eq('status', 'pending');
 
           // If part of multi-session group, cancel all pending bookings in the group
-          if (booking.multi_session_group_id) {
+          if (booking.session_group_id) {
             await supabase
               .from('bookings')
               .update({ status: 'cancelled', cancellation_reason: 'Payment failed for session group' })
-              .eq('multi_session_group_id', booking.multi_session_group_id)
+              .eq('session_group_id', booking.session_group_id)
               .eq('status', 'pending');
           }
 
