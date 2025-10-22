@@ -646,6 +646,25 @@ router.get('/api/questionnaires', async (req, res) => {
   }
 });
 
+router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const { data, error } = await supabase
+      .from('questionnaires')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/api/questionnaires/responses', async (req, res) => {
   try {
     const { QuestionnaireService } = await import('../core/QuestionnaireService');
