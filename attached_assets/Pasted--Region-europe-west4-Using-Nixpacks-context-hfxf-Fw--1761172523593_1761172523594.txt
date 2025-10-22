@@ -1,0 +1,64 @@
+
+[Region: europe-west4]
+==============
+Using Nixpacks
+==============
+
+context: hfxf-Fw
+╔══════════════════════════════ Nixpacks v1.38.0 ══════════════════════════════╗
+║ setup      │ nodejs_22, npm-9_x                                              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ install    │ npm ci                                                          ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ build      │ npm install && npm run build && cd admin && rm -rf dist         ║
+║            │ node_modules/.vite && npm install && npm run build              ║
+║──────────────────────────────────────────────────────────────────────────────║
+║ start      │ node dist/server.js                                             ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
+175ms
+
+internal
+load .dockerignore
+0ms
+
+internal
+load build context
+0ms
+
+[ 3/10] COPY .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix
+15ms
+
+[ 4/10] RUN nix-env -if .nixpacks/nixpkgs-ffeebf0acf3ae8b29f8c7049cd911b9636efd7e7.nix && nix-collect-garbage -d
+37s
+61 store paths deleted, 559.40 MiB freed
+
+[ 5/10] COPY . /app/.
+111ms
+
+[ 6/10] RUN  npm ci
+7s
+Run `npm audit` for details.
+
+[ 7/10] COPY . /app/.
+137ms
+
+[ 8/10] RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+36s
+src/components/bot-config/ServiceConfigSection.tsx(4,26): error TS6133: 'Clock' is declared but its value is never read.
+Dockerfile:24
+-------------------
+22 |     # build phase
+23 |     COPY . /app/.
+24 | >>> RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+25 |
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build" did not complete successfully: exit code: 2
+Error: Docker build failed

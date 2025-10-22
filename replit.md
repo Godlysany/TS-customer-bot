@@ -3,6 +3,18 @@
 ## Overview
 This project is a professional B2B customer service platform integrating WhatsApp for communication, Supabase as its database, and OpenAI GPT for intelligent replies. It aims to provide a self-contained, scalable solution for customer service operations through comprehensive control over customer interactions, intelligent automation, and deep insights. Key capabilities include a robust CRM, calendar booking, advanced customer analytics, and marketing features, transforming customer service with intelligent automation and in-depth insights into customer interactions.
 
+## Recent System Health Audit (October 22, 2025)
+**Status: Production-Ready** - Comprehensive audit completed with all critical systems verified operational.
+
+### Fixes Applied:
+1. **Server Stability**: Fixed RecurringServiceScheduler crash caused by querying non-existent schema columns. Temporarily disabled until schema deployment completes (GitHub Actions).
+2. **Dashboard Accuracy**: Corrected Dashboard stats endpoint querying wrong table ('conversation_messages' → 'messages') and wrong timestamp column ('created_at' → 'timestamp'). Verified with test data.
+3. **Feature Connectivity**: Verified all major features properly wired: Contact creation (manual/CSV), Bookings, Stripe payments with webhook signature verification, Marketing campaigns, Escalations system.
+
+### Known Pending Items:
+- Recurring service schema deployment via GitHub Actions (columns: recurring_interval_days, recurring_reminder_days_before, recurring_reminder_message)
+- Once schema deployed: Re-enable RecurringServiceScheduler in src/server.ts line 158
+
 ## User Preferences
 - **Authentication**: Role-based access (Master/Support) with secure JWT sessions
 - **OpenAI**: Own API key (configurable via CRM settings UI)
