@@ -30,7 +30,6 @@ const AdvancedControlsSection = () => {
     
     // Brand Protection
     block_inappropriate_requests: true,
-    require_human_review_topics: '',
   });
 
   const { data: settings } = useQuery({
@@ -81,7 +80,6 @@ const AdvancedControlsSection = () => {
         enable_typing_indicator: getSetting('enable_typing_indicator', true),
         
         block_inappropriate_requests: getSetting('block_inappropriate_requests', true),
-        require_human_review_topics: getSetting('require_human_review_topics', 'refunds, complaints, cancellations'),
       });
     }
   }, [settings]);
@@ -428,21 +426,9 @@ const AdvancedControlsSection = () => {
             </div>
           </label>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Topics Requiring Human Review
-            </label>
-            <input
-              type="text"
-              value={formData.require_human_review_topics}
-              onChange={(e) =>
-                setFormData({ ...formData, require_human_review_topics: e.target.value })
-              }
-              placeholder="refunds, complaints, cancellations, billing issues"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Comma-separated topics that should always be escalated to human agents
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-xs text-blue-800">
+              <strong>ℹ️ Note:</strong> Escalation trigger keywords are configured in the "Escalation Rules" tab above.
             </p>
           </div>
         </div>

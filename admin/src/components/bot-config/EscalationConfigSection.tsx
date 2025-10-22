@@ -294,7 +294,12 @@ const EscalationConfigSection = () => {
                 }
                 className="w-4 h-4"
               />
-              <span className="text-sm text-gray-700">Pause bot after escalation</span>
+              <div>
+                <span className="text-sm text-gray-700">Pause bot for this customer after escalation</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  (Per-conversation pause - bot stops replying to this specific customer until escalation is resolved)
+                </p>
+              </div>
             </label>
           </div>
         </div>
