@@ -17,6 +17,11 @@ import paymentRoutes from './payment-routes';
 import botDiscountRoutes from './bot-discount-routes';
 import calendarRoutes from './calendar-routes';
 import botConfigRoutes from './bot-config';
+import escalationRoutes from './escalation-routes';
+import servicesRoutes from './services';
+import customersRoutes from './customers';
+import messageApprovalRoutes from './message-approval';
+import questionnaireResponsesRoutes from './questionnaire-responses';
 
 const router = Router();
 
@@ -790,5 +795,10 @@ router.use('/api', paymentRoutes);
 router.use('/api', botDiscountRoutes);
 router.use('/api/calendar', calendarRoutes);
 router.use('/api/bot-config', botConfigRoutes);
+router.use('/api', escalationRoutes);
+router.use('/api/services', servicesRoutes);
+router.use('/api/customers', customersRoutes);
+router.use('/api/message-approval', messageApprovalRoutes);
+router.use('/api/questionnaire-responses', questionnaireResponsesRoutes);
 
 export default router;
