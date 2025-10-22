@@ -313,21 +313,22 @@ class PaymentLinkService {
       // For failed payments, we need to look up via checkout session ID from charges metadata
       const stripe = await this.getStripeClient();
       
-      // Get the latest charge to find the checkout session
-      const charge = paymentIntent.latest_charge 
-        ? await stripe.charges.retrieve(paymentIntent.latest_charge as string)
-        : null;
-      
       let checkoutSessionId: string | null = null;
       
-      // Try to get session ID from charge metadata or payment_intent metadata
-      if (charge?.metadata?.checkout_session_id) {
-        checkoutSessionId = charge.metadata.checkout_session_id;
-      } else if (paymentIntent.metadata?.checkout_session_id) {
+      // Try metadata first (fastest)
+      if (paymentIntent.metadata?.checkout_session_id) {
         checkoutSessionId = paymentIntent.metadata.checkout_session_id;
-      } else if (charge) {
-        // If metadata doesn't have it, try to find it via invoice or payment method
-        // As last resort, look up sessions created around the same time with matching amount
+      } else if (paymentIntent.latest_charge) {
+        // Get the latest charge to check its metadata
+        const charge = await stripe.charges.retrieve(paymentIntent.latest_charge as string);
+        if (charge?.metadata?.checkout_session_id) {
+          checkoutSessionId = charge.metadata.checkout_session_id;
+        }
+      }
+      
+      // CRITICAL: If metadata lookup fails OR latest_charge is null (early failures like authentication_cancelled),
+      // use Stripe API to find the checkout session by payment intent ID
+      if (!checkoutSessionId) {
         const sessions = await stripe.checkout.sessions.list({
           limit: 100,
           payment_intent: paymentIntent.id,
