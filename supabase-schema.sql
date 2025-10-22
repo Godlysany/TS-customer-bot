@@ -1,5 +1,6 @@
 -- WhatsApp CRM Bot - Supabase Database Schema
--- Production deployment: October 22, 2025 (Full deployment: Phase 1, 2, 3)
+-- Production deployment: October 22, 2025 (Complete end-to-end payment integration + recurring service reminders)
+-- Latest update: Payment integration fully implemented in WhatsApp booking handler
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
