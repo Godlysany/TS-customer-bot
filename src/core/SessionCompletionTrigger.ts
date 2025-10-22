@@ -1,6 +1,6 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase } from '../infrastructure/mapper';
-import { MultiSessionBookingLogic } from './MultiSessionBookingLogic';
+import multiSessionLogic from './MultiSessionBookingLogic';
 
 /**
  * SessionCompletionTrigger
@@ -16,10 +16,10 @@ import { MultiSessionBookingLogic } from './MultiSessionBookingLogic';
  * 5. Create booking context for easy continuation
  */
 export class SessionCompletionTrigger {
-  private multiSessionLogic: MultiSessionBookingLogic;
+  private multiSessionLogic: typeof multiSessionLogic;
 
   constructor() {
-    this.multiSessionLogic = new MultiSessionBookingLogic();
+    this.multiSessionLogic = multiSessionLogic;
   }
 
   /**

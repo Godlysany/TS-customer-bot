@@ -32,11 +32,14 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SessionCompletionTrigger = void 0;
 const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
-const MultiSessionBookingLogic_1 = require("./MultiSessionBookingLogic");
+const MultiSessionBookingLogic_1 = __importDefault(require("./MultiSessionBookingLogic"));
 /**
  * SessionCompletionTrigger
  *
@@ -53,7 +56,7 @@ const MultiSessionBookingLogic_1 = require("./MultiSessionBookingLogic");
 class SessionCompletionTrigger {
     multiSessionLogic;
     constructor() {
-        this.multiSessionLogic = new MultiSessionBookingLogic_1.MultiSessionBookingLogic();
+        this.multiSessionLogic = MultiSessionBookingLogic_1.default;
     }
     /**
      * Called when a booking status changes to 'completed'

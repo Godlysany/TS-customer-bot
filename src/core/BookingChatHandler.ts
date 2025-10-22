@@ -2,7 +2,7 @@ import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 import BookingService from './BookingService';
 import { MultiServiceBookingService } from './MultiServiceBookingService';
-import { MultiSessionBookingLogic } from './MultiSessionBookingLogic';
+import multiSessionLogic from './MultiSessionBookingLogic';
 import getOpenAIClient from '../infrastructure/openai';
 import botConfigService from './BotConfigService';
 
@@ -27,13 +27,13 @@ interface BookingContext {
 export class BookingChatHandler {
   private bookingService: typeof BookingService;
   private multiServiceService: MultiServiceBookingService;
-  private multiSessionLogic: MultiSessionBookingLogic;
+  private multiSessionLogic: typeof multiSessionLogic;
   private contexts: Map<string, BookingContext> = new Map();
 
   constructor() {
     this.bookingService = BookingService;
     this.multiServiceService = new MultiServiceBookingService();
-    this.multiSessionLogic = new MultiSessionBookingLogic();
+    this.multiSessionLogic = multiSessionLogic;
   }
 
   /**

@@ -8,7 +8,7 @@ const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
 const BookingService_1 = __importDefault(require("./BookingService"));
 const MultiServiceBookingService_1 = require("./MultiServiceBookingService");
-const MultiSessionBookingLogic_1 = require("./MultiSessionBookingLogic");
+const MultiSessionBookingLogic_1 = __importDefault(require("./MultiSessionBookingLogic"));
 const openai_1 = __importDefault(require("../infrastructure/openai"));
 const BotConfigService_1 = __importDefault(require("./BotConfigService"));
 class BookingChatHandler {
@@ -19,7 +19,7 @@ class BookingChatHandler {
     constructor() {
         this.bookingService = BookingService_1.default;
         this.multiServiceService = new MultiServiceBookingService_1.MultiServiceBookingService();
-        this.multiSessionLogic = new MultiSessionBookingLogic_1.MultiSessionBookingLogic();
+        this.multiSessionLogic = MultiSessionBookingLogic_1.default;
     }
     /**
      * Check if a conversation has an active booking context
