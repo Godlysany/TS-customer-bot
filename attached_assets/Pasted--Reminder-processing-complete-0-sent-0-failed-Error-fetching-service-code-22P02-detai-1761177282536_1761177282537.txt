@@ -1,0 +1,111 @@
+📨 Reminder processing complete: 0 sent, 0 failed
+Error fetching service: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "all"'
+}
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column questionnaires_1.type does not exist'
+}
+Error fetching questionnaire responses: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column questionnaires_1.type does not exist'
+}
+Error fetching questionnaire responses: {
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+  message: 'column conversations_1.last_message does not exist'
+}
+Error fetching escalations: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "conversations_1.last_message_at".',
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+📊 Dashboard stats: { customers: 1, conversations: 1, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+📊 Dashboard stats: { customers: 1, conversations: 1, messages: 1, bookings: 0 }
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+Error fetching customer: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "undefined"'
+}
+Error fetching customer questionnaires: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column questionnaires_1.type does not exist'
+}
+Error fetching customer questionnaires: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column questionnaires_1.type does not exist'
+}
+Error fetching customer: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "undefined"'
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
