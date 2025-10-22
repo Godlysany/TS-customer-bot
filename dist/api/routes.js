@@ -205,12 +205,108 @@ router.get('/api/bookings', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Create new booking (with before_booking questionnaire trigger)
+router.post('/api/bookings', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { contactId, conversationId, event, serviceId, discountCode, discountAmount, promoVoucher, teamMemberId } = req.body;
+        if (!contactId || !conversationId || !event) {
+            return res.status(400).json({ error: 'Missing required fields: contactId, conversationId, event' });
+        }
+        // BEFORE_BOOKING TRIGGER: Check if questionnaire should be triggered
+        const { QuestionnaireService } = await Promise.resolve().then(() => __importStar(require('../core/QuestionnaireService')));
+        const questionnaireService = new QuestionnaireService();
+        const beforeBookingQuestionnaires = await questionnaireService.getActiveQuestionnaires('before_booking');
+        let questionnaireTriggered = false;
+        if (beforeBookingQuestionnaires.length > 0) {
+            // Check service-specific questionnaires first
+            let targetQuestionnaire = beforeBookingQuestionnaires[0];
+            if (serviceId) {
+                const serviceQuestionnaires = await questionnaireService.getQuestionnairesForService(serviceId);
+                if (serviceQuestionnaires.length > 0) {
+                    targetQuestionnaire = serviceQuestionnaires[0];
+                }
+            }
+            // Check if contact already completed this questionnaire
+            const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(contactId, targetQuestionnaire.id);
+            if (!alreadyCompleted) {
+                questionnaireTriggered = true;
+                // Return questionnaire to frontend - booking will be pending
+                return res.json({
+                    questionnairePending: true,
+                    questionnaireId: targetQuestionnaire.id,
+                    questionnaire: targetQuestionnaire,
+                    message: 'Please complete the questionnaire before booking',
+                });
+            }
+        }
+        // Create the booking
+        const booking = await BookingService_1.default.createBooking(contactId, conversationId, event, {
+            serviceId,
+            discountCode,
+            discountAmount,
+            promoVoucher,
+        });
+        // AFTER_BOOKING TRIGGER: Check if questionnaire should be triggered
+        const afterBookingQuestionnaires = await questionnaireService.getActiveQuestionnaires('after_booking');
+        if (afterBookingQuestionnaires.length > 0) {
+            const targetQuestionnaire = afterBookingQuestionnaires[0];
+            const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(contactId, targetQuestionnaire.id);
+            if (!alreadyCompleted) {
+                // Trigger after-booking questionnaire (can be sent async)
+                // Store it in response so frontend/WhatsApp can trigger it
+                return res.json({
+                    booking,
+                    afterBookingQuestionnaire: targetQuestionnaire,
+                });
+            }
+        }
+        res.json({ booking });
+    }
+    catch (error) {
+        console.error('Error creating booking:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 router.post('/api/bookings/:id/cancel', async (req, res) => {
     try {
         await BookingService_1.default.cancelBooking(req.params.id);
         res.json({ success: true });
     }
     catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Update booking status (with multi-session completion trigger)
+router.patch('/api/bookings/:id/status', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const bookingId = req.params.id;
+        if (!status) {
+            return res.status(400).json({ error: 'Status is required' });
+        }
+        // Valid status values
+        const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+        // Update booking status
+        const { data: booking, error } = await supabase_1.supabase
+            .from('bookings')
+            .update({ status, updated_at: new Date().toISOString() })
+            .eq('id', bookingId)
+            .select()
+            .single();
+        if (error)
+            throw error;
+        // If status is 'completed', trigger multi-session completion check
+        if (status === 'completed') {
+            const sessionCompletionTrigger = (await Promise.resolve().then(() => __importStar(require('../core/SessionCompletionTrigger')))).default;
+            await sessionCompletionTrigger.onBookingCompleted(bookingId);
+        }
+        res.json({ success: true, booking });
+    }
+    catch (error) {
+        console.error('Error updating booking status:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -235,11 +331,25 @@ router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)(
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/settings/bot/toggle', async (req, res) => {
+router.post('/api/settings/bot/toggle', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
-        const { enabled } = req.body;
-        await SettingsService_1.default.setBotEnabled(enabled);
-        res.json({ success: true, enabled });
+        // Get current state and toggle it
+        const currentState = await SettingsService_1.default.getBotEnabled();
+        const newState = !currentState;
+        // CRITICAL: Prevent enabling bot if WhatsApp is not connected
+        if (newState === true) {
+            const { getSock } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+            const sock = getSock();
+            const whatsappConnected = !!(sock && sock.user);
+            if (!whatsappConnected) {
+                return res.status(400).json({
+                    error: 'Cannot enable bot - WhatsApp is not connected. Please connect WhatsApp first.',
+                    whatsappConnected: false
+                });
+            }
+        }
+        await SettingsService_1.default.setBotEnabled(newState);
+        res.json({ success: true, enabled: newState });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -334,8 +444,10 @@ router.post('/api/marketing/filter', async (req, res) => {
 });
 router.post('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
-        const { name, messageTemplate, filterCriteria, scheduledAt, createdBy } = req.body;
-        const campaign = await MarketingService_1.default.createCampaign(name, messageTemplate, filterCriteria, scheduledAt ? new Date(scheduledAt) : undefined, createdBy);
+        const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, status, createdBy } = req.body;
+        const campaign = await MarketingService_1.default.createCampaign(name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, // Pass as-is (string or Date), service handles it
+        status, // Pass status from frontend
+        createdBy);
         res.json(campaign);
     }
     catch (error) {
@@ -415,8 +527,41 @@ router.get('/api/whatsapp/qr', async (req, res) => {
 router.get('/api/dashboard/stats', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
+        // Get booking stats
         const bookingStats = await BookingService_1.default.getBookingStats(startDate ? new Date(startDate) : undefined, endDate ? new Date(endDate) : undefined);
-        res.json(bookingStats);
+        // Get customer count
+        let customerQuery = supabase_1.supabase.from('contacts').select('id', { count: 'exact', head: true });
+        if (startDate) {
+            customerQuery = customerQuery.gte('created_at', new Date(startDate).toISOString());
+        }
+        if (endDate) {
+            customerQuery = customerQuery.lte('created_at', new Date(endDate).toISOString());
+        }
+        const { count: customerCount } = await customerQuery;
+        // Get conversation count
+        let conversationQuery = supabase_1.supabase.from('conversations').select('id', { count: 'exact', head: true });
+        if (startDate) {
+            conversationQuery = conversationQuery.gte('created_at', new Date(startDate).toISOString());
+        }
+        if (endDate) {
+            conversationQuery = conversationQuery.lte('created_at', new Date(endDate).toISOString());
+        }
+        const { count: conversationCount } = await conversationQuery;
+        // Get message activity count
+        let messageQuery = supabase_1.supabase.from('conversation_messages').select('id', { count: 'exact', head: true });
+        if (startDate) {
+            messageQuery = messageQuery.gte('created_at', new Date(startDate).toISOString());
+        }
+        if (endDate) {
+            messageQuery = messageQuery.lte('created_at', new Date(endDate).toISOString());
+        }
+        const { count: messageCount } = await messageQuery;
+        res.json({
+            ...bookingStats,
+            totalCustomers: customerCount || 0,
+            totalConversations: conversationCount || 0,
+            totalMessages: messageCount || 0,
+        });
     }
     catch (error) {
         res.status(500).json({ error: error.message });

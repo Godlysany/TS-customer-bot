@@ -8,9 +8,9 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '15m';
-const REFRESH_TOKEN_EXPIRES_IN = '7d';
+const JWT_SECRET = process.env.JWT_SECRET || 'jwt-production-secret-change-immediately';
+const JWT_EXPIRES_IN = '4h'; // Increased from 15m to 4 hours for better UX
+const REFRESH_TOKEN_EXPIRES_IN = '30d'; // Increased from 7d to 30 days
 const BCRYPT_ROUNDS = 10;
 class AuthService {
     async hashPassword(password) {

@@ -57,6 +57,8 @@ const SettingsService_1 = __importDefault(require("../core/SettingsService"));
 const ConversationTakeoverService_1 = __importDefault(require("../core/ConversationTakeoverService"));
 const CustomerAnalyticsService_1 = __importDefault(require("../core/CustomerAnalyticsService"));
 const BookingChatHandler_1 = __importDefault(require("../core/BookingChatHandler"));
+const QuestionnaireRuntimeService_1 = __importDefault(require("../core/QuestionnaireRuntimeService"));
+const QuestionnaireService_1 = require("../core/QuestionnaireService");
 const debounceTimers = new Map();
 const messageBuffers = new Map();
 // Store current QR code for frontend display
@@ -139,6 +141,83 @@ function cleanText(text) {
         .normalize('NFC')
         .trim();
 }
+/**
+ * Trigger questionnaires based on trigger type
+ * Returns a questionnaire message if one should be started, null otherwise
+ */
+async function checkAndTriggerQuestionnaires(conversationId, contactId, triggerType, serviceId) {
+    const questionnaireService = new QuestionnaireService_1.QuestionnaireService();
+    // Get active questionnaires for this trigger type
+    const questionnaires = await questionnaireService.getActiveQuestionnaires(triggerType);
+    if (questionnaires.length === 0) {
+        return null; // No questionnaires configured for this trigger
+    }
+    // For service_specific, filter by service ID
+    let targetQuestionnaire = questionnaires[0]; // Default to first one
+    if (triggerType === 'before_booking' && serviceId) {
+        // Check for service-specific questionnaires first
+        const serviceQuestionnaires = await questionnaireService.getQuestionnairesForService(serviceId);
+        if (serviceQuestionnaires.length > 0) {
+            targetQuestionnaire = serviceQuestionnaires[0];
+        }
+    }
+    // Check if contact already completed this questionnaire
+    const alreadyCompleted = await questionnaireService.hasContactCompletedQuestionnaire(contactId, targetQuestionnaire.id);
+    if (alreadyCompleted) {
+        console.log(`📋 Customer already completed questionnaire "${targetQuestionnaire.name}"`);
+        return null;
+    }
+    // Start the questionnaire
+    QuestionnaireRuntimeService_1.default.startQuestionnaire(conversationId, contactId, targetQuestionnaire);
+    // Return the first question
+    const firstQuestion = QuestionnaireRuntimeService_1.default.formatCurrentQuestion(conversationId);
+    return firstQuestion;
+}
+/**
+ * Handle customer's response to a questionnaire question
+ */
+async function handleQuestionnaireResponse(conversationId, response, contactId) {
+    const questionnaireService = new QuestionnaireService_1.QuestionnaireService();
+    // Save the response to current question
+    const result = QuestionnaireRuntimeService_1.default.saveResponse(conversationId, response);
+    if (!result.valid) {
+        // Invalid response - ask again with error message
+        const currentQuestion = QuestionnaireRuntimeService_1.default.formatCurrentQuestion(conversationId);
+        return `${result.error}\n\n${currentQuestion}`;
+    }
+    // Check if questionnaire is complete
+    if (result.completed) {
+        const responses = QuestionnaireRuntimeService_1.default.getResponses(conversationId);
+        const questionnaireId = QuestionnaireRuntimeService_1.default.getQuestionnaireId(conversationId);
+        // Save responses to database
+        try {
+            const savedResponse = await questionnaireService.saveResponse({
+                questionnaireId: questionnaireId,
+                contactId,
+                conversationId,
+                responses: responses,
+            });
+            QuestionnaireRuntimeService_1.default.clearContext(conversationId);
+            // PROMOTION REWARD: Check if this questionnaire completion should award a promotion
+            try {
+                const marketingCampaignExecutor = (await Promise.resolve().then(() => __importStar(require('../core/MarketingCampaignExecutor')))).default;
+                await marketingCampaignExecutor.handleQuestionnaireCompletion(savedResponse.id, contactId, questionnaireId);
+            }
+            catch (promoError) {
+                console.error('Error handling promotion reward:', promoError.message);
+                // Don't fail the questionnaire completion if promotion handling fails
+            }
+            return `✅ Thank you for completing the questionnaire! Your responses have been saved.\n\nHow else can I help you today?`;
+        }
+        catch (error) {
+            console.error('Failed to save questionnaire responses:', error.message);
+            return `Thank you for completing the questionnaire! However, there was an error saving your responses. Please contact support.`;
+        }
+    }
+    // More questions remaining - ask next question
+    const nextQuestion = QuestionnaireRuntimeService_1.default.formatCurrentQuestion(conversationId);
+    return nextQuestion || 'Error loading next question. Please try again.';
+}
 let isStarting = false;
 let sock;
 async function handleMessage(msg) {
@@ -195,16 +274,40 @@ async function handleMessage(msg) {
             console.log('👤 Agent has taken over conversation, bot will not reply');
             return;
         }
+        // Check for first_contact trigger (only inbound messages, so count should be 1)
+        const isFirstContact = messageHistory.filter(m => m.direction === 'inbound').length === 1;
+        if (isFirstContact) {
+            const questionnaireMessage = await checkAndTriggerQuestionnaires(conversation.id, contact.id, 'first_contact');
+            if (questionnaireMessage) {
+                console.log('📋 Triggered first_contact questionnaire');
+                // Save outbound message and send
+                const messageRecord = await MessageService_1.default.createMessage({
+                    conversationId: conversation.id,
+                    content: questionnaireMessage,
+                    messageType: 'text',
+                    direction: 'outbound',
+                    sender: 'bot',
+                    approvalStatus: 'approved',
+                });
+                await MessageService_1.default.updateConversationLastMessage(conversation.id);
+                await sock.sendMessage(sender, { text: questionnaireMessage });
+                return; // Stop here - wait for customer's response to first question
+            }
+        }
         let replyText = null;
         try {
-            // CRITICAL: Check for active booking context BEFORE intent detection
-            // This ensures follow-up messages (like "1" or "next Monday") route to the handler
-            if (BookingChatHandler_1.default.hasActiveContext(conversation.id)) {
+            // PRIORITY 1: Check for active questionnaire (customer is answering questions)
+            if (QuestionnaireRuntimeService_1.default.hasActiveQuestionnaire(conversation.id)) {
+                console.log('📋 Customer is answering questionnaire');
+                replyText = await handleQuestionnaireResponse(conversation.id, text, contact.id);
+            }
+            // PRIORITY 2: Check for active booking context
+            else if (BookingChatHandler_1.default.hasActiveContext(conversation.id)) {
                 console.log('🔄 Continuing booking conversation flow');
                 replyText = await BookingChatHandler_1.default.handleContextMessage(conversation.id, text, messageHistory);
             }
+            // PRIORITY 3: Normal intent detection
             else {
-                // No active context - detect intent normally
                 const intent = await AIService_1.default.detectIntent(text);
                 console.log('🎯 Intent detected:', intent);
                 if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
@@ -274,6 +377,15 @@ async function handleMessage(msg) {
             console.warn('⚠️ Failed to mark as read');
         }
         CustomerAnalyticsService_1.default.updateCustomerAnalytics(contact.id).catch(err => console.warn('⚠️ Analytics update failed:', err));
+        // Asynchronously extract and save CRM data from conversation
+        // This doesn't block the response - runs in background
+        AIService_1.default.extractCustomerData(conversation.id, messageHistory)
+            .then(extractedData => {
+            if (extractedData.confidence && extractedData.confidence > 0) {
+                return AIService_1.default.updateContactWithInsights(contact.id, extractedData);
+            }
+        })
+            .catch(err => console.warn('⚠️ CRM extraction failed:', err));
     }
     catch (err) {
         console.error('❌ Message handling error:', err);

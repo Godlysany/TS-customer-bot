@@ -8,14 +8,18 @@ const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
 const BookingService_1 = __importDefault(require("./BookingService"));
 const MultiServiceBookingService_1 = require("./MultiServiceBookingService");
+const MultiSessionBookingLogic_1 = require("./MultiSessionBookingLogic");
 const openai_1 = __importDefault(require("../infrastructure/openai"));
+const BotConfigService_1 = __importDefault(require("./BotConfigService"));
 class BookingChatHandler {
     bookingService;
     multiServiceService;
+    multiSessionLogic;
     contexts = new Map();
     constructor() {
         this.bookingService = BookingService_1.default;
         this.multiServiceService = new MultiServiceBookingService_1.MultiServiceBookingService();
+        this.multiSessionLogic = new MultiSessionBookingLogic_1.MultiSessionBookingLogic();
     }
     /**
      * Check if a conversation has an active booking context
@@ -273,12 +277,24 @@ class BookingChatHandler {
         return response;
     }
     async handleNewBooking(context, message, messageHistory) {
+        // Check email collection before allowing booking to complete
+        const emailCheckResult = await this.checkEmailCollection(context, message);
+        if (emailCheckResult) {
+            return emailCheckResult; // Return email collection prompt if needed
+        }
+        // Query services with multi-session fields
         const { data: services } = await supabase_1.supabase
             .from('services')
-            .select('id, name')
+            .select('id, name, requires_multiple_sessions, multi_session_strategy, total_sessions_required, session_buffer_config, duration_minutes, cost')
             .eq('is_active', true);
         const serviceMentioned = services?.find(s => message.toLowerCase().includes(s.name.toLowerCase()));
         if (serviceMentioned) {
+            // Check if this is a multi-session service
+            if (serviceMentioned.requires_multiple_sessions) {
+                // Route to multi-session handler
+                return await this.handleMultiSessionBooking(context, (0, mapper_1.toCamelCase)(serviceMentioned), message);
+            }
+            // Standard single-session booking flow
             const recommendations = await this.multiServiceService.getServiceRecommendations(context.contactId, serviceMentioned.id);
             let response = `Great choice! I can help you book a ${serviceMentioned.name} appointment.\n\n`;
             if (recommendations.length > 0) {
@@ -329,6 +345,456 @@ class BookingChatHandler {
     }
     clearContext(conversationId) {
         this.contexts.delete(conversationId);
+    }
+    /**
+     * ========================================
+     * MULTI-SESSION BOOKING HANDLERS
+     * ========================================
+     */
+    /**
+     * Main handler for multi-session bookings - routes to strategy-specific handler
+     */
+    async handleMultiSessionBooking(context, service, message) {
+        // Store service in context for subsequent messages
+        if (!context.multiSessionService) {
+            context.multiSessionService = service;
+        }
+        const { multiSessionStrategy, totalSessionsRequired } = service;
+        // Route to appropriate strategy handler
+        switch (multiSessionStrategy) {
+            case 'immediate':
+                return await this.handleImmediateBooking(context, service, message);
+            case 'sequential':
+                return await this.handleSequentialBooking(context, service, message);
+            case 'flexible':
+                return await this.handleFlexibleBooking(context, service, message);
+            default:
+                return `I'm sorry, but this service has an invalid booking configuration. Please contact support.`;
+        }
+    }
+    /**
+     * IMMEDIATE STRATEGY: Book all sessions upfront with specific buffer times
+     * Example: Dental implant (3 sessions: placement, healing check, crown)
+     */
+    async handleImmediateBooking(context, service, message) {
+        const { totalSessionsRequired, sessionBufferConfig, name, durationMinutes } = service;
+        // Step 1: If no proposed date/time, extract from message
+        if (!context.proposedDateTime) {
+            const openai = await (0, openai_1.default)();
+            const dateTimeResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Extract date and time for the FIRST session from the user's message. Return JSON:
+{
+  "hasDateTime": true/false,
+  "suggestedDate": "YYYY-MM-DD" or null,
+  "suggestedTime": "HH:MM" or null
+}`,
+                    },
+                    { role: 'user', content: message },
+                ],
+                response_format: { type: 'json_object' },
+            });
+            const dateTimeInfo = JSON.parse(dateTimeResponse.choices[0]?.message?.content || '{}');
+            if (!dateTimeInfo.hasDateTime || !dateTimeInfo.suggestedDate) {
+                // Ask for start date/time
+                return `Perfect! ${name} requires ${totalSessionsRequired} sessions. I'll book all ${totalSessionsRequired} sessions for you with the appropriate healing time between each.\n\nWhen would you like to start with Session 1? Please provide your preferred date and time (e.g., "March 15 at 2pm" or "next Monday at 10am").`;
+            }
+            // Parse the suggested date and time
+            try {
+                const dateStr = `${dateTimeInfo.suggestedDate}T${dateTimeInfo.suggestedTime || '10:00'}:00`;
+                context.proposedDateTime = new Date(dateStr);
+                // Validate future date
+                if (context.proposedDateTime <= new Date()) {
+                    context.proposedDateTime = undefined;
+                    return "The time you suggested has already passed. Could you please provide a future date and time?";
+                }
+            }
+            catch (e) {
+                return "I couldn't understand the date and time you mentioned. Could you please provide it again? For example: 'March 15 at 2pm' or 'next Monday at 10:30am'.";
+            }
+        }
+        // Step 2: Calculate all session dates using MultiSessionBookingLogic
+        const schedule = this.multiSessionLogic.calculateSessionSchedule({
+            sessionBufferConfig,
+            startDateTime: context.proposedDateTime,
+            totalSessions: totalSessionsRequired,
+        }, totalSessionsRequired);
+        // Step 3: Show customer complete schedule preview and ask for confirmation
+        if (context.multiSessionStep !== 'confirm_all') {
+            context.multiSessionStep = 'confirm_all';
+            let schedulePreview = `Excellent! Here's your complete treatment plan for ${name}:\n\n`;
+            schedule.forEach((session, idx) => {
+                const sessionDate = session.startTime.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
+                const sessionTime = session.startTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                schedulePreview += `📅 Session ${idx + 1}: ${sessionDate} at ${sessionTime}\n`;
+            });
+            schedulePreview += `\nAll ${totalSessionsRequired} sessions will be scheduled automatically. Would you like to confirm this treatment plan? (Yes/No)`;
+            return schedulePreview;
+        }
+        // Step 4: Check for confirmation
+        const confirmation = message.toLowerCase();
+        if (!confirmation.includes('yes') && !confirmation.includes('confirm') && !confirmation.includes('ok')) {
+            if (confirmation.includes('no') || confirmation.includes('cancel')) {
+                this.clearContext(context.conversationId);
+                return "No problem! If you'd like to book at a different time, just let me know.";
+            }
+            return `Please confirm by replying "yes" to book all ${totalSessionsRequired} sessions, or "no" to cancel.`;
+        }
+        // Step 5: Book all sessions using MultiSessionBookingLogic
+        try {
+            const bookings = await this.multiSessionLogic.bookImmediateStrategy({
+                serviceId: service.id,
+                contactId: context.contactId,
+                conversationId: context.conversationId,
+                phoneNumber: context.phoneNumber,
+                strategy: 'immediate',
+                totalSessions: totalSessionsRequired,
+                sessionBufferConfig,
+                startDateTime: context.proposedDateTime,
+                durationMinutes,
+                serviceName: name,
+                serviceCost: service.cost,
+            });
+            // Generate confirmation message
+            let confirmationMsg = `✅ Perfect! All ${totalSessionsRequired} ${name} sessions are now confirmed:\n\n`;
+            bookings.forEach((booking, idx) => {
+                const bookingDate = new Date(booking.startTime);
+                const dateStr = bookingDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                });
+                const timeStr = bookingDate.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                confirmationMsg += `📅 Session ${idx + 1}: ${dateStr} at ${timeStr}\n`;
+            });
+            confirmationMsg += `\nYou'll receive email confirmations for each session. See you soon! 🎉`;
+            this.clearContext(context.conversationId);
+            return confirmationMsg;
+        }
+        catch (error) {
+            console.error('Failed to book immediate multi-session:', error);
+            this.clearContext(context.conversationId);
+            return `I'm sorry, there was an error booking your sessions. Please try again or contact our support team.`;
+        }
+    }
+    /**
+     * SEQUENTIAL STRATEGY: Book one session at a time, auto-trigger next after completion
+     * Example: Physiotherapy (8 sessions, book after each completion)
+     */
+    async handleSequentialBooking(context, service, message) {
+        const { totalSessionsRequired, name, durationMinutes } = service;
+        // Check if customer already has sessions in progress
+        const progress = await this.multiSessionLogic.getMultiSessionProgress(context.contactId, service.id);
+        if (progress.bookedSessions > 0) {
+            // Customer has existing sessions
+            const progressMsg = this.multiSessionLogic.generateProgressMessage(progress.bookedSessions, progress.completedSessions, progress.totalSessions);
+            return `${progressMsg}\n\nI'll send you a reminder to book your next session after you complete the current one. Is there anything else I can help with?`;
+        }
+        // Step 1: Extract date/time for FIRST session only
+        if (!context.proposedDateTime) {
+            const openai = await (0, openai_1.default)();
+            const dateTimeResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Extract date and time for the first session from the user's message. Return JSON:
+{
+  "hasDateTime": true/false,
+  "suggestedDate": "YYYY-MM-DD" or null,
+  "suggestedTime": "HH:MM" or null
+}`,
+                    },
+                    { role: 'user', content: message },
+                ],
+                response_format: { type: 'json_object' },
+            });
+            const dateTimeInfo = JSON.parse(dateTimeResponse.choices[0]?.message?.content || '{}');
+            if (!dateTimeInfo.hasDateTime || !dateTimeInfo.suggestedDate) {
+                return `Perfect! ${name} is a ${totalSessionsRequired}-session treatment plan. We'll book one session at a time.\n\nAfter you complete each session, I'll help you schedule the next one. When would you like Session 1? Please provide your preferred date and time.`;
+            }
+            // Parse date
+            try {
+                const dateStr = `${dateTimeInfo.suggestedDate}T${dateTimeInfo.suggestedTime || '10:00'}:00`;
+                context.proposedDateTime = new Date(dateStr);
+                if (context.proposedDateTime <= new Date()) {
+                    context.proposedDateTime = undefined;
+                    return "The time you suggested has already passed. Could you please provide a future date and time?";
+                }
+            }
+            catch (e) {
+                return "I couldn't understand the date and time. Please try again (e.g., 'March 15 at 2pm').";
+            }
+        }
+        // Step 2: Book FIRST session only
+        try {
+            const booking = await this.multiSessionLogic.bookSequentialStrategy({
+                serviceId: service.id,
+                contactId: context.contactId,
+                conversationId: context.conversationId,
+                phoneNumber: context.phoneNumber,
+                strategy: 'sequential',
+                totalSessions: totalSessionsRequired,
+                sessionBufferConfig: service.sessionBufferConfig || {},
+                startDateTime: context.proposedDateTime,
+                durationMinutes,
+                serviceName: name,
+                serviceCost: service.cost,
+            });
+            const bookingDate = new Date(booking.startTime);
+            const dateStr = bookingDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+            });
+            const timeStr = bookingDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+            const confirmationMsg = `✅ Session 1 of ${totalSessionsRequired} confirmed!\n\n📅 ${dateStr} at ${timeStr}\n\nAfter you complete this session, I'll reach out to help you schedule Session 2. See you soon! 🎉`;
+            this.clearContext(context.conversationId);
+            return confirmationMsg;
+        }
+        catch (error) {
+            console.error('Failed to book sequential multi-session:', error);
+            this.clearContext(context.conversationId);
+            return `I'm sorry, there was an error booking your session. Please try again or contact support.`;
+        }
+    }
+    /**
+     * FLEXIBLE STRATEGY: Customer decides how many sessions to book at once
+     * Example: Driving lessons (10-lesson package, customer paces)
+     */
+    async handleFlexibleBooking(context, service, message) {
+        const { totalSessionsRequired, sessionBufferConfig, name, durationMinutes } = service;
+        // Check existing progress
+        const progress = await this.multiSessionLogic.getMultiSessionProgress(context.contactId, service.id);
+        const remainingSessions = progress.totalSessions - progress.bookedSessions;
+        // Step 1: Ask how many sessions to book (if not already asked)
+        if (context.sessionsToBook === undefined) {
+            const openai = await (0, openai_1.default)();
+            const countResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Extract the number of sessions the customer wants to book. Return JSON:
+{
+  "hasCount": true/false,
+  "sessionCount": number or null
+}`,
+                    },
+                    { role: 'user', content: message },
+                ],
+                response_format: { type: 'json_object' },
+            });
+            const countInfo = JSON.parse(countResponse.choices[0]?.message?.content || '{}');
+            if (!countInfo.hasCount || !countInfo.sessionCount) {
+                if (progress.bookedSessions > 0) {
+                    const progressMsg = this.multiSessionLogic.generateProgressMessage(progress.bookedSessions, progress.completedSessions, progress.totalSessions);
+                    return `${progressMsg}\n\nHow many more sessions would you like to book now? (You have ${remainingSessions} remaining)`;
+                }
+                return `Great! ${name} is a ${totalSessionsRequired}-session package. You can book as many or as few sessions as you'd like at a time.\n\nHow many sessions would you like to book now? (1-${totalSessionsRequired})`;
+            }
+            context.sessionsToBook = Math.min(Math.max(1, countInfo.sessionCount), remainingSessions);
+        }
+        // Step 2: Collect dates for each session
+        if (!context.collectedDates) {
+            context.collectedDates = [];
+        }
+        const currentSessionNum = context.collectedDates.length + 1;
+        // If we still need more dates
+        if (context.collectedDates.length < context.sessionsToBook) {
+            const openai = await (0, openai_1.default)();
+            const dateTimeResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Extract date and time for session ${currentSessionNum}. Return JSON:
+{
+  "hasDateTime": true/false,
+  "suggestedDate": "YYYY-MM-DD" or null,
+  "suggestedTime": "HH:MM" or null
+}`,
+                    },
+                    { role: 'user', content: message },
+                ],
+                response_format: { type: 'json_object' },
+            });
+            const dateTimeInfo = JSON.parse(dateTimeResponse.choices[0]?.message?.content || '{}');
+            if (!dateTimeInfo.hasDateTime || !dateTimeInfo.suggestedDate) {
+                return `Perfect! Please provide the date and time for Session ${currentSessionNum} (e.g., "March 10 at 3pm").`;
+            }
+            // Parse and validate date
+            try {
+                const dateStr = `${dateTimeInfo.suggestedDate}T${dateTimeInfo.suggestedTime || '10:00'}:00`;
+                const sessionDate = new Date(dateStr);
+                if (sessionDate <= new Date()) {
+                    return "That time has already passed. Please provide a future date and time.";
+                }
+                context.collectedDates.push(sessionDate);
+                // If we still need more dates, ask for the next one
+                if (context.collectedDates.length < context.sessionsToBook) {
+                    return `✓ Session ${currentSessionNum} noted.\n\nNow, when would you like Session ${currentSessionNum + 1}?`;
+                }
+            }
+            catch (e) {
+                return "I couldn't understand that date. Please try again (e.g., 'March 10 at 3pm').";
+            }
+        }
+        // Step 3: All dates collected - confirm and book
+        if (context.multiSessionStep !== 'confirm_all') {
+            context.multiSessionStep = 'confirm_all';
+            let preview = `Perfect! Here's your booking summary:\n\n`;
+            context.collectedDates.forEach((date, idx) => {
+                const sessionNumber = progress.bookedSessions + idx + 1;
+                const dateStr = date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                });
+                const timeStr = date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                preview += `📅 Session ${sessionNumber}: ${dateStr} at ${timeStr}\n`;
+            });
+            preview += `\nConfirm these ${context.sessionsToBook} sessions? (Yes/No)`;
+            return preview;
+        }
+        // Step 4: Check confirmation
+        const confirmation = message.toLowerCase();
+        if (!confirmation.includes('yes') && !confirmation.includes('confirm') && !confirmation.includes('ok')) {
+            if (confirmation.includes('no') || confirmation.includes('cancel')) {
+                this.clearContext(context.conversationId);
+                return "No problem! Let me know if you'd like to book at different times.";
+            }
+            return `Please confirm by replying "yes" to book these sessions, or "no" to cancel.`;
+        }
+        // Step 5: Book all collected sessions
+        try {
+            // For flexible strategy, we book each date separately but link them
+            const bookings = [];
+            for (let i = 0; i < context.collectedDates.length; i++) {
+                const sessionDate = context.collectedDates[i];
+                const sessionNumber = progress.bookedSessions + i + 1;
+                const booking = await this.multiSessionLogic.bookFlexibleStrategy({
+                    serviceId: service.id,
+                    contactId: context.contactId,
+                    conversationId: context.conversationId,
+                    phoneNumber: context.phoneNumber,
+                    strategy: 'flexible',
+                    totalSessions: totalSessionsRequired,
+                    sessionBufferConfig,
+                    startDateTime: sessionDate,
+                    durationMinutes,
+                    serviceName: name,
+                    serviceCost: service.cost,
+                    sessionsToBook: 1, // Book one at a time in the loop
+                });
+                bookings.push(...booking);
+            }
+            // Generate confirmation with progress
+            const newProgress = await this.multiSessionLogic.getMultiSessionProgress(context.contactId, service.id);
+            let confirmationMsg = `✅ Sessions confirmed!\n\n`;
+            bookings.forEach((booking) => {
+                const bookingDate = new Date(booking.startTime);
+                const dateStr = bookingDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                });
+                const timeStr = bookingDate.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                confirmationMsg += `📅 Session ${booking.sessionNumber}: ${dateStr} at ${timeStr}\n`;
+            });
+            confirmationMsg += `\n${this.multiSessionLogic.generateProgressMessage(newProgress.bookedSessions, newProgress.completedSessions, newProgress.totalSessions)}`;
+            confirmationMsg += `\n\nYou can book more sessions anytime. See you soon! 🎉`;
+            this.clearContext(context.conversationId);
+            return confirmationMsg;
+        }
+        catch (error) {
+            console.error('Failed to book flexible multi-session:', error);
+            this.clearContext(context.conversationId);
+            return `I'm sorry, there was an error booking your sessions. Please try again or contact support.`;
+        }
+    }
+    /**
+     * Check and enforce email collection based on configured mode
+     * Returns null if email is collected or not required, or a prompt string if email collection is needed
+     */
+    async checkEmailCollection(context, message) {
+        const config = await BotConfigService_1.default.getConfig();
+        // If email collection is disabled, skip
+        if (config.email_collection_mode === 'disabled') {
+            return null;
+        }
+        // Get current contact email from database
+        if (!context.contactEmail) {
+            const { data: contact } = await supabase_1.supabase
+                .from('contacts')
+                .select('email')
+                .eq('id', context.contactId)
+                .single();
+            context.contactEmail = contact?.email || undefined;
+        }
+        // If contact already has email, no need to ask
+        if (context.contactEmail) {
+            return null;
+        }
+        // Try to extract email from current message
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+        const emailMatch = message.match(emailRegex);
+        if (emailMatch) {
+            // Email found in message - save it
+            const extractedEmail = emailMatch[0];
+            await supabase_1.supabase
+                .from('contacts')
+                .update({ email: extractedEmail, updated_at: new Date().toISOString() })
+                .eq('id', context.contactId);
+            context.contactEmail = extractedEmail;
+            context.emailCollectionAsked = true;
+            console.log(`✅ Email collected from message: ${extractedEmail}`);
+            return null; // Email collected, can proceed
+        }
+        // Email not found - check if we need to ask for it
+        if (!context.emailCollectionAsked) {
+            context.emailCollectionAsked = true;
+            if (config.email_collection_mode === 'mandatory') {
+                // Mandatory mode - require email before proceeding
+                return config.email_collection_prompt_mandatory;
+            }
+            else if (config.email_collection_mode === 'gentle') {
+                // Gentle mode - ask politely but allow skip
+                return config.email_collection_prompt_gentle;
+            }
+        }
+        // If gentle mode and already asked, allow to proceed without email
+        if (config.email_collection_mode === 'gentle') {
+            return null;
+        }
+        // Mandatory mode and still no email - keep asking
+        if (config.email_collection_mode === 'mandatory') {
+            return "I still need your email address to complete the booking. Could you please provide it? (e.g., yourname@example.com)";
+        }
+        return null;
     }
 }
 exports.BookingChatHandler = BookingChatHandler;

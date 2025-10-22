@@ -57,6 +57,7 @@ const message_approval_1 = __importDefault(require("./api/message-approval"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
+const MarketingCampaignScheduler_1 = require("./core/MarketingCampaignScheduler");
 const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"));
 const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
 // Validate critical environment variables
@@ -160,6 +161,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     DocumentScheduler_1.default.start(60);
     // Start no-show scheduler (checks every 60 minutes)
     NoShowScheduler_1.default.start(60);
+    // Start marketing campaign scheduler (checks every 60 minutes)
+    (0, MarketingCampaignScheduler_1.startMarketingCampaignScheduler)(60);
     // Auto-reconnect WhatsApp if credentials exist
     const authInfoPath = path_1.default.join(__dirname, '../auth_info');
     if (fs.existsSync(authInfoPath)) {
@@ -181,6 +184,10 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
                 calendarClient.initialize().then((initialized) => {
                     if (initialized) {
                         bookingService.setCalendarProvider(calendarClient);
+                        // Also set on BatchBookingService for multi-session bookings
+                        Promise.resolve().then(() => __importStar(require('./core/BatchBookingService'))).then(({ default: batchBookingService }) => {
+                            batchBookingService.setCalendarProvider(calendarClient);
+                        });
                         console.log('📅 Google Calendar provider initialized');
                     }
                     else {
@@ -217,6 +224,7 @@ process.on('SIGTERM', () => {
     ReminderScheduler_1.reminderScheduler.stop();
     (0, EngagementScheduler_1.stopEngagementScheduler)();
     (0, RecurringAppointmentScheduler_1.stopRecurringScheduler)();
+    (0, MarketingCampaignScheduler_1.stopMarketingCampaignScheduler)();
     server.close(() => {
         console.log('✅ Server closed');
         process.exit(0);

@@ -12,6 +12,8 @@ class QuestionnaireService {
             description: data.description,
             questions: data.questions,
             triggerType: data.triggerType,
+            linkedServices: data.linkedServices,
+            linkedPromotions: data.linkedPromotions,
             isActive: true,
             createdBy: data.createdBy,
         }))
@@ -97,6 +99,53 @@ class QuestionnaireService {
             .from('questionnaires')
             .update({ is_active: false })
             .eq('id', id);
+    }
+    /**
+     * Get questionnaires for a specific service
+     * Used for service_specific trigger type
+     */
+    async getQuestionnairesForService(serviceId) {
+        const { data, error } = await supabase_1.supabase
+            .from('questionnaires')
+            .select('*')
+            .eq('is_active', true)
+            .eq('trigger_type', 'service_specific')
+            .contains('linked_services', [serviceId]);
+        if (error) {
+            console.error('Failed to get service questionnaires:', error.message);
+            return [];
+        }
+        return (data || []).map(mapper_1.toCamelCase);
+    }
+    /**
+     * Check if contact has already completed a specific questionnaire
+     * Prevents duplicate questionnaire completion
+     */
+    async hasContactCompletedQuestionnaire(contactId, questionnaireId) {
+        const { data, error } = await supabase_1.supabase
+            .from('questionnaire_responses')
+            .select('id')
+            .eq('contact_id', contactId)
+            .eq('questionnaire_id', questionnaireId)
+            .not('completed_at', 'is', null)
+            .limit(1);
+        if (error) {
+            console.error('Failed to check questionnaire completion:', error.message);
+            return false;
+        }
+        return (data?.length || 0) > 0;
+    }
+    /**
+     * Get all questionnaires (including inactive) for admin management
+     */
+    async getAllQuestionnaires() {
+        const { data, error } = await supabase_1.supabase
+            .from('questionnaires')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error)
+            throw new Error(`Failed to get all questionnaires: ${error.message}`);
+        return (data || []).map(mapper_1.toCamelCase);
     }
 }
 exports.QuestionnaireService = QuestionnaireService;
