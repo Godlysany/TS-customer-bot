@@ -1,7 +1,7 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase } from '../infrastructure/mapper';
 import { v4 as uuid_v4 } from 'uuid';
-import BookingService from './BookingService';
+import batchBookingService from './BatchBookingService';
 
 export interface MultiSessionBookingParams {
   serviceId: string;
@@ -27,11 +27,7 @@ export interface SessionSchedule {
 }
 
 export class MultiSessionBookingLogic {
-  private bookingService: typeof BookingService;
-
-  constructor() {
-    this.bookingService = BookingService;
-  }
+  constructor() {}
 
   /**
    * Calculate all session dates based on buffer configuration
@@ -108,118 +104,77 @@ export class MultiSessionBookingLogic {
 
   /**
    * Book multiple sessions for IMMEDIATE strategy
-   * Uses BookingService to ensure all production safety guarantees
+   * Uses BatchBookingService for atomic transactional safety
    */
   async bookImmediateStrategy(params: MultiSessionBookingParams): Promise<any[]> {
     const sessionGroupId = uuid_v4();
     const schedule = this.calculateSessionSchedule(params, params.totalSessions);
 
-    const bookings = [];
-    const failedSessions: number[] = [];
+    // Prepare batch booking request
+    const batchRequest = {
+      contactId: params.contactId,
+      conversationId: params.conversationId,
+      serviceId: params.serviceId,
+      teamMemberId: params.teamMemberId,
+      phoneNumber: params.phoneNumber,
+      sessionGroupId,
+      bookings: schedule.map((session) => ({
+        sessionNumber: session.sessionNumber,
+        totalSessions: params.totalSessions,
+        title: `${params.serviceName} - Session ${session.sessionNumber}`,
+        startTime: session.startTime,
+        endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
+        description: `Multi-session treatment: Session ${session.sessionNumber} of ${params.totalSessions}`,
+      })),
+    };
 
-    for (const session of schedule) {
-      try {
-        // Use BookingService for proper calendar sync, emails, reminders, validations
-        const booking = await this.bookingService.createBooking(
-          params.contactId,
-          params.conversationId,
-          {
-            title: `${params.serviceName} - Session ${session.sessionNumber}`,
-            startTime: session.startTime,
-            endTime: new Date(
-              session.startTime.getTime() + params.durationMinutes * 60 * 1000
-            ),
-            description: `Multi-session treatment: Session ${session.sessionNumber} of ${params.totalSessions}`,
-          },
-          {
-            serviceId: params.serviceId,
-          }
-        );
+    // Execute atomic batch booking (all or nothing)
+    const result = await batchBookingService.createBatchBooking(batchRequest);
 
-        // Update booking with multi-session metadata and team member
-        const updateData: any = {
-          is_part_of_multi_session: true,
-          session_group_id: sessionGroupId,
-          session_number: session.sessionNumber,
-          total_sessions: params.totalSessions,
-        };
-        
-        if (params.teamMemberId) {
-          updateData.team_member_id = params.teamMemberId;
-        }
-
-        await supabase
-          .from('bookings')
-          .update(updateData)
-          .eq('id', booking.id);
-
-        bookings.push(booking);
-      } catch (error) {
-        console.error(`Failed to book session ${session.sessionNumber}:`, error);
-        failedSessions.push(session.sessionNumber);
-        
-        // ROLLBACK: If any session fails, cancel all previously booked sessions
-        for (const bookedSession of bookings) {
-          try {
-            await this.bookingService.cancelBooking(bookedSession.id);
-          } catch (rollbackError) {
-            console.error(`Failed to rollback session:`, rollbackError);
-          }
-        }
-        
-        throw new Error(`Failed to book session ${session.sessionNumber}. All sessions rolled back.`);
-      }
+    if (!result.success) {
+      const errorMsg = result.errors?.join(', ') || 'Unknown error';
+      throw new Error(`Failed to book sessions: ${errorMsg}`);
     }
 
-    if (failedSessions.length > 0) {
-      throw new Error(`Failed to book sessions: ${failedSessions.join(', ')}`);
-    }
-
-    return bookings;
+    return result.bookings;
   }
 
   /**
    * Book first session for SEQUENTIAL strategy
-   * Uses BookingService to ensure all production safety guarantees
+   * Uses BatchBookingService for atomic transactional safety
    */
   async bookSequentialStrategy(params: MultiSessionBookingParams): Promise<any> {
     const sessionGroupId = uuid_v4();
 
-    // Use BookingService for proper calendar sync, emails, reminders, validations
-    const booking = await this.bookingService.createBooking(
-      params.contactId,
-      params.conversationId,
-      {
-        title: `${params.serviceName} - Session 1`,
-        startTime: params.startDateTime,
-        endTime: new Date(
-          params.startDateTime.getTime() + params.durationMinutes * 60 * 1000
-        ),
-        description: `Multi-session treatment: Session 1 of ${params.totalSessions} (Sequential)`,
-      },
-      {
-        serviceId: params.serviceId,
-      }
-    );
-
-    // Update booking with multi-session metadata and team member
-    const updateData: any = {
-      is_part_of_multi_session: true,
-      session_group_id: sessionGroupId,
-      session_number: 1,
-      total_sessions: params.totalSessions,
+    // Prepare batch booking request for first session only
+    const batchRequest = {
+      contactId: params.contactId,
+      conversationId: params.conversationId,
+      serviceId: params.serviceId,
+      teamMemberId: params.teamMemberId,
+      phoneNumber: params.phoneNumber,
+      sessionGroupId,
+      bookings: [
+        {
+          sessionNumber: 1,
+          totalSessions: params.totalSessions,
+          title: `${params.serviceName} - Session 1`,
+          startTime: params.startDateTime,
+          endTime: new Date(params.startDateTime.getTime() + params.durationMinutes * 60 * 1000),
+          description: `Multi-session treatment: Session 1 of ${params.totalSessions} (Sequential)`,
+        },
+      ],
     };
-    
-    if (params.teamMemberId) {
-      updateData.team_member_id = params.teamMemberId;
+
+    // Execute atomic batch booking
+    const result = await batchBookingService.createBatchBooking(batchRequest);
+
+    if (!result.success) {
+      const errorMsg = result.errors?.join(', ') || 'Unknown error';
+      throw new Error(`Failed to book first session: ${errorMsg}`);
     }
 
-    await supabase
-      .from('bookings')
-      .update(updateData)
-      .eq('id', booking.id);
-
-    return booking;
+    return result.bookings[0];
   }
 
   /**
@@ -256,71 +211,33 @@ export class MultiSessionBookingLogic {
       sessionsToBook
     );
 
-    const bookings = [];
-    const failedSessions: number[] = [];
+    // Prepare batch booking request for N sessions
+    const batchRequest = {
+      contactId: params.contactId,
+      conversationId: params.conversationId,
+      serviceId: params.serviceId,
+      teamMemberId: params.teamMemberId,
+      phoneNumber: params.phoneNumber,
+      sessionGroupId,
+      bookings: schedule.map((session, index) => ({
+        sessionNumber: startingSessionNumber + index,
+        totalSessions: params.totalSessions,
+        title: `${params.serviceName} - Session ${startingSessionNumber + index}`,
+        startTime: session.startTime,
+        endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
+        description: `Multi-session treatment: Session ${startingSessionNumber + index} of ${params.totalSessions} (Flexible)`,
+      })),
+    };
 
-    for (let i = 0; i < schedule.length; i++) {
-      const session = schedule[i];
-      const sessionNumber = startingSessionNumber + i;
+    // Execute atomic batch booking
+    const result = await batchBookingService.createBatchBooking(batchRequest);
 
-      try {
-        // Use BookingService for proper calendar sync, emails, reminders, validations
-        const booking = await this.bookingService.createBooking(
-          params.contactId,
-          params.conversationId,
-          {
-            title: `${params.serviceName} - Session ${sessionNumber}`,
-            startTime: session.startTime,
-            endTime: new Date(
-              session.startTime.getTime() + params.durationMinutes * 60 * 1000
-            ),
-            description: `Multi-session treatment: Session ${sessionNumber} of ${params.totalSessions} (Flexible)`,
-          },
-          {
-            serviceId: params.serviceId,
-          }
-        );
-
-        // Update booking with multi-session metadata and team member
-        const updateData: any = {
-          is_part_of_multi_session: true,
-          session_group_id: sessionGroupId,
-          session_number: sessionNumber,
-          total_sessions: params.totalSessions,
-        };
-        
-        if (params.teamMemberId) {
-          updateData.team_member_id = params.teamMemberId;
-        }
-
-        await supabase
-          .from('bookings')
-          .update(updateData)
-          .eq('id', booking.id);
-
-        bookings.push(booking);
-      } catch (error) {
-        console.error(`Failed to book session ${sessionNumber}:`, error);
-        failedSessions.push(sessionNumber);
-        
-        // ROLLBACK: If any session fails, cancel all previously booked sessions
-        for (const bookedSession of bookings) {
-          try {
-            await this.bookingService.cancelBooking(bookedSession.id);
-          } catch (rollbackError) {
-            console.error(`Failed to rollback session:`, rollbackError);
-          }
-        }
-        
-        throw new Error(`Failed to book session ${sessionNumber}. All sessions rolled back.`);
-      }
+    if (!result.success) {
+      const errorMsg = result.errors?.join(', ') || 'Unknown error';
+      throw new Error(`Failed to book sessions: ${errorMsg}`);
     }
 
-    if (failedSessions.length > 0) {
-      throw new Error(`Failed to book sessions: ${failedSessions.join(', ')}`);
-    }
-
-    return bookings;
+    return result.bookings;
   }
 
   /**
