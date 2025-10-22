@@ -127,7 +127,7 @@ export class EscalationService {
         .select('id, status')
         .eq('conversation_id', conversationId)
         .in('status', ['pending', 'in_progress'])
-        .single();
+        .maybeSingle();
 
       if (existing) {
         console.log(`Escalation already exists for conversation ${conversationId}`);
