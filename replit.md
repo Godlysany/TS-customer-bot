@@ -36,6 +36,31 @@ This project is a professional B2B customer service platform integrating WhatsAp
 
 **Architect Verdict**: PASS - All frontend API calls now resolve to functional backend routes. System is production-ready.
 
+### Core Logic Verification (Deep Audit):
+✅ **Business Information Handling**: Bot properly answers business queries
+   - BotConfigService.buildSystemPrompt replaces all placeholders dynamically
+   - Business name, address, phone, email, location, directions, hours injected into system prompt
+   - AIService.generateReply calls buildSystemPrompt before every GPT interaction
+
+✅ **Calendar Integration**: Google Calendar bookings fully functional
+   - Server uses GoogleCalendarClient (real implementation, NOT stub)
+   - Creates events with: title, description, start/end times (Europe/Zurich timezone), attendees, reminders
+   - Auto-refreshes OAuth tokens, handles errors properly
+   - Stub file (GoogleCalendarProvider.ts) exists but is NOT used
+
+✅ **Schema Deployment**: supabase-schema.sql modified to trigger GitHub Actions
+   - Recurring service columns already present (lines 527-530)
+   - Git-trackable change added to force deployment on next push
+   - RecurringServiceScheduler can be re-enabled after schema sync completes
+
+✅ **WhatsApp Message Handler**: All PRD features integrated
+   - Language detection (line 328): detectLanguageChangeRequest + updateContactLanguage
+   - Email collection (BookingChatHandler): checkEmailCollection with mandatory/gentle modes
+   - Payment confirmation (BookingChatHandler line 70-75): Priority check before booking flow
+   - Escalation (AIService.shouldEscalate): Sentiment + keyword-based triggering
+   - Questionnaire triggers: First-contact, before-booking, after-booking checks
+   - Multi-session booking: MultiSessionLogic with 3 strategies (immediate/sequential/flexible)
+
 ### Previous Fixes:
 1. **Server Stability**: Fixed RecurringServiceScheduler crash caused by querying non-existent schema columns. Temporarily disabled until schema deployment completes (GitHub Actions).
 2. **Dashboard Accuracy**: Corrected Dashboard stats endpoint querying wrong table ('conversation_messages' → 'messages') and wrong timestamp column ('created_at' → 'timestamp').
