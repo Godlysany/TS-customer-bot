@@ -1188,6 +1188,67 @@ FOR EACH ROW
 EXECUTE FUNCTION expire_old_bot_requests();
 
 -- ============================================
+-- BOT CONFIGURATION RESTRUCTURE (October 22, 2025)
+-- Phase 4: Service Booking Windows & Service-Specific Blockers
+-- ============================================
+
+-- Service Booking Windows (replaces booking_time_restrictions JSONB)
+-- Allows Calendly-style day-specific availability per service
+-- Example: Dental cleanings only on Monday 9-12, Wednesday 8-16, Friday 14-18
+CREATE TABLE IF NOT EXISTS service_booking_windows (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0=Sunday, 6=Saturday
+    start_time TIME NOT NULL, -- e.g. 09:00
+    end_time TIME NOT NULL, -- e.g. 17:00
+    is_active BOOLEAN DEFAULT true, -- Can temporarily disable without deleting
+    valid_from DATE, -- Optional: window only valid from this date
+    valid_until DATE, -- Optional: window expires after this date
+    notes TEXT, -- e.g. "Summer hours", "Holiday schedule"
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure end_time is after start_time
+    CHECK (end_time > start_time),
+    
+    -- Prevent duplicate windows for same service/day
+    UNIQUE(service_id, day_of_week, start_time, end_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_booking_windows_service ON service_booking_windows(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_booking_windows_active ON service_booking_windows(is_active);
+CREATE INDEX IF NOT EXISTS idx_service_booking_windows_day ON service_booking_windows(day_of_week);
+
+-- Service Blockers (service-specific unavailable times)
+-- Unlike emergency_slots (global blockers), these are per-service
+-- Example: Dental implant surgery blocked Dec 20-Jan 5 (holiday break)
+CREATE TABLE IF NOT EXISTS service_blockers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL, -- e.g. "Holiday Break", "Equipment Maintenance"
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    reason TEXT, -- Optional explanation
+    is_recurring BOOLEAN DEFAULT false, -- If true, repeats (e.g. every Monday)
+    recurrence_pattern VARCHAR(50), -- 'weekly', 'monthly', 'yearly'
+    recurrence_end_date TIMESTAMP WITH TIME ZONE, -- When recurrence stops
+    created_by UUID REFERENCES agents(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure end_time is after start_time
+    CHECK (end_time > start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_service_blockers_service ON service_blockers(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_blockers_time ON service_blockers(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_service_blockers_recurring ON service_blockers(is_recurring);
+
+-- Update triggers for new tables
+CREATE TRIGGER update_service_booking_windows_updated_at BEFORE UPDATE ON service_booking_windows FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_service_blockers_updated_at BEFORE UPDATE ON service_blockers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
 -- DEPLOYMENT NOTES
 -- ============================================
 
@@ -1195,6 +1256,7 @@ EXECUTE FUNCTION expire_old_bot_requests();
 -- Phase 1: CRM customer insight extraction (10 new contact fields)
 -- Phase 2: Marketing campaigns, promotions, payment links, CSV imports
 -- Phase 3: Multi-session booking system (immediate/sequential/flexible strategies)
+-- Phase 4: Bot configuration restructure with service booking windows
 -- 1. Full promotion system with service-specific discounts
 -- 2. Bot autonomous discount offering with admin approval queue
 -- 3. Payment link tracking for Stripe checkout
@@ -1203,6 +1265,8 @@ EXECUTE FUNCTION expire_old_bot_requests();
 -- 6. Security: Bot autonomy capped at configurable CHF limit
 -- 7. Balance sheet protection through admin approval workflow
 -- 8. Multi-session bookings with session grouping and auto-triggers
+-- 9. Service booking windows and service-specific blockers
 
 -- Deploy via: GitHub Actions → .github/workflows/deploy-supabase.yml
 -- Deployment date: October 22, 2025
+-- Phase 4: Service booking windows deployed Wed Oct 22 08:08:09 AM UTC 2025
