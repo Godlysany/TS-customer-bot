@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { settingsApi } from '../lib/api';
+import { settingsApi, calendarApi } from '../lib/api';
 import type { Setting } from '../types';
-import { Key, Bot, Smartphone, Calendar, Save, Power, User, Bell } from 'lucide-react';
+import { Key, Bot, Smartphone, Calendar, Save, Power, User, Bell, CheckCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Settings = () => {
@@ -26,6 +26,15 @@ const Settings = () => {
       return res.data;
     },
     refetchInterval: 5000,
+  });
+
+  const { data: calendarStatus } = useQuery({
+    queryKey: ['calendar-status'],
+    queryFn: async () => {
+      const res = await calendarApi.getStatus();
+      return res.data;
+    },
+    refetchInterval: 10000,
   });
 
   const { data: qrData } = useQuery({
@@ -89,6 +98,17 @@ const Settings = () => {
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.error || 'Failed to disconnect WhatsApp');
+    },
+  });
+
+  const disconnectCalendarMutation = useMutation({
+    mutationFn: () => calendarApi.disconnect(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendar-status'] });
+      toast.success('Calendar disconnected successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to disconnect calendar');
     },
   });
 
@@ -331,21 +351,41 @@ const Settings = () => {
             <div className="flex items-center gap-3">
               <Calendar className="w-6 h-6 text-gray-700" />
               <h2 className="text-xl font-semibold text-gray-900">Calendar Settings</h2>
+              {calendarStatus?.connected && (
+                <span className="flex items-center gap-1 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                  <CheckCircle className="w-4 h-4" />
+                  Connected
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => {
-                const calendarProvider = getSetting('calendar_provider')?.value || 'google';
-                if (calendarProvider === 'google') {
-                  window.location.href = '/api/calendar/oauth/connect';
-                } else {
-                  toast.error('Only Google Calendar OAuth is currently supported');
-                }
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Calendar className="w-4 h-4" />
-              Connect Calendar
-            </button>
+            {calendarStatus?.connected ? (
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to disconnect Google Calendar?')) {
+                    disconnectCalendarMutation.mutate();
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Disconnect Calendar
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const calendarProvider = getSetting('calendar_provider')?.value || 'google';
+                  if (calendarProvider === 'google') {
+                    window.location.href = '/api/calendar/oauth/connect';
+                  } else {
+                    toast.error('Only Google Calendar OAuth is currently supported');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Calendar className="w-4 h-4" />
+                Connect Calendar
+              </button>
+            )}
           </div>
           
           <div className="space-y-4">

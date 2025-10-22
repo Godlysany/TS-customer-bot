@@ -213,3 +213,8 @@ export const escalationsApi = {
   getCounts: () => 
     api.get('/escalations-stats/counts'),
 };
+
+export const calendarApi = {
+  getStatus: () => api.get('/calendar/status'),
+  disconnect: () => api.post('/calendar/disconnect'),
+};
