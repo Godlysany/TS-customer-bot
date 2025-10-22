@@ -2,6 +2,7 @@ import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 import BookingService from './BookingService';
 import { MultiServiceBookingService } from './MultiServiceBookingService';
+import { MultiSessionBookingLogic } from './MultiSessionBookingLogic';
 import getOpenAIClient from '../infrastructure/openai';
 import botConfigService from './BotConfigService';
 
@@ -16,16 +17,23 @@ interface BookingContext {
   cancellationReason?: string;
   emailCollectionAsked?: boolean;
   contactEmail?: string;
+  // Multi-session fields
+  multiSessionService?: any;
+  multiSessionStep?: 'confirm_strategy' | 'collect_dates' | 'confirm_all';
+  sessionsToBook?: number;
+  collectedDates?: Date[];
 }
 
 export class BookingChatHandler {
   private bookingService: typeof BookingService;
   private multiServiceService: MultiServiceBookingService;
+  private multiSessionLogic: MultiSessionBookingLogic;
   private contexts: Map<string, BookingContext> = new Map();
 
   constructor() {
     this.bookingService = BookingService;
     this.multiServiceService = new MultiServiceBookingService();
+    this.multiSessionLogic = new MultiSessionBookingLogic();
   }
 
   /**

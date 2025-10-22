@@ -19,6 +19,10 @@ interface Service {
   cancellationPolicyHours: number;
   cancellationPenaltyAmount: number;
   cancellationPenaltyType: 'fixed' | 'percentage';
+  requiresMultipleSessions?: boolean;
+  totalSessionsRequired?: number;
+  multiSessionStrategy?: 'immediate' | 'sequential' | 'flexible';
+  sessionBufferConfig?: any;
 }
 
 const Services = () => {
@@ -80,6 +84,10 @@ const Services = () => {
         cancellationPolicyHours: 24,
         cancellationPenaltyAmount: 0,
         cancellationPenaltyType: 'fixed',
+        requiresMultipleSessions: false,
+        totalSessionsRequired: 1,
+        multiSessionStrategy: 'flexible',
+        sessionBufferConfig: { default_days: 7 },
       });
     }
     setIsModalOpen(true);
@@ -409,6 +417,230 @@ const Services = () => {
                       Service is Active (available for booking)
                     </label>
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Multi-Session Booking Configuration</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure this service for treatments requiring multiple appointments (e.g., dental implants, driving lessons, physiotherapy plans)
+                </p>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.requiresMultipleSessions || false}
+                        onChange={(e) =>
+                          setFormData({ ...formData, requiresMultipleSessions: e.target.checked })
+                        }
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <label className="text-sm font-medium text-gray-700">
+                        This service requires multiple sessions
+                      </label>
+                    </div>
+                  </div>
+
+                  {formData.requiresMultipleSessions && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-6 border-l-2 border-blue-200">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Total Sessions Required *
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.totalSessionsRequired || 1}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                totalSessionsRequired: parseInt(e.target.value),
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required
+                            min="1"
+                            max="50"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            How many sessions total (e.g., 3 for dental implant, 10 for driving lessons)
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Booking Strategy *
+                          </label>
+                          <select
+                            value={formData.multiSessionStrategy || 'flexible'}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                multiSessionStrategy: e.target.value as
+                                  | 'immediate'
+                                  | 'sequential'
+                                  | 'flexible',
+                              })
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="immediate">Immediate - Book all sessions upfront</option>
+                            <option value="sequential">Sequential - Book one at a time after completion</option>
+                            <option value="flexible">Flexible - Customer chooses how many to book</option>
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formData.multiSessionStrategy === 'immediate' &&
+                              'All sessions booked at once (e.g., dental implant with fixed healing periods)'}
+                            {formData.multiSessionStrategy === 'sequential' &&
+                              'Next session booked after previous one completes (e.g., physiotherapy)'}
+                            {formData.multiSessionStrategy === 'flexible' &&
+                              'Customer decides how many to schedule (e.g., driving lesson packages)'}
+                          </p>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Buffer Time Between Sessions (days)
+                          </label>
+                          {formData.multiSessionStrategy === 'immediate' ? (
+                            <div className="space-y-3">
+                              <p className="text-xs text-gray-600">
+                                For immediate strategy, you can set specific buffer times between each session or use a default.
+                              </p>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Session 1 → 2 (days)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={formData.sessionBufferConfig?.session_1_to_2_days || 7}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        sessionBufferConfig: {
+                                          ...formData.sessionBufferConfig,
+                                          session_1_to_2_days: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    min="0"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Session 2 → 3 (days)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={formData.sessionBufferConfig?.session_2_to_3_days || 7}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        sessionBufferConfig: {
+                                          ...formData.sessionBufferConfig,
+                                          session_2_to_3_days: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    min="0"
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-500 italic">
+                                Add more specific buffers as needed for your treatment plan
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Minimum Days
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={formData.sessionBufferConfig?.minimum_days || 0}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        sessionBufferConfig: {
+                                          ...formData.sessionBufferConfig,
+                                          minimum_days: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    min="0"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Sessions must be at least this many days apart
+                                  </p>
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-600 mb-1">
+                                    Recommended Days
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={formData.sessionBufferConfig?.recommended_days || 7}
+                                    onChange={(e) =>
+                                      setFormData({
+                                        ...formData,
+                                        sessionBufferConfig: {
+                                          ...formData.sessionBufferConfig,
+                                          recommended_days: parseInt(e.target.value),
+                                        },
+                                      })
+                                    }
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                    min="0"
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Bot will suggest this interval
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="md:col-span-2 bg-blue-50 p-4 rounded-lg">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2">How it works:</h4>
+                          <div className="text-sm text-blue-800 space-y-1">
+                            {formData.multiSessionStrategy === 'immediate' && (
+                              <>
+                                <p>✓ Bot books all {formData.totalSessionsRequired} sessions upfront</p>
+                                <p>✓ Sessions automatically spaced based on buffer config</p>
+                                <p>✓ Customer sees complete treatment schedule</p>
+                                <p>✓ All sessions linked together with group ID</p>
+                              </>
+                            )}
+                            {formData.multiSessionStrategy === 'sequential' && (
+                              <>
+                                <p>✓ Bot books first session only</p>
+                                <p>✓ After completion, automatically prompts for next session</p>
+                                <p>✓ Progress tracked: "Session 3 of {formData.totalSessionsRequired}"</p>
+                                <p>✓ Flexible timing based on customer availability</p>
+                              </>
+                            )}
+                            {formData.multiSessionStrategy === 'flexible' && (
+                              <>
+                                <p>✓ Customer decides how many sessions to book at once</p>
+                                <p>✓ Can book 1, 5, or all {formData.totalSessionsRequired} sessions</p>
+                                <p>✓ Progress tracked: "5 of {formData.totalSessionsRequired} booked"</p>
+                                <p>✓ Full control and flexibility for customer</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
