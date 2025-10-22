@@ -163,4 +163,28 @@ export const servicesApi = {
   create: (data: any) => api.post('/services', data),
   update: (id: string, data: any) => api.put(`/services/${id}`, data),
   delete: (id: string) => api.delete(`/services/${id}`),
+  
+  // Booking Windows (Phase 4)
+  getBookingWindows: (serviceId: string) => api.get(`/services/${serviceId}/booking-windows`),
+  replaceBookingWindows: (serviceId: string, windows: any[]) => 
+    api.put(`/services/${serviceId}/booking-windows`, { windows }),
+  createBookingWindow: (serviceId: string, window: any) => 
+    api.post(`/services/${serviceId}/booking-windows`, window),
+  updateBookingWindow: (windowId: string, updates: any) => 
+    api.patch(`/services/booking-windows/${windowId}`, updates),
+  deleteBookingWindow: (windowId: string) => 
+    api.delete(`/services/booking-windows/${windowId}`),
+  
+  // Service Blockers (Phase 4)
+  getBlockers: (serviceId: string) => api.get(`/services/${serviceId}/blockers`),
+  createBlocker: (serviceId: string, blocker: any) => 
+    api.post(`/services/${serviceId}/blockers`, blocker),
+  updateBlocker: (blockerId: string, updates: any) => 
+    api.patch(`/services/blockers/${blockerId}`, updates),
+  deleteBlocker: (blockerId: string) => 
+    api.delete(`/services/blockers/${blockerId}`),
+  
+  // Validation
+  validateBookingTime: (serviceId: string, dateTime: string) =>
+    api.post(`/services/${serviceId}/validate-time`, { dateTime }),
 };
