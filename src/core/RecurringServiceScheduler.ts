@@ -89,14 +89,34 @@ export class RecurringServiceScheduler {
   }
 
   private async findCustomersDueForRecurringServices(): Promise<PastBooking[]> {
-    const { data: recurringServices, error: servicesError } = await supabase
-      .from('services')
-      .select('id, name, recurring_interval_days, recurring_reminder_days_before, recurring_reminder_message')
-      .eq('is_active', true)
-      .eq('recurring_reminder_enabled', true);
+    let recurringServices: any[];
+    
+    try {
+      const { data, error: servicesError } = await supabase
+        .from('services')
+        .select('id, name, recurring_interval_days, recurring_reminder_days_before, recurring_reminder_message')
+        .eq('is_active', true)
+        .eq('recurring_reminder_enabled', true);
 
-    if (servicesError) throw servicesError;
-    if (!recurringServices || recurringServices.length === 0) return [];
+      if (servicesError) {
+        // If columns don't exist yet (schema not deployed), gracefully return empty array
+        if (servicesError.code === '42703') {
+          console.log('⚠️  Recurring service columns not yet deployed to database, skipping scheduler');
+          return [];
+        }
+        throw servicesError;
+      }
+      
+      recurringServices = data || [];
+      if (recurringServices.length === 0) return [];
+    } catch (error: any) {
+      // Handle column not found errors gracefully
+      if (error.code === '42703') {
+        console.log('⚠️  Recurring service columns not yet deployed to database, skipping scheduler');
+        return [];
+      }
+      throw error;
+    }
 
     const camelServices: RecurringService[] = recurringServices.map((s: any) => toCamelCase(s) as RecurringService);
     const dueSoon: PastBooking[] = [];

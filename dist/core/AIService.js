@@ -8,7 +8,7 @@ const openai_1 = __importDefault(require("../infrastructure/openai"));
 const supabase_1 = require("../infrastructure/supabase");
 const BotConfigService_1 = __importDefault(require("./BotConfigService"));
 class AIService {
-    async generateReply(conversationId, messageHistory, currentMessage) {
+    async generateReply(conversationId, messageHistory, currentMessage, intent, contactId) {
         try {
             const openai = await (0, openai_1.default)();
             const config = await BotConfigService_1.default.getConfig();
@@ -17,8 +17,19 @@ class AIService {
                 console.log('🚫 Auto-response disabled in configuration');
                 return config.fallback_message;
             }
-            // Build dynamic system prompt with business details and fine-tuning
-            const systemPrompt = await BotConfigService_1.default.buildSystemPrompt();
+            // Fetch contact's preferred language if contactId provided
+            let contactLanguage = null;
+            if (contactId) {
+                const { data: contact } = await supabase_1.supabase
+                    .from('contacts')
+                    .select('preferred_language')
+                    .eq('id', contactId)
+                    .single();
+                contactLanguage = contact?.preferred_language || null;
+                console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
+            }
+            // Build dynamic system prompt with business details, fine-tuning, AND language context
+            const systemPrompt = await BotConfigService_1.default.buildSystemPrompt(contactLanguage);
             const messages = [
                 {
                     role: 'system',
@@ -43,8 +54,8 @@ class AIService {
                 max_tokens: config.max_response_length,
             });
             const reply = response.choices[0]?.message?.content || config.fallback_message;
-            // Check confidence and escalate if needed
-            const confidence = this.estimateConfidence(reply);
+            // Check confidence and escalate if needed (pass intent for context-aware confidence)
+            const confidence = this.estimateConfidence(reply, intent);
             if (config.require_approval_low_confidence && confidence < config.confidence_threshold) {
                 console.log(`⚠️  Low confidence reply (${confidence}), may require approval`);
                 // TODO: Implement approval workflow
@@ -150,19 +161,103 @@ If you detect a service request, include it in entities: { "service": "service_n
                 return hasKeyword || hasNegativeSentiment;
         }
     }
-    estimateConfidence(reply) {
-        // Simple heuristic: longer, well-structured replies are likely more confident
-        // In production, you'd use OpenAI's logprobs or a separate confidence model
-        if (reply.includes('I\'m not sure') || reply.includes('I don\'t know')) {
-            return 0.3;
+    estimateConfidence(reply, intent) {
+        // Confidence based on reply complexity and intent, NOT length
+        // Length is a bot configuration setting (concise vs detailed), not a confidence indicator
+        // HIGH CONFIDENCE: Clear uncertainty indicators mean we should flag it
+        if (reply.includes('I\'m not sure') || reply.includes('I don\'t know') ||
+            reply.includes('uncertain') || reply.includes('nicht sicher') ||
+            reply.includes('weiss nicht')) {
+            return 0.3; // Low confidence - bot is explicitly uncertain
         }
-        if (reply.length < 50) {
-            return 0.5;
+        // BYPASS CONFIDENCE CHECK: Simple intents that don't need approval
+        // Greetings, confirmations, and standard booking flows are always high confidence
+        const safeIntents = ['greeting', 'booking_confirm', 'booking_cancel', 'booking_modify'];
+        if (intent && safeIntents.includes(intent)) {
+            return 1.0; // High confidence - these are simple, safe interactions
         }
-        if (reply.length > 200) {
-            return 0.9;
+        // COMPLEX SITUATIONS: Check for indicators of uncertainty in complex situations
+        const hasHedging = reply.match(/might|maybe|perhaps|possibly|vielleicht|möglicherweise/i);
+        const hasQuestions = (reply.match(/\?/g) || []).length > 1; // Multiple questions = uncertainty
+        const hasApology = reply.match(/sorry|entschuldigung|leider/i);
+        if (hasHedging && hasQuestions) {
+            return 0.4; // Medium-low confidence - hedging + questions indicates uncertainty
         }
-        return 0.7;
+        if (hasApology && hasQuestions) {
+            return 0.5; // Medium confidence - apologetic + questions
+        }
+        // DEFAULT: Most replies are confident unless they show uncertainty markers
+        return 0.8;
+    }
+    /**
+     * Detect if customer is explicitly requesting a language change
+     * Returns language code if detected, null otherwise
+     */
+    async detectLanguageChangeRequest(message) {
+        try {
+            const openai = await (0, openai_1.default)();
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You are a language preference detector. Analyze if the customer is EXPLICITLY requesting to change the conversation language.
+
+ONLY detect explicit language change requests like:
+- "Can you speak English?" / "Können Sie Englisch sprechen?" / "Parlez-vous anglais?"
+- "Please switch to German" / "Bitte auf Deutsch" / "En allemand s'il vous plaît"
+- "I prefer French" / "Je préfère français" / "Prefiero francés"
+- "Talk to me in Italian" / "Parlami in italiano"
+
+DO NOT detect:
+- Customers simply writing in a different language (e.g., switching from German to English mid-conversation)
+- Greetings in different languages ("Hello", "Bonjour")
+- Questions about business language capabilities
+
+Available languages:
+- de (German/Deutsch)
+- en (English)
+- fr (French/Français)
+- it (Italian/Italiano)
+- es (Spanish/Español)
+- pt (Portuguese/Português)
+
+Respond with JSON: { "language_requested": "de"|"en"|"fr"|"it"|"es"|"pt"|null, "confidence": 0-1 }
+
+If NO explicit language change is requested, return: { "language_requested": null, "confidence": 0 }`,
+                    },
+                    { role: 'user', content: message },
+                ],
+                response_format: { type: 'json_object' },
+            });
+            const result = JSON.parse(response.choices[0]?.message?.content || '{"language_requested":null,"confidence":0}');
+            return {
+                languageRequested: result.language_requested,
+                confidence: result.confidence || 0,
+            };
+        }
+        catch (error) {
+            console.error('❌ Language detection error:', error);
+            return { languageRequested: null, confidence: 0 };
+        }
+    }
+    /**
+     * Update contact's preferred language in database
+     */
+    async updateContactLanguage(contactId, languageCode) {
+        try {
+            const { error } = await supabase_1.supabase
+                .from('contacts')
+                .update({ preferred_language: languageCode })
+                .eq('id', contactId);
+            if (error)
+                throw error;
+            console.log(`✅ Updated contact ${contactId} preferred language to: ${languageCode}`);
+        }
+        catch (error) {
+            console.error('❌ Failed to update contact language:', error);
+            throw error;
+        }
     }
     /**
      * Extract customer insights from conversation history

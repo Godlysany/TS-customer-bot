@@ -296,6 +296,29 @@ async function handleMessage(msg) {
         }
         let replyText = null;
         try {
+            // PRIORITY 0: Check for explicit language change request
+            const languageRequest = await AIService_1.default.detectLanguageChangeRequest(text);
+            if (languageRequest.languageRequested && languageRequest.confidence > 0.7) {
+                console.log(`🌍 Language change detected: ${languageRequest.languageRequested} (confidence: ${languageRequest.confidence})`);
+                await AIService_1.default.updateContactLanguage(contact.id, languageRequest.languageRequested);
+                const languageNames = {
+                    de: 'Deutsch', en: 'English', fr: 'Français',
+                    it: 'Italiano', es: 'Español', pt: 'Português'
+                };
+                replyText = `Perfect! I'll continue our conversation in ${languageNames[languageRequest.languageRequested]}. How can I help you?`;
+                const messageRecord = await MessageService_1.default.createMessage({
+                    conversationId: conversation.id,
+                    content: replyText,
+                    messageType: 'text',
+                    direction: 'outbound',
+                    sender: 'bot',
+                    approvalStatus: 'approved',
+                });
+                await MessageService_1.default.updateConversationLastMessage(conversation.id);
+                await sock.sendMessage(sender, { text: replyText });
+                console.log(`✅ Language confirmation sent in ${languageRequest.languageRequested}`);
+                return;
+            }
             // PRIORITY 1: Check for active questionnaire (customer is answering questions)
             if (QuestionnaireRuntimeService_1.default.hasActiveQuestionnaire(conversation.id)) {
                 console.log('📋 Customer is answering questionnaire');
@@ -315,7 +338,8 @@ async function handleMessage(msg) {
                     replyText = await BookingChatHandler_1.default.handleBookingIntent(intent.intent, conversation.id, contact.id, phoneNumber, text, messageHistory);
                 }
                 else {
-                    replyText = await AIService_1.default.generateReply(conversation.id, messageHistory, text);
+                    // Pass intent to generateReply for context-aware confidence scoring
+                    replyText = await AIService_1.default.generateReply(conversation.id, messageHistory, text, intent.intent, conversation.contactId);
                 }
             }
         }

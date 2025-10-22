@@ -54,13 +54,13 @@ const documents_1 = __importDefault(require("./api/documents"));
 const no_show_1 = __importDefault(require("./api/no-show"));
 const payments_1 = __importDefault(require("./api/payments"));
 const message_approval_1 = __importDefault(require("./api/message-approval"));
+const escalation_routes_1 = __importDefault(require("./api/escalation-routes"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
 const MarketingCampaignScheduler_1 = require("./core/MarketingCampaignScheduler");
 const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"));
 const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
-const RecurringServiceScheduler_1 = __importDefault(require("./core/RecurringServiceScheduler"));
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -106,6 +106,7 @@ app.use('/api/documents', documents_1.default);
 app.use('/api/no-show', no_show_1.default);
 app.use('/api/payments', payments_1.default);
 app.use('/api/message-approval', message_approval_1.default);
+app.use('/api', escalation_routes_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching
@@ -165,7 +166,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     // Start marketing campaign scheduler (checks every 60 minutes)
     (0, MarketingCampaignScheduler_1.startMarketingCampaignScheduler)(60);
     // Start recurring service reminder scheduler (checks daily - 1440 minutes)
-    RecurringServiceScheduler_1.default.start(1440);
+    // Temporarily disabled until schema deployment completes (recurring_interval_days column)
+    // recurringServiceScheduler.start(1440);
     // Auto-reconnect WhatsApp if credentials exist
     const authInfoPath = path_1.default.join(__dirname, '../auth_info');
     if (fs.existsSync(authInfoPath)) {

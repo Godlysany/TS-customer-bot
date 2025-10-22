@@ -548,12 +548,12 @@ router.get('/api/dashboard/stats', async (req, res) => {
         }
         const { count: conversationCount } = await conversationQuery;
         // Get message activity count
-        let messageQuery = supabase_1.supabase.from('conversation_messages').select('id', { count: 'exact', head: true });
+        let messageQuery = supabase_1.supabase.from('messages').select('id', { count: 'exact', head: true });
         if (startDate) {
-            messageQuery = messageQuery.gte('created_at', new Date(startDate).toISOString());
+            messageQuery = messageQuery.gte('timestamp', new Date(startDate).toISOString());
         }
         if (endDate) {
-            messageQuery = messageQuery.lte('created_at', new Date(endDate).toISOString());
+            messageQuery = messageQuery.lte('timestamp', new Date(endDate).toISOString());
         }
         const { count: messageCount } = await messageQuery;
         res.json({

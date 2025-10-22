@@ -151,7 +151,8 @@ const server = app.listen(config.port, config.host, () => {
   startMarketingCampaignScheduler(60);
   
   // Start recurring service reminder scheduler (checks daily - 1440 minutes)
-  recurringServiceScheduler.start(1440);
+  // Temporarily disabled until schema deployment completes (recurring_interval_days column)
+  // recurringServiceScheduler.start(1440);
   
   // Auto-reconnect WhatsApp if credentials exist
   const authInfoPath = path.join(__dirname, '../auth_info');
