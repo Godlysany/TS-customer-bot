@@ -1,5 +1,5 @@
 -- WhatsApp CRM Bot - Supabase Database Schema
--- Production deployment: October 13, 2025
+-- Production deployment: October 22, 2025 (Full deployment: Phase 1, 2, 3)
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -1191,7 +1191,10 @@ EXECUTE FUNCTION expire_old_bot_requests();
 -- DEPLOYMENT NOTES
 -- ============================================
 
--- This schema adds:
+-- This schema includes ALL production features:
+-- Phase 1: CRM customer insight extraction (10 new contact fields)
+-- Phase 2: Marketing campaigns, promotions, payment links, CSV imports
+-- Phase 3: Multi-session booking system (immediate/sequential/flexible strategies)
 -- 1. Full promotion system with service-specific discounts
 -- 2. Bot autonomous discount offering with admin approval queue
 -- 3. Payment link tracking for Stripe checkout
@@ -1199,5 +1202,7 @@ EXECUTE FUNCTION expire_old_bot_requests();
 -- 5. Comprehensive promotion usage analytics
 -- 6. Security: Bot autonomy capped at configurable CHF limit
 -- 7. Balance sheet protection through admin approval workflow
+-- 8. Multi-session bookings with session grouping and auto-triggers
 
 -- Deploy via: GitHub Actions → .github/workflows/deploy-supabase.yml
+-- Deployment date: October 22, 2025
