@@ -198,14 +198,14 @@ const BusinessDetailsSection = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
           />
           <p className="text-xs text-gray-500 mt-1">
-            The bot will only offer appointment slots within these hours. Format: "Day(s): HH:MM-HH:MM"
+            Generic business hours information shown to customers. For booking restrictions, configure each service individually in the Service Configuration tab.
           </p>
         </div>
 
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-sm text-amber-800">
-            <strong>Note:</strong> Opening hours control when the bot can schedule appointments. 
-            Make sure to keep this updated, especially for holidays and special closures.
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Context Information Only:</strong> These hours are provided to customers as general business information. 
+            To control when specific services can be booked, use the Service Configuration tab to set booking windows per service.
           </p>
         </div>
       </div>
