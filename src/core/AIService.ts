@@ -227,6 +227,80 @@ If you detect a service request, include it in entities: { "service": "service_n
   }
 
   /**
+   * Detect if customer is explicitly requesting a language change
+   * Returns language code if detected, null otherwise
+   */
+  async detectLanguageChangeRequest(message: string): Promise<{ languageRequested: string | null; confidence: number }> {
+    try {
+      const openai = await getOpenAIClient();
+      
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a language preference detector. Analyze if the customer is EXPLICITLY requesting to change the conversation language.
+
+ONLY detect explicit language change requests like:
+- "Can you speak English?" / "Können Sie Englisch sprechen?" / "Parlez-vous anglais?"
+- "Please switch to German" / "Bitte auf Deutsch" / "En allemand s'il vous plaît"
+- "I prefer French" / "Je préfère français" / "Prefiero francés"
+- "Talk to me in Italian" / "Parlami in italiano"
+
+DO NOT detect:
+- Customers simply writing in a different language (e.g., switching from German to English mid-conversation)
+- Greetings in different languages ("Hello", "Bonjour")
+- Questions about business language capabilities
+
+Available languages:
+- de (German/Deutsch)
+- en (English)
+- fr (French/Français)
+- it (Italian/Italiano)
+- es (Spanish/Español)
+- pt (Portuguese/Português)
+
+Respond with JSON: { "language_requested": "de"|"en"|"fr"|"it"|"es"|"pt"|null, "confidence": 0-1 }
+
+If NO explicit language change is requested, return: { "language_requested": null, "confidence": 0 }`,
+          },
+          { role: 'user', content: message },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      const result = JSON.parse(response.choices[0]?.message?.content || '{"language_requested":null,"confidence":0}');
+      
+      return {
+        languageRequested: result.language_requested,
+        confidence: result.confidence || 0,
+      };
+    } catch (error) {
+      console.error('❌ Language detection error:', error);
+      return { languageRequested: null, confidence: 0 };
+    }
+  }
+
+  /**
+   * Update contact's preferred language in database
+   */
+  async updateContactLanguage(contactId: string, languageCode: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ preferred_language: languageCode })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      console.log(`✅ Updated contact ${contactId} preferred language to: ${languageCode}`);
+    } catch (error) {
+      console.error('❌ Failed to update contact language:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Extract customer insights from conversation history
    * Analyzes messages to find preferences, fears, allergies, special needs, etc.
    */

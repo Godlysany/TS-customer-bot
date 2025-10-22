@@ -324,6 +324,34 @@ async function handleMessage(msg: WAMessage) {
     let replyText: string | null = null;
 
     try {
+      // PRIORITY 0: Check for explicit language change request
+      const languageRequest = await aiService.detectLanguageChangeRequest(text);
+      if (languageRequest.languageRequested && languageRequest.confidence > 0.7) {
+        console.log(`🌍 Language change detected: ${languageRequest.languageRequested} (confidence: ${languageRequest.confidence})`);
+        await aiService.updateContactLanguage(contact.id, languageRequest.languageRequested);
+        
+        const languageNames: Record<string, string> = {
+          de: 'Deutsch', en: 'English', fr: 'Français', 
+          it: 'Italiano', es: 'Español', pt: 'Português'
+        };
+        
+        replyText = `Perfect! I'll continue our conversation in ${languageNames[languageRequest.languageRequested]}. How can I help you?`;
+        
+        const messageRecord = await messageService.createMessage({
+          conversationId: conversation.id,
+          content: replyText,
+          messageType: 'text',
+          direction: 'outbound',
+          sender: 'bot',
+          approvalStatus: 'approved',
+        });
+        
+        await messageService.updateConversationLastMessage(conversation.id);
+        await sock.sendMessage(sender, { text: replyText });
+        console.log(`✅ Language confirmation sent in ${languageRequest.languageRequested}`);
+        return;
+      }
+      
       // PRIORITY 1: Check for active questionnaire (customer is answering questions)
       if (questionnaireRuntimeService.hasActiveQuestionnaire(conversation.id)) {
         console.log('📋 Customer is answering questionnaire');

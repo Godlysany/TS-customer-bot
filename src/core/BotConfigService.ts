@@ -72,6 +72,11 @@ interface BotConfig {
   enable_typing_indicator: boolean;
   block_inappropriate_requests: boolean;
   require_human_review_topics: string;
+  
+  // Language Configuration
+  default_bot_language: string;
+  supported_languages: string;
+  auto_detect_language: boolean;
 }
 
 export class BotConfigService {
