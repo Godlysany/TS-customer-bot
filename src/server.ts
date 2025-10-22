@@ -168,6 +168,12 @@ const server = app.listen(config.port, config.host, () => {
         calendarClient.initialize().then((initialized) => {
           if (initialized) {
             bookingService.setCalendarProvider(calendarClient);
+            
+            // Also set on BatchBookingService for multi-session bookings
+            import('./core/BatchBookingService').then(({ default: batchBookingService }) => {
+              batchBookingService.setCalendarProvider(calendarClient);
+            });
+            
             console.log('📅 Google Calendar provider initialized');
           } else {
             console.log('📅 Google Calendar not connected - connect via Settings page');
