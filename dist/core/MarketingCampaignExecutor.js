@@ -105,8 +105,8 @@ class MarketingCampaignExecutor {
                             totalFailed++;
                             continue;
                         }
-                        // Format message with placeholders
-                        const message = this.formatCampaignMessage(campaign.messageTemplate, contact);
+                        // Format message with placeholders and GPT personalization
+                        const message = await this.formatCampaignMessage(campaign.messageTemplate, contact);
                         // Send message
                         const success = await (0, whatsapp_1.sendProactiveMessage)(phoneNumber, message, contact.id);
                         if (success) {
@@ -269,13 +269,75 @@ class MarketingCampaignExecutor {
         }
     }
     /**
-     * Format campaign message with dynamic placeholders
+     * Format campaign message with dynamic placeholders and GPT personalization
+     * Uses conversation history to adapt message to customer context and preferred language
      */
-    formatCampaignMessage(template, contact) {
-        return template
+    async formatCampaignMessage(template, contact) {
+        // Basic placeholder replacement
+        let message = template
             .replace(/\{\{name\}\}/g, contact.name || 'valued customer')
             .replace(/\{\{phone\}\}/g, contact.phoneNumber || contact.phone_number || '')
             .replace(/\{\{email\}\}/g, contact.email || '');
+        // Try GPT personalization if contact has conversation history
+        try {
+            const getOpenAI = (await Promise.resolve().then(() => __importStar(require('../infrastructure/openai')))).default;
+            const openai = await getOpenAI();
+            // Get conversation history for context
+            const { data: messages } = await supabase_1.supabase
+                .from('messages')
+                .select('content, direction, timestamp')
+                .eq('conversation_id', contact.conversationId || contact.conversation_id)
+                .order('timestamp', { ascending: false })
+                .limit(10);
+            // Get booking history for service context
+            const { data: bookings } = await supabase_1.supabase
+                .from('bookings')
+                .select('*, services(name)')
+                .eq('contact_id', contact.id)
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (messages && messages.length > 0) {
+                const serviceHistory = bookings?.map((b) => b.services?.name).filter(Boolean).join(', ') || 'none';
+                const conversationContext = messages.slice(0, 5).map((m) => `${m.direction === 'inbound' ? 'Customer' : 'Bot'}: ${m.content}`).join('\n');
+                const systemPrompt = `You are personalizing a marketing message for a customer based on their history and preferences.
+
+Customer Name: ${contact.name || 'Customer'}
+Language Preference: ${contact.preferredLanguage || contact.preferred_language || 'de'}
+Past Services: ${serviceHistory}
+Recent Conversation:
+${conversationContext}
+
+Instructions:
+1. Adapt the marketing message to match the customer's preferred language (${contact.preferredLanguage || contact.preferred_language || 'de'})
+2. Reference their service history naturally if relevant
+3. Keep the core message intent but personalize the tone and context
+4. Keep it concise and professional
+5. Output ONLY the personalized message, nothing else`;
+                const userMessage = `Original marketing message:
+${message}
+
+Personalize this for the customer based on their history and language preference.`;
+                const response = await openai.chat.completions.create({
+                    model: 'gpt-4o',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage },
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 300,
+                });
+                const personalizedMessage = response.choices[0]?.message?.content;
+                if (personalizedMessage) {
+                    console.log(`   🎯 GPT personalized message for ${contact.name || contact.id}`);
+                    return personalizedMessage.trim();
+                }
+            }
+        }
+        catch (error) {
+            console.warn(`   ⚠️ GPT personalization failed, using template: ${error.message}`);
+        }
+        // Fallback to basic template
+        return message;
     }
     /**
      * Manually trigger a campaign (for testing or admin-triggered campaigns)

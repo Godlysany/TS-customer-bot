@@ -45,9 +45,7 @@ const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 const qrcode_terminal_1 = __importDefault(require("qrcode-terminal"));
 // @ts-ignore
 const qrcode_1 = __importDefault(require("qrcode"));
-const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
-const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../infrastructure/config");
 const supabase_1 = require("../infrastructure/supabase");
 const ConversationService_1 = __importDefault(require("../core/ConversationService"));
@@ -61,6 +59,7 @@ const QuestionnaireRuntimeService_1 = __importDefault(require("../core/Questionn
 const QuestionnaireService_1 = require("../core/QuestionnaireService");
 const BotDiscountService_1 = __importDefault(require("../core/BotDiscountService"));
 const PromotionService_1 = __importDefault(require("../core/PromotionService"));
+const TTSService_1 = __importDefault(require("../core/TTSService"));
 const debounceTimers = new Map();
 const messageBuffers = new Map();
 // Store current QR code for frontend display
@@ -79,52 +78,16 @@ if (config_1.config.whatsapp.resetAuth) {
         console.warn('⚠️ auth_info folder not found, nothing to delete.');
     }
 }
+// DEPRECATED: Use TTSService.transcribeVoice instead
+// Kept for backward compatibility only
 async function transcribeVoice(filePath) {
-    try {
-        const response = await axios_1.default.post('https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true', fs_1.default.createReadStream(filePath), {
-            headers: {
-                Authorization: `Token ${config_1.config.deepgram.apiKey}`,
-                'Content-Type': 'audio/ogg',
-            },
-        });
-        const transcript = response.data.results.channels[0].alternatives[0].transcript;
-        console.log(`🧠 Transcription:`, transcript);
-        return transcript;
-    }
-    catch (err) {
-        console.error('❌ Transcription failed:', err.message);
-        return '[transcription failed]';
-    }
+    const { transcript } = await TTSService_1.default.transcribeVoice(filePath);
+    return transcript;
 }
+// DEPRECATED: Use TTSService.textToSpeech instead
+// Kept for backward compatibility only
 async function textToSpeech(text) {
-    const voiceId = config_1.config.elevenlabs.voiceId || 'default-voice-id';
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-    try {
-        const response = await axios_1.default.post(url, {
-            text,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: {
-                stability: 0.3,
-                similarity_boost: 0.7,
-            },
-        }, {
-            headers: {
-                'xi-api-key': config_1.config.elevenlabs.apiKey,
-                'Content-Type': 'application/json',
-            },
-            responseType: 'arraybuffer',
-        });
-        const tempRawPath = `./raw-${Date.now()}.mp3`;
-        const finalOggPath = `./voice-${Date.now()}.ogg`;
-        fs_1.default.writeFileSync(tempRawPath, response.data);
-        (0, child_process_1.execSync)(`ffmpeg -y -i "${tempRawPath}" -ar 16000 -ac 1 -c:a libopus "${finalOggPath}"`);
-        fs_1.default.unlinkSync(tempRawPath);
-        return finalOggPath;
-    }
-    catch (err) {
-        console.warn('⚠️ ElevenLabs voice synthesis failed:', err.message);
-        return null;
-    }
+    return await TTSService_1.default.textToSpeech(text);
 }
 function cleanText(text) {
     return text
@@ -294,6 +257,8 @@ async function handleMessage(msg) {
     let text;
     let isVoice = false;
     let messageType = 'text';
+    let voiceTranscription;
+    let voiceDuration;
     try {
         if (msg.message.audioMessage?.ptt) {
             isVoice = true;
@@ -301,7 +266,10 @@ async function handleMessage(msg) {
             const buffer = await (0, baileys_1.downloadMediaMessage)(msg, 'buffer', {});
             const filePath = `./voice-${Date.now()}.ogg`;
             fs_1.default.writeFileSync(filePath, buffer);
-            text = await transcribeVoice(filePath);
+            const { transcript, duration } = await TTSService_1.default.transcribeVoice(filePath);
+            text = transcript;
+            voiceTranscription = transcript;
+            voiceDuration = duration;
             fs_1.default.unlinkSync(filePath);
         }
         else if (msg.message.imageMessage) {
@@ -319,13 +287,17 @@ async function handleMessage(msg) {
         // Extract WhatsApp contact name from message
         const whatsappName = msg.pushName || msg.verifiedBizName || null;
         const { conversation, contact } = await ConversationService_1.default.getOrCreateConversation(phoneNumber, whatsappName);
-        await MessageService_1.default.createMessage({
+        const inboundMessage = await MessageService_1.default.createMessage({
             conversationId: conversation.id,
             content: text,
             messageType,
             direction: 'inbound',
             sender: phoneNumber,
         });
+        // Store voice transcription if it was a voice message
+        if (voiceTranscription && inboundMessage.id) {
+            await TTSService_1.default.updateMessageWithVoiceData(inboundMessage.id, voiceTranscription, voiceDuration);
+        }
         const messageHistory = await MessageService_1.default.getConversationMessages(conversation.id);
         const canBotReply = await ConversationTakeoverService_1.default.canBotReply(conversation.id);
         if (!canBotReply) {
@@ -469,11 +441,11 @@ async function handleMessage(msg) {
             return;
         }
         await MessageService_1.default.updateConversationLastMessage(conversation.id);
-        const shouldSendVoice = config_1.config.whatsapp.replyMode === 'voice' ||
-            (config_1.config.whatsapp.replyMode === 'voice-on-voice' && isVoice);
-        if (shouldSendVoice && config_1.config.elevenlabs.apiKey) {
+        // Determine if we should reply with voice based on TTS settings
+        const shouldSendVoice = await TTSService_1.default.shouldReplyWithVoice(contact.id, isVoice);
+        if (shouldSendVoice) {
             try {
-                const audioPath = await textToSpeech(replyText);
+                const audioPath = await TTSService_1.default.textToSpeech(replyText);
                 if (audioPath) {
                     const audioBuffer = fs_1.default.readFileSync(audioPath);
                     await sock.sendMessage(sender, {
@@ -483,7 +455,12 @@ async function handleMessage(msg) {
                     });
                     fs_1.default.unlinkSync(audioPath);
                     console.log('✅ Voice note sent');
+                    // Update message record with TTS audio info
+                    await TTSService_1.default.updateMessageWithVoiceData(messageRecord.id, undefined, undefined, 'tts_audio_sent');
                     return;
+                }
+                else {
+                    console.warn('⚠️ TTS generation failed, falling back to text');
                 }
             }
             catch (err) {
