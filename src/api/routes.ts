@@ -495,7 +495,9 @@ router.get('/api/conversations/:id/takeover/status', async (req, res) => {
     }
     
     const takeover = await conversationTakeoverService.getActiveTakeover(id);
-    res.json({ takeover });
+    
+    // Return takeover directly with isActive flag for easier frontend access
+    res.json(takeover ? { ...takeover, isActive: takeover.isActive } : { isActive: false });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

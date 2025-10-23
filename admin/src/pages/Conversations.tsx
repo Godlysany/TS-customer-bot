@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { conversationsApi, messageApprovalApi } from '../lib/api';
+import { conversationsApi, messageApprovalApi, authApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, CheckCircle, User, FileText, Check, X } from 'lucide-react';
@@ -11,6 +11,15 @@ const Conversations = () => {
   const [selectedConv, setSelectedConv] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const queryClient = useQueryClient();
+
+  // Get current user for agent ID
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: async () => {
+      const res = await authApi.me();
+      return res.data;
+    },
+  });
 
   const { data: conversations } = useQuery({
     queryKey: ['conversations'],
@@ -55,11 +64,20 @@ const Conversations = () => {
       if (takeoverStatus?.isActive) {
         return conversationsApi.endTakeover(selectedConv!);
       } else {
-        return conversationsApi.takeover(selectedConv!, 'pause_bot', 'agent-1');
+        const agentId = currentUser?.id || 'system';
+        return conversationsApi.takeover(selectedConv!, 'pause_bot', agentId);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['takeover', selectedConv] });
+      if (takeoverStatus?.isActive) {
+        toast.success('Bot resumed - AI will respond to customer');
+      } else {
+        toast.success('Bot paused - You have full control');
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to toggle bot');
     },
   });
 

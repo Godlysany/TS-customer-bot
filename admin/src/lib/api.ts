@@ -27,8 +27,8 @@ export const conversationsApi = {
     api.post(`/conversations/${id}/escalate`, { reason }),
   resolve: (id: string) => 
     api.post(`/conversations/${id}/resolve`),
-  takeover: (id: string, mode: string, agentId: string) =>
-    api.post(`/conversations/${id}/takeover`, { mode, agentId }),
+  takeover: (id: string, type: string, agentId: string) =>
+    api.post(`/conversations/${id}/takeover`, { type, agentId }),
   endTakeover: (id: string) =>
     api.post(`/conversations/${id}/takeover/end`),
   getTakeoverStatus: (id: string) =>
