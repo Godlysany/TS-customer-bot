@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { contactApi } from '../lib/contact-api';
 import { Plus, Upload, Download, X, Search, Edit2, Trash2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const CustomersManagement = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isMaster } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -300,7 +302,11 @@ const CustomersManagement = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredContacts?.map((contact: any) => (
-                <tr key={contact.id} className="hover:bg-gray-50">
+                <tr 
+                  key={contact.id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/customer-detail/${contact.id}`)}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -358,7 +364,7 @@ const CustomersManagement = () => {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => handleEdit(contact)}
                         className="p-1 text-blue-600 hover:bg-blue-50 rounded"

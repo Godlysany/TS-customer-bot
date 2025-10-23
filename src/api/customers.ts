@@ -117,4 +117,51 @@ router.get('/:id/questionnaires', async (req, res) => {
   }
 });
 
+router.get('/:id/analytics', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
+    // Get customer analytics data
+    const { data: analytics, error: analyticsError } = await supabase
+      .from('customer_analytics')
+      .select('*')
+      .eq('contact_id', id)
+      .single();
+
+    // Get conversation count
+    const { count: conversationCount } = await supabase
+      .from('conversations')
+      .select('*', { count: 'exact', head: true })
+      .eq('contact_id', id);
+
+    // Get booking count
+    const { count: bookingCount } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('contact_id', id);
+
+    // Format response
+    const response = {
+      sentiment: analytics?.sentiment || 'neutral',
+      upsellPotential: analytics?.upsell_potential || 'low',
+      lastEngagementScore: analytics?.last_engagement_score || 0,
+      keywords: analytics?.keywords || [],
+      appointmentHistory: bookingCount || 0,
+      conversationCount: conversationCount || 0,
+      lastInteractionAt: analytics?.last_interaction_at || null,
+    };
+
+    res.json(response);
+  } catch (error: any) {
+    console.error('Error fetching customer analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch customer analytics' });
+  }
+});
+
 export default router;

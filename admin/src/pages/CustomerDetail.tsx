@@ -55,12 +55,12 @@ const CustomerDetail = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {customer?.phone && (
+              {customer?.phone_number && (
                 <div className="flex items-center gap-3">
                   <Phone className="w-5 h-5 text-gray-400" />
                   <div>
                     <p className="text-xs text-gray-500">Phone</p>
-                    <p className="text-sm font-medium text-gray-900">{customer.phone}</p>
+                    <p className="text-sm font-medium text-gray-900">{customer.phone_number}</p>
                   </div>
                 </div>
               )}
