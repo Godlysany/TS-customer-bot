@@ -24,8 +24,8 @@ class EscalationService {
           ),
           agent:agents(
             id,
-            username,
-            full_name
+            name,
+            email
           )
         `)
                 .order('created_at', { ascending: false });
@@ -65,8 +65,8 @@ class EscalationService {
           ),
           agent:agents(
             id,
-            username,
-            full_name
+            name,
+            email
           )
         `)
                 .eq('id', id)

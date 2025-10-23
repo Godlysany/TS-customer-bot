@@ -23,8 +23,8 @@ interface EscalationWithDetails extends Escalation {
   };
   agent?: {
     id: string;
-    username: string;
-    fullName: string;
+    name: string;
+    email: string;
   };
 }
 
@@ -52,8 +52,8 @@ export class EscalationService {
           ),
           agent:agents(
             id,
-            username,
-            full_name
+            name,
+            email
           )
         `)
         .order('created_at', { ascending: false });
@@ -97,8 +97,8 @@ export class EscalationService {
           ),
           agent:agents(
             id,
-            username,
-            full_name
+            name,
+            email
           )
         `)
         .eq('id', id)
