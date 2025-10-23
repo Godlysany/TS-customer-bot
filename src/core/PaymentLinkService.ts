@@ -217,6 +217,9 @@ class PaymentLinkService {
       });
 
       console.log(`Payment confirmed for booking: ${paymentLink.booking_id}`);
+
+      // BOT INTEGRATION: Send WhatsApp confirmation to customer
+      await this.sendPaymentConfirmationWhatsApp(paymentLink.contact_id, paymentLink.amount_chf, 'success', paymentLink.booking_id);
     } catch (error: any) {
       console.error('Error handling checkout session completed:', error);
       throw error;
@@ -275,6 +278,19 @@ class PaymentLinkService {
       }
 
       console.log(`Payment link expired for session: ${session.id}`);
+
+      // BOT INTEGRATION: Notify customer of expiration
+      if (paymentLink) {
+        const { data: linkData } = await supabase
+          .from('payment_links')
+          .select('contact_id, amount_chf')
+          .eq('stripe_checkout_session_id', session.id)
+          .single();
+
+        if (linkData) {
+          await this.sendPaymentConfirmationWhatsApp(linkData.contact_id, linkData.amount_chf, 'expired');
+        }
+      }
     } catch (error: any) {
       console.error('Error handling checkout session expired:', error);
     }
@@ -390,6 +406,17 @@ class PaymentLinkService {
       }
 
       console.log(`Payment intent failed: ${paymentIntent.id}`);
+
+      // BOT INTEGRATION: Notify customer of payment failure
+      const { data: linkData } = await supabase
+        .from('payment_links')
+        .select('contact_id, amount_chf')
+        .eq('stripe_checkout_session_id', checkoutSessionId)
+        .single();
+
+      if (linkData) {
+        await this.sendPaymentConfirmationWhatsApp(linkData.contact_id, linkData.amount_chf, 'failure');
+      }
     } catch (error: any) {
       console.error('Error handling payment intent failed:', error);
     }
@@ -497,6 +524,71 @@ class PaymentLinkService {
     } catch (error: any) {
       console.error('Error cancelling payment link:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Send payment confirmation/failure WhatsApp notification to customer
+   */
+  private async sendPaymentConfirmationWhatsApp(
+    contactId: string, 
+    amount: number, 
+    status: 'success' | 'failure' | 'expired',
+    bookingId?: string
+  ): Promise<void> {
+    try {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('phone_number, name, language')
+        .eq('id', contactId)
+        .single();
+
+      if (!contact?.phone_number) {
+        console.warn('Cannot send payment notification: No phone number for contact');
+        return;
+      }
+
+      const language = contact.language || 'de';
+      let message: string;
+
+      if (status === 'success') {
+        const messages: Record<string, string> = {
+          de: `✅ *Zahlung erfolgreich*\n\nVielen Dank! Ihre Zahlung über CHF ${amount.toFixed(2)} wurde erfolgreich verarbeitet.\n\nIhr Termin ist nun bestätigt. Sie erhalten in Kürze eine Bestätigungs-E-Mail.`,
+          en: `✅ *Payment Successful*\n\nThank you! Your payment of CHF ${amount.toFixed(2)} has been processed successfully.\n\nYour appointment is now confirmed. You'll receive a confirmation email shortly.`,
+          fr: `✅ *Paiement réussi*\n\nMerci! Votre paiement de CHF ${amount.toFixed(2)} a été traité avec succès.\n\nVotre rendez-vous est maintenant confirmé. Vous recevrez un e-mail de confirmation sous peu.`,
+        };
+        message = messages[language] || messages.de;
+      } else if (status === 'failure') {
+        const messages: Record<string, string> = {
+          de: `❌ *Zahlung fehlgeschlagen*\n\nLeider ist Ihre Zahlung über CHF ${amount.toFixed(2)} fehlgeschlagen.\n\nBitte versuchen Sie es erneut oder wählen Sie eine andere Zahlungsmethode. Bei weiteren Fragen kontaktieren Sie uns gerne.`,
+          en: `❌ *Payment Failed*\n\nUnfortunately, your payment of CHF ${amount.toFixed(2)} failed.\n\nPlease try again or choose a different payment method. Feel free to contact us if you have any questions.`,
+          fr: `❌ *Paiement échoué*\n\nMalheureusement, votre paiement de CHF ${amount.toFixed(2)} a échoué.\n\nVeuillez réessayer ou choisir un autre mode de paiement. N'hésitez pas à nous contacter si vous avez des questions.`,
+        };
+        message = messages[language] || messages.de;
+      } else { // expired
+        const messages: Record<string, string> = {
+          de: `⏰ *Zahlungslink abgelaufen*\n\nIhr Zahlungslink über CHF ${amount.toFixed(2)} ist abgelaufen.\n\nWenn Sie den Termin noch buchen möchten, starten Sie bitte eine neue Buchung.`,
+          en: `⏰ *Payment Link Expired*\n\nYour payment link for CHF ${amount.toFixed(2)} has expired.\n\nIf you still want to book the appointment, please start a new booking.`,
+          fr: `⏰ *Lien de paiement expiré*\n\nVotre lien de paiement pour CHF ${amount.toFixed(2)} a expiré.\n\nSi vous souhaitez toujours réserver le rendez-vous, veuillez démarrer une nouvelle réservation.`,
+        };
+        message = messages[language] || messages.de;
+      }
+
+      // Send via WhatsApp
+      try {
+        const whatsappModule = await import('../adapters/whatsapp');
+        const sock = whatsappModule.default;
+        if (sock) {
+          const formattedPhone = contact.phone_number.includes('@') ? contact.phone_number : `${contact.phone_number}@s.whatsapp.net`;
+          await sock.sendMessage(formattedPhone, { text: message });
+          console.log(`✅ Payment ${status} notification sent to ${contact.name}`);
+        }
+      } catch (whatsappError) {
+        console.error('❌ Failed to send payment notification via WhatsApp:', whatsappError);
+      }
+    } catch (error) {
+      console.error('❌ Failed to send payment notification:', error);
+      // Don't throw - notification failure shouldn't block payment processing
     }
   }
 }

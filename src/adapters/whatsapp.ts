@@ -538,15 +538,44 @@ async function handleMessage(msg: WAMessage) {
         console.log('🎯 Intent detected:', intent);
 
         if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
-          // Start new booking conversation flow
-          replyText = await bookingChatHandler.handleBookingIntent(
-            intent.intent,
-            conversation.id,
-            contact.id,
-            phoneNumber,
-            text,
-            messageHistory
-          );
+          // Start new booking conversation flow with payment restriction handling
+          try {
+            replyText = await bookingChatHandler.handleBookingIntent(
+              intent.intent,
+              conversation.id,
+              contact.id,
+              phoneNumber,
+              text,
+              messageHistory
+            );
+          } catch (bookingError: any) {
+            // Handle payment restriction errors with customer-friendly messaging
+            if (bookingError.message && bookingError.message.includes('PAYMENT_REQUIRED:')) {
+              const paymentMessage = bookingError.message.replace('PAYMENT_REQUIRED:', '').trim();
+              
+              // Fetch outstanding balance details for personalized message
+              const { data: contactData } = await supabase.from('contacts')
+                .select('outstanding_balance_chf, has_overdue_payments')
+                .eq('id', contact.id)
+                .single();
+
+              const language = contact.language || 'de';
+              const balance = contactData?.outstanding_balance_chf || 0;
+              
+              const messages: Record<string, string> = {
+                de: `⚠️ *Zahlung erforderlich*\n\n${paymentMessage}\n\nSobald Sie die ausstehende Zahlung beglichen haben, können Sie wieder Termine buchen. Wenn Sie Fragen haben oder eine Zahlungsvereinbarung treffen möchten, kontaktieren Sie uns bitte.`,
+                en: `⚠️ *Payment Required*\n\n${paymentMessage}\n\nOnce you've settled the outstanding payment, you'll be able to book appointments again. If you have questions or would like to arrange a payment plan, please contact us.`,
+                fr: `⚠️ *Paiement requis*\n\n${paymentMessage}\n\nUne fois le paiement en suspens réglé, vous pourrez à nouveau prendre rendez-vous. Si vous avez des questions ou souhaitez convenir d'un plan de paiement, veuillez nous contacter.`,
+              };
+
+              replyText = messages[language] || messages.de;
+              
+              console.log(`🚫 Booking blocked due to outstanding balance: CHF ${balance}`);
+            } else {
+              // Other booking errors - rethrow
+              throw bookingError;
+            }
+          }
         } else {
           // Pass intent to generateReply for context-aware confidence scoring
           replyText = await aiService.generateReply(conversation.id, messageHistory, text, intent.intent, conversation.contactId);
