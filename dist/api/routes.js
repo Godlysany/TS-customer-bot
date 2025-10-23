@@ -75,7 +75,9 @@ router.get('/api/conversations', auth_1.authMiddleware, async (req, res) => {
             .order('last_message_at', { ascending: false });
         if (error)
             throw error;
-        res.json(data);
+        // Map to camelCase for frontend compatibility
+        const { toCamelCaseArray } = await Promise.resolve().then(() => __importStar(require('../infrastructure/mapper')));
+        res.json(toCamelCaseArray(data || []));
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -357,8 +359,8 @@ router.get('/api/settings', auth_1.authMiddleware, async (req, res) => {
 });
 router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
-        const { value } = req.body;
-        await SettingsService_1.default.updateSetting(req.params.key, value);
+        const { value, category, description } = req.body;
+        await SettingsService_1.default.updateSetting(req.params.key, value, category, description);
         res.json({ success: true });
     }
     catch (error) {
