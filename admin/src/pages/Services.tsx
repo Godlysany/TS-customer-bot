@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { servicesApi } from '../lib/api';
+import { servicesApi, uploadsApi } from '../lib/api';
 import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X } from 'lucide-react';
+import DocumentUpload from '../components/shared/DocumentUpload';
 
 interface Service {
   id: string;
@@ -27,6 +28,11 @@ interface Service {
   recurringIntervalDays?: number;
   recurringReminderDaysBefore?: number;
   recurringReminderMessage?: string;
+  documentUrl?: string | null;
+  documentName?: string | null;
+  documentTiming?: string | null;
+  documentDescription?: string | null;
+  documentStoragePath?: string | null;
 }
 
 const Services = () => {
