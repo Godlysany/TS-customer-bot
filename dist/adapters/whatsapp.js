@@ -274,6 +274,49 @@ async function handleMessage(msg) {
             console.log('👤 Agent has taken over conversation, bot will not reply');
             return;
         }
+        // ESCALATION CHECK: Evaluate if message should trigger escalation BEFORE processing
+        // This is critical for properly handling configured escalation rules (keywords, sentiment, etc.)
+        try {
+            const { BotConfigService } = await Promise.resolve().then(() => __importStar(require('../core/BotConfigService')));
+            const { EscalationService } = await Promise.resolve().then(() => __importStar(require('../core/EscalationService')));
+            const botConfigService = new BotConfigService();
+            const escalationService = new EscalationService();
+            const config = await botConfigService.getConfig();
+            // Check if escalation is enabled
+            if (config.escalation_config?.enabled) {
+                // detectIntent() internally calls shouldEscalate() and sets intent to 'escalation_required' if triggered
+                const intent = await AIService_1.default.detectIntent(text);
+                if (intent.intent === 'escalation_required') {
+                    console.log('🚨 Escalation triggered based on configuration');
+                    // Create escalation record
+                    const reason = `Auto-escalation: trigger keywords or negative sentiment detected`;
+                    await escalationService.createEscalation(conversation.id, reason);
+                    // Send configured escalation message to customer
+                    const escalationMessage = config.escalation_config.behavior?.escalation_message ||
+                        "I understand this is important. Let me connect you with our team right away.";
+                    const messageRecord = await MessageService_1.default.createMessage({
+                        conversationId: conversation.id,
+                        content: escalationMessage,
+                        messageType: 'text',
+                        direction: 'outbound',
+                        sender: 'bot',
+                        approvalStatus: 'approved',
+                    });
+                    await MessageService_1.default.updateConversationLastMessage(conversation.id);
+                    await sock.sendMessage(sender, { text: escalationMessage });
+                    // Note: pause_bot setting is enforced by canBotReply() checking for active escalations
+                    if (config.escalation_config.behavior?.pause_bot) {
+                        console.log('⏸️  Bot will be paused for this customer (enforced by active escalation)');
+                    }
+                    console.log('✅ Escalation handled, message sent to customer');
+                    return; // Stop processing - conversation is now escalated
+                }
+            }
+        }
+        catch (escalationError) {
+            console.error('❌ Escalation check failed:', escalationError.message);
+            // Continue with normal flow if escalation check fails
+        }
         // Check for first_contact trigger (only inbound messages, so count should be 1)
         const isFirstContact = messageHistory.filter(m => m.direction === 'inbound').length === 1;
         if (isFirstContact) {

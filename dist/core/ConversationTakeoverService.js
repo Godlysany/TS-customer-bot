@@ -50,12 +50,48 @@ class ConversationTakeoverService {
         return takeover !== null && (takeover.takeoverType === 'pause_bot' || takeover.takeoverType === 'full_control');
     }
     async canBotReply(conversationId) {
+        // Check for manual takeover first
         const takeover = await this.getActiveTakeover(conversationId);
-        if (!takeover)
-            return true;
-        if (takeover.takeoverType === 'write_between')
-            return true;
-        return false;
+        if (takeover) {
+            // write_between allows bot to reply alongside agent
+            if (takeover.takeoverType === 'write_between')
+                return true;
+            // pause_bot and full_control block bot replies
+            return false;
+        }
+        // Check for active escalations with pause_bot enabled
+        try {
+            const { data: escalation, error } = await supabase_1.supabase
+                .from('escalations')
+                .select('id, status')
+                .eq('conversation_id', conversationId)
+                .in('status', ['pending', 'in_progress'])
+                .limit(1)
+                .single();
+            if (escalation && !error) {
+                // Get bot config to check if pause_bot is enabled for escalations
+                const { data: settings } = await supabase_1.supabase
+                    .from('settings')
+                    .select('value')
+                    .eq('category', 'bot_config')
+                    .eq('key', 'escalation_config')
+                    .single();
+                if (settings?.value) {
+                    const config = typeof settings.value === 'string'
+                        ? JSON.parse(settings.value)
+                        : settings.value;
+                    if (config.behavior?.pause_bot) {
+                        console.log(`⏸️  Bot paused for conversation ${conversationId} due to active escalation with pause_bot enabled`);
+                        return false; // Block bot replies when escalation is active and pause_bot is true
+                    }
+                }
+            }
+        }
+        catch (escalationError) {
+            // If escalation check fails, allow bot to reply (fail open)
+            console.error('Error checking escalation status:', escalationError.message);
+        }
+        return true; // No takeover or escalation blocking - bot can reply
     }
 }
 exports.ConversationTakeoverService = ConversationTakeoverService;

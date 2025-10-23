@@ -3,6 +3,7 @@ import { supabase } from '../infrastructure/supabase';
 import { authMiddleware, requireRole } from '../middleware/auth';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 import serviceAvailabilityService from '../core/ServiceAvailabilityService';
+import { isValidUUID } from '../utils/uuid-validator';
 
 const router = Router();
 
@@ -29,8 +30,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!isValidUUID(id)) {
       return res.status(400).json({ error: 'Invalid service ID format' });
     }
 

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const supabase_1 = require("../infrastructure/supabase");
 const auth_1 = require("../middleware/auth");
+const uuid_validator_1 = require("../utils/uuid-validator");
 const router = (0, express_1.Router)();
 router.use(auth_1.authMiddleware);
 router.get('/', async (req, res) => {
@@ -34,6 +35,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
         const { data: contact, error: contactError } = await supabase_1.supabase
             .from('contacts')
             .select(`
@@ -72,11 +77,15 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/questionnaires', async (req, res) => {
     try {
         const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
         const { data: responses, error } = await supabase_1.supabase
             .from('questionnaire_responses')
             .select(`
         *,
-        questionnaire:questionnaires(name, type)
+        questionnaire:questionnaires(name, trigger_type)
       `)
             .eq('contact_id', id)
             .order('created_at', { ascending: false });
@@ -85,13 +94,53 @@ router.get('/:id/questionnaires', async (req, res) => {
         const formattedResponses = responses?.map((r) => ({
             ...r,
             questionnaire_name: r.questionnaire?.name,
-            questionnaire_type: r.questionnaire?.type,
+            questionnaire_type: r.questionnaire?.trigger_type,
         }));
         res.json(formattedResponses || []);
     }
     catch (error) {
         console.error('Error fetching customer questionnaires:', error);
         res.status(500).json({ error: 'Failed to fetch customer questionnaires' });
+    }
+});
+router.get('/:id/analytics', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
+        // Get customer analytics data
+        const { data: analytics, error: analyticsError } = await supabase_1.supabase
+            .from('customer_analytics')
+            .select('*')
+            .eq('contact_id', id)
+            .single();
+        // Get conversation count
+        const { count: conversationCount } = await supabase_1.supabase
+            .from('conversations')
+            .select('*', { count: 'exact', head: true })
+            .eq('contact_id', id);
+        // Get booking count
+        const { count: bookingCount } = await supabase_1.supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
+            .eq('contact_id', id);
+        // Format response
+        const response = {
+            sentiment: analytics?.sentiment || 'neutral',
+            upsellPotential: analytics?.upsell_potential || 'low',
+            lastEngagementScore: analytics?.last_engagement_score || 0,
+            keywords: analytics?.keywords || [],
+            appointmentHistory: bookingCount || 0,
+            conversationCount: conversationCount || 0,
+            lastInteractionAt: analytics?.last_interaction_at || null,
+        };
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error fetching customer analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch customer analytics' });
     }
 });
 exports.default = router;

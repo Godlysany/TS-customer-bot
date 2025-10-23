@@ -8,6 +8,7 @@ const supabase_1 = require("../infrastructure/supabase");
 const auth_1 = require("../middleware/auth");
 const mapper_1 = require("../infrastructure/mapper");
 const ServiceAvailabilityService_1 = __importDefault(require("../core/ServiceAvailabilityService"));
+const uuid_validator_1 = require("../utils/uuid-validator");
 const router = (0, express_1.Router)();
 router.use(auth_1.authMiddleware);
 router.get('/', async (req, res) => {
@@ -28,6 +29,10 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const { data: service, error } = await supabase_1.supabase
             .from('services')
             .select('*')

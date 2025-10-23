@@ -15,6 +15,8 @@ const CustomersManagement = () => {
   const [editingContact, setEditingContact] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'sentiment_score'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const getSentimentDisplay = (score: number | null) => {
@@ -178,14 +180,39 @@ const CustomersManagement = () => {
     a.click();
   };
 
-  const filteredContacts = contacts?.filter((contact: any) => {
-    const search = searchTerm.toLowerCase();
-    return (
-      contact.name?.toLowerCase().includes(search) ||
-      contact.phone_number?.toLowerCase().includes(search) ||
-      contact.email?.toLowerCase().includes(search)
-    );
-  });
+  const handleSort = (field: 'name' | 'created_at' | 'sentiment_score') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const filteredAndSortedContacts = contacts
+    ?.filter((contact: any) => {
+      const search = searchTerm.toLowerCase();
+      return (
+        contact.name?.toLowerCase().includes(search) ||
+        contact.phone_number?.toLowerCase().includes(search) ||
+        contact.email?.toLowerCase().includes(search)
+      );
+    })
+    ?.sort((a: any, b: any) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      
+      if (sortBy === 'sentiment_score') {
+        aVal = aVal ?? -999; // Treat null as very low
+        bVal = bVal ?? -999;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
 
   return (
     <div className="p-8">
@@ -290,18 +317,28 @@ const CustomersManagement = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('name')}
+                >
+                  Contact {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sentiment</th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('sentiment_score')}
+                >
+                  Sentiment {sortBy === 'sentiment_score' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredContacts?.map((contact: any) => (
+              {filteredAndSortedContacts?.map((contact: any) => (
                 <tr 
                   key={contact.id} 
                   className="hover:bg-gray-50 cursor-pointer"

@@ -15,7 +15,6 @@ class EscalationService {
           *,
           conversation:conversations!inner(
             id,
-            last_message,
             last_message_at,
             contact:contacts!inner(
               id,
@@ -57,7 +56,6 @@ class EscalationService {
           *,
           conversation:conversations!inner(
             id,
-            last_message,
             last_message_at,
             contact:contacts!inner(
               id,

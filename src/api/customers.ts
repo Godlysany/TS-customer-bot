@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../infrastructure/supabase';
 import { authMiddleware } from '../middleware/auth';
+import { isValidUUID } from '../utils/uuid-validator';
 
 const router = Router();
 
@@ -39,8 +40,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!isValidUUID(id)) {
       return res.status(400).json({ error: 'Invalid customer ID format' });
     }
 
@@ -88,8 +88,7 @@ router.get('/:id/questionnaires', async (req, res) => {
     const { id } = req.params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!isValidUUID(id)) {
       return res.status(400).json({ error: 'Invalid customer ID format' });
     }
 
@@ -122,8 +121,7 @@ router.get('/:id/analytics', async (req, res) => {
     const { id } = req.params;
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!isValidUUID(id)) {
       return res.status(400).json({ error: 'Invalid customer ID format' });
     }
 
