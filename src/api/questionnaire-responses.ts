@@ -8,12 +8,12 @@ router.use(authMiddleware);
 
 router.get('/', async (req, res) => {
   try {
-    const { data: responses, error } = await supabase
+    const { data: responses, error} = await supabase
       .from('questionnaire_responses')
       .select(`
         *,
         contact:contacts(name, phone_number, email),
-        questionnaire:questionnaires(name, type)
+        questionnaire:questionnaires(name, trigger_type)
       `)
       .order('created_at', { ascending: false });
 
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
       contact_phone: r.contact?.phone_number,
       contact_email: r.contact?.email,
       questionnaire_name: r.questionnaire?.name,
-      questionnaire_type: r.questionnaire?.type,
+      questionnaire_type: r.questionnaire?.trigger_type,
     }));
 
     res.json(formattedResponses || []);
@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
       .select(`
         *,
         contact:contacts(name, phone_number, email),
-        questionnaire:questionnaires(name, type)
+        questionnaire:questionnaires(name, trigger_type)
       `)
       .eq('id', id)
       .single();
@@ -57,7 +57,7 @@ router.get('/:id', async (req, res) => {
       contact_phone: response.contact?.phone_number,
       contact_email: response.contact?.email,
       questionnaire_name: response.questionnaire?.name,
-      questionnaire_type: response.questionnaire?.type,
+      questionnaire_type: response.questionnaire?.trigger_type,
     };
 
     res.json(formattedResponse);

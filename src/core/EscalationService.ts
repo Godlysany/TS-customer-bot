@@ -19,7 +19,6 @@ interface EscalationWithDetails extends Escalation {
       name: string;
       phoneNumber: string;
     };
-    lastMessage: string;
     lastMessageAt: Date;
   };
   agent?: {
@@ -44,7 +43,6 @@ export class EscalationService {
           *,
           conversation:conversations!inner(
             id,
-            last_message,
             last_message_at,
             contact:contacts!inner(
               id,
@@ -90,7 +88,6 @@ export class EscalationService {
           *,
           conversation:conversations!inner(
             id,
-            last_message,
             last_message_at,
             contact:contacts!inner(
               id,

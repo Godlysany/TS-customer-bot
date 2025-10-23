@@ -28,6 +28,12 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+
     const { data: service, error } = await supabase
       .from('services')
       .select('*')

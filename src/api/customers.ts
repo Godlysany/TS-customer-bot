@@ -38,6 +38,12 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
     const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .select(`
@@ -81,11 +87,17 @@ router.get('/:id/questionnaires', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
     const { data: responses, error } = await supabase
       .from('questionnaire_responses')
       .select(`
         *,
-        questionnaire:questionnaires(name, type)
+        questionnaire:questionnaires(name, trigger_type)
       `)
       .eq('contact_id', id)
       .order('created_at', { ascending: false });
@@ -95,7 +107,7 @@ router.get('/:id/questionnaires', async (req, res) => {
     const formattedResponses = responses?.map((r: any) => ({
       ...r,
       questionnaire_name: r.questionnaire?.name,
-      questionnaire_type: r.questionnaire?.type,
+      questionnaire_type: r.questionnaire?.trigger_type,
     }));
 
     res.json(formattedResponses || []);
