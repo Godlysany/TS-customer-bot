@@ -704,13 +704,15 @@ CREATE TRIGGER update_recurring_appointments_updated_at BEFORE UPDATE ON recurri
 CREATE TRIGGER update_payment_transactions_updated_at BEFORE UPDATE ON payment_transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_proactive_campaigns_updated_at BEFORE UPDATE ON proactive_campaigns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Insert default services for demonstration
-INSERT INTO services (name, description, duration_minutes, cost, buffer_time_after, is_active)
-VALUES 
-    ('General Consultation', 'Standard consultation appointment', 30, 50.00, 15, true),
-    ('Deep Cleaning', 'Professional deep cleaning session', 60, 120.00, 20, true),
-    ('Follow-up Visit', 'Follow-up check after treatment', 20, 30.00, 10, true)
-ON CONFLICT DO NOTHING;
+-- SEED DATA REMOVED: Services should be created via CRM admin UI, not schema deployment
+-- These INSERT statements were creating duplicate services on every schema deployment
+-- Original seed data (for reference only - DO NOT UNCOMMENT):
+-- INSERT INTO services (name, description, duration_minutes, cost, buffer_time_after, is_active)
+-- VALUES 
+--     ('General Consultation', 'Standard consultation appointment', 30, 50.00, 15, true),
+--     ('Deep Cleaning', 'Professional deep cleaning session', 60, 120.00, 20, true),
+--     ('Follow-up Visit', 'Follow-up check after treatment', 20, 30.00, 10, true)
+-- ON CONFLICT DO NOTHING;
 
 -- Insert default settings for new features
 INSERT INTO settings (key, value, category, description, is_secret)

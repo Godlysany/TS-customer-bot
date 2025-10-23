@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BotConfigService = void 0;
 const supabase_1 = require("../infrastructure/supabase");
+const SettingsService_1 = __importDefault(require("./SettingsService"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 class BotConfigService {
@@ -124,7 +125,9 @@ class BotConfigService {
         const masterPromptPath = path_1.default.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
         let masterPrompt = fs_1.default.readFileSync(masterPromptPath, 'utf-8');
         // Determine active language for this conversation
-        const defaultLang = config.default_bot_language || 'de';
+        // CRITICAL: Load default language from CRM Settings table, NOT hardcoded
+        const settingsDefaultLang = await SettingsService_1.default.getSetting('default_bot_language');
+        const defaultLang = settingsDefaultLang || config.default_bot_language || 'de';
         const customerPreferredLang = contactLanguage || 'Not set (will use default)';
         const activeLang = contactLanguage || defaultLang;
         const languageNames = {

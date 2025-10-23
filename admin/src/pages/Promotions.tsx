@@ -322,7 +322,12 @@ const Promotions = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Service (optional)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  💡 <strong>Pre-Booking Discount:</strong> Link to a specific service to offer this promotion when customers book that service. Leave blank to apply to all services. This is NOT for post-service nurturing.
+                </p>
                 <select
                   value={formData.service_id}
                   onChange={(e) => setFormData({ ...formData, service_id: e.target.value })}

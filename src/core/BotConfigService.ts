@@ -1,4 +1,5 @@
 import { supabase } from '../infrastructure/supabase';
+import SettingsService from './SettingsService';
 import fs from 'fs';
 import path from 'path';
 
@@ -222,7 +223,9 @@ export class BotConfigService {
     let masterPrompt = fs.readFileSync(masterPromptPath, 'utf-8');
 
     // Determine active language for this conversation
-    const defaultLang = config.default_bot_language || 'de';
+    // CRITICAL: Load default language from CRM Settings table, NOT hardcoded
+    const settingsDefaultLang = await SettingsService.getSetting('default_bot_language');
+    const defaultLang = settingsDefaultLang || config.default_bot_language || 'de';
     const customerPreferredLang = contactLanguage || 'Not set (will use default)';
     const activeLang = contactLanguage || defaultLang;
     
