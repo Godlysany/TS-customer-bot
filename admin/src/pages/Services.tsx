@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesApi, uploadsApi } from '../lib/api';
-import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X, FileText } from 'lucide-react';
 import DocumentUpload from '../components/shared/DocumentUpload';
 
 interface Service {
@@ -192,6 +192,14 @@ const Services = () => {
                     <Calendar className="w-4 h-4" />
                     <span>Book up to {service.maxAdvanceBookingDays} days ahead</span>
                   </div>
+                  {service.documentUrl && (
+                    <div className="flex items-center gap-2 text-sm text-purple-600">
+                      <FileText className="w-4 h-4" />
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                        Has Document ({service.documentTiming || 'on_confirmation'})
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
@@ -758,6 +766,85 @@ const Services = () => {
                         </div>
                       </div>
                     </>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Document</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Optionally attach a document (PDF, image, etc.) to automatically share with customers at specific timing
+                </p>
+
+                <div className="space-y-4">
+                  <DocumentUpload
+                    currentDocument={
+                      formData.documentUrl
+                        ? {
+                            url: formData.documentUrl,
+                            name: formData.documentName || 'Document',
+                            timing: formData.documentTiming || undefined,
+                            description: formData.documentDescription || undefined,
+                          }
+                        : null
+                    }
+                    onUploadComplete={(data) => {
+                      setFormData({
+                        ...formData,
+                        documentUrl: data.url,
+                        documentName: data.fileName,
+                        documentStoragePath: data.storagePath,
+                      });
+                    }}
+                    onRemove={() => {
+                      setFormData({
+                        ...formData,
+                        documentUrl: null,
+                        documentName: null,
+                        documentStoragePath: null,
+                        documentTiming: null,
+                        documentDescription: null,
+                      });
+                    }}
+                  />
+
+                  {formData.documentUrl && (
+                    <div className="space-y-4 pt-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          When to send this document *
+                        </label>
+                        <select
+                          value={formData.documentTiming || 'on_confirmation'}
+                          onChange={(e) =>
+                            setFormData({ ...formData, documentTiming: e.target.value })
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="as_info">As Info (Send immediately during conversation)</option>
+                          <option value="on_confirmation">On Confirmation (After booking confirmed)</option>
+                          <option value="after_booking">After Booking (After appointment completed)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Document Description (optional)
+                        </label>
+                        <textarea
+                          value={formData.documentDescription || ''}
+                          onChange={(e) =>
+                            setFormData({ ...formData, documentDescription: e.target.value })
+                          }
+                          placeholder="E.g., Preparation guidelines for your appointment"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          rows={2}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Optional message to send with the document
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

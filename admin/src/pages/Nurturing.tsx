@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, Star, Settings, TrendingUp, MessageSquare, Gift } from 'lucide-react';
-import { nurturingApi } from '../lib/api';
+import { Heart, Star, Settings, TrendingUp, MessageSquare, Gift, FileText } from 'lucide-react';
+import { nurturingApi, servicesApi } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const Nurturing = () => {
@@ -36,6 +36,14 @@ const Nurturing = () => {
     queryKey: ['review-eligible'],
     queryFn: async () => {
       const res = await nurturingApi.getReviewEligibleContacts();
+      return res.data;
+    },
+  });
+
+  const { data: services } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const res = await servicesApi.getAll();
       return res.data;
     },
   });
@@ -316,6 +324,62 @@ const Nurturing = () => {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-600" />
+              Service Documents
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Overview of services with automated document delivery configured
+            </p>
+
+            {services && services.filter((s: any) => s.documentUrl).length > 0 ? (
+              <div className="space-y-3">
+                {services.filter((s: any) => s.documentUrl).map((service: any) => (
+                  <div key={service.id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-medium text-gray-900">{service.name}</h3>
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                            {service.documentTiming === 'as_info' && 'Sent as Info'}
+                            {service.documentTiming === 'on_confirmation' && 'On Confirmation'}
+                            {service.documentTiming === 'after_booking' && 'After Completion'}
+                            {!service.documentTiming && 'On Confirmation'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                          <FileText className="w-4 h-4" />
+                          <a
+                            href={service.documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-700 hover:underline"
+                          >
+                            {service.documentName || 'View Document'}
+                          </a>
+                        </div>
+                        {service.documentDescription && (
+                          <p className="text-xs text-gray-500 italic">
+                            {service.documentDescription}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">No services have documents configured yet</p>
+                <p className="text-sm text-gray-400">
+                  Go to Service Management to add documents to your services
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
