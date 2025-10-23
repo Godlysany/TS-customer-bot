@@ -654,9 +654,13 @@ router.get('/api/waitlist', async (req, res) => {
 });
 router.post('/api/waitlist/:id/cancel', async (req, res) => {
     try {
+        const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid waitlist ID format' });
+        }
         const { WaitlistService } = await Promise.resolve().then(() => __importStar(require('../core/WaitlistService')));
         const waitlistService = new WaitlistService();
-        await waitlistService.cancelWaitlistEntry(req.params.id);
+        await waitlistService.cancelWaitlistEntry(id);
         res.json({ success: true });
     }
     catch (error) {
@@ -689,6 +693,9 @@ router.get('/api/questionnaires', async (req, res) => {
 router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid questionnaire ID format' });
+        }
         const updates = req.body;
         const { data, error } = await supabase_1.supabase
             .from('questionnaires')
@@ -707,6 +714,9 @@ router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireR
 router.delete('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid questionnaire ID format' });
+        }
         const { error } = await supabase_1.supabase
             .from('questionnaires')
             .delete()
@@ -732,9 +742,13 @@ router.post('/api/questionnaires/responses', async (req, res) => {
 });
 router.get('/api/contacts/:id/questionnaires', async (req, res) => {
     try {
+        const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid contact ID format' });
+        }
         const { QuestionnaireService } = await Promise.resolve().then(() => __importStar(require('../core/QuestionnaireService')));
         const questionnaireService = new QuestionnaireService();
-        const responses = await questionnaireService.getContactResponses(req.params.id);
+        const responses = await questionnaireService.getContactResponses(id);
         res.json(responses);
     }
     catch (error) {
@@ -756,10 +770,14 @@ router.get('/api/reviews/stats', async (req, res) => {
 });
 router.post('/api/reviews/:bookingId/feedback', async (req, res) => {
     try {
+        const { bookingId } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(bookingId)) {
+            return res.status(400).json({ error: 'Invalid booking ID format' });
+        }
         const { ReviewService } = await Promise.resolve().then(() => __importStar(require('../core/ReviewService')));
         const reviewService = new ReviewService();
         await reviewService.recordReviewFeedback({
-            bookingId: req.params.bookingId,
+            bookingId,
             ...req.body,
         });
         res.json({ success: true });
@@ -786,10 +804,14 @@ router.get('/api/policies/cancellation', async (req, res) => {
 });
 router.put('/api/policies/cancellation/:id', async (req, res) => {
     try {
+        const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid policy ID format' });
+        }
         const { data, error } = await supabase_1.supabase
             .from('cancellation_policies')
             .update(req.body)
-            .eq('id', req.params.id)
+            .eq('id', id)
             .select()
             .single();
         if (error)

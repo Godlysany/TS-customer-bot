@@ -695,9 +695,15 @@ router.get('/api/waitlist', async (req, res) => {
 
 router.post('/api/waitlist/:id/cancel', async (req, res) => {
   try {
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid waitlist ID format' });
+    }
+    
     const { WaitlistService } = await import('../core/WaitlistService');
     const waitlistService = new WaitlistService();
-    await waitlistService.cancelWaitlistEntry(req.params.id);
+    await waitlistService.cancelWaitlistEntry(id);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -730,6 +736,11 @@ router.get('/api/questionnaires', async (req, res) => {
 router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid questionnaire ID format' });
+    }
+    
     const updates = req.body;
     
     const { data, error } = await supabase
@@ -749,6 +760,10 @@ router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), asy
 router.delete('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid questionnaire ID format' });
+    }
     
     const { error } = await supabase
       .from('questionnaires')
@@ -775,9 +790,15 @@ router.post('/api/questionnaires/responses', async (req, res) => {
 
 router.get('/api/contacts/:id/questionnaires', async (req, res) => {
   try {
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid contact ID format' });
+    }
+    
     const { QuestionnaireService } = await import('../core/QuestionnaireService');
     const questionnaireService = new QuestionnaireService();
-    const responses = await questionnaireService.getContactResponses(req.params.id);
+    const responses = await questionnaireService.getContactResponses(id);
     res.json(responses);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -802,10 +823,16 @@ router.get('/api/reviews/stats', async (req, res) => {
 
 router.post('/api/reviews/:bookingId/feedback', async (req, res) => {
   try {
+    const { bookingId } = req.params;
+    
+    if (!isValidUUID(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID format' });
+    }
+    
     const { ReviewService } = await import('../core/ReviewService');
     const reviewService = new ReviewService();
     await reviewService.recordReviewFeedback({
-      bookingId: req.params.bookingId,
+      bookingId,
       ...req.body,
     });
     res.json({ success: true });
@@ -832,10 +859,16 @@ router.get('/api/policies/cancellation', async (req, res) => {
 
 router.put('/api/policies/cancellation/:id', async (req, res) => {
   try {
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid policy ID format' });
+    }
+    
     const { data, error } = await supabase
       .from('cancellation_policies')
       .update(req.body)
-      .eq('id', req.params.id)
+      .eq('id', id)
       .select()
       .single();
     
