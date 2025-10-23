@@ -145,4 +145,65 @@ router.get('/:id/analytics', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch customer analytics' });
     }
 });
+// Get customer service/booking history
+router.get('/:id/service-history', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
+        // Get all bookings for this customer with service and team member details
+        const { data: bookings, error } = await supabase_1.supabase
+            .from('bookings')
+            .select(`
+        id,
+        scheduled_time,
+        status,
+        cost,
+        notes,
+        created_at,
+        services:service_id (
+          id,
+          name,
+          description,
+          duration_minutes
+        ),
+        team_members:team_member_id (
+          id,
+          name,
+          role
+        )
+      `)
+            .eq('contact_id', id)
+            .order('scheduled_time', { ascending: false });
+        if (error)
+            throw error;
+        // Format the response
+        const formattedHistory = (bookings || []).map((booking) => ({
+            id: booking.id,
+            scheduledTime: booking.scheduled_time,
+            status: booking.status,
+            cost: booking.cost,
+            notes: booking.notes,
+            createdAt: booking.created_at,
+            service: booking.services ? {
+                id: booking.services.id,
+                name: booking.services.name,
+                description: booking.services.description,
+                durationMinutes: booking.services.duration_minutes
+            } : null,
+            teamMember: booking.team_members ? {
+                id: booking.team_members.id,
+                name: booking.team_members.name,
+                role: booking.team_members.role
+            } : null
+        }));
+        res.json(formattedHistory);
+    }
+    catch (error) {
+        console.error('Error fetching customer service history:', error);
+        res.status(500).json({ error: 'Failed to fetch service history' });
+    }
+});
 exports.default = router;
