@@ -40,64 +40,17 @@ if (config.whatsapp.resetAuth) {
   }
 }
 
+// DEPRECATED: Use TTSService.transcribeVoice instead
+// Kept for backward compatibility only
 async function transcribeVoice(filePath: string): Promise<string> {
-  try {
-    const response = await axios.post(
-      'https://api.deepgram.com/v1/listen?detect_language=true&punctuate=true&smart_format=true',
-      fs.createReadStream(filePath),
-      {
-        headers: {
-          Authorization: `Token ${config.deepgram.apiKey}`,
-          'Content-Type': 'audio/ogg',
-        },
-      }
-    );
-
-    const transcript = response.data.results.channels[0].alternatives[0].transcript;
-    console.log(`🧠 Transcription:`, transcript);
-    return transcript;
-  } catch (err: any) {
-    console.error('❌ Transcription failed:', err.message);
-    return '[transcription failed]';
-  }
+  const { transcript } = await ttsService.transcribeVoice(filePath);
+  return transcript;
 }
 
+// DEPRECATED: Use TTSService.textToSpeech instead
+// Kept for backward compatibility only
 async function textToSpeech(text: string): Promise<string | null> {
-  const voiceId = config.elevenlabs.voiceId || 'default-voice-id';
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-
-  try {
-    const response = await axios.post(
-      url,
-      {
-        text,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.3,
-          similarity_boost: 0.7,
-        },
-      },
-      {
-        headers: {
-          'xi-api-key': config.elevenlabs.apiKey,
-          'Content-Type': 'application/json',
-        },
-        responseType: 'arraybuffer',
-      }
-    );
-
-    const tempRawPath = `./raw-${Date.now()}.mp3`;
-    const finalOggPath = `./voice-${Date.now()}.ogg`;
-
-    fs.writeFileSync(tempRawPath, response.data);
-    execSync(`ffmpeg -y -i "${tempRawPath}" -ar 16000 -ac 1 -c:a libopus "${finalOggPath}"`);
-    fs.unlinkSync(tempRawPath);
-    
-    return finalOggPath;
-  } catch (err: any) {
-    console.warn('⚠️ ElevenLabs voice synthesis failed:', err.message);
-    return null;
-  }
+  return await ttsService.textToSpeech(text);
 }
 
 function cleanText(text: string): string {

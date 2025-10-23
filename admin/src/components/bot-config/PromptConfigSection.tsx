@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { settingsApi } from '../../lib/api';
-import { Save, Eye, EyeOff, Brain, FileText } from 'lucide-react';
+import { settingsApi, botConfigApi } from '../../lib/api';
+import { Save, Eye, EyeOff, Brain, FileText, Sparkles, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const PromptConfigSection = () => {
   const queryClient = useQueryClient();
   const [showMasterPrompt, setShowMasterPrompt] = useState(false);
+  const [showAIModal, setShowAIModal] = useState<'generate' | 'improve' | null>(null);
+  const [aiInstruction, setAiInstruction] = useState('');
   const [formData, setFormData] = useState({
     business_fine_tuning_prompt: '',
     tone_of_voice: 'professional',
@@ -49,6 +51,38 @@ const PromptConfigSection = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error || 'Failed to save prompt configuration');
+    },
+  });
+
+  const aiGenerateMutation = useMutation({
+    mutationFn: async (instruction: string) => {
+      const res = await botConfigApi.generatePrompt(instruction);
+      return res.data.prompt;
+    },
+    onSuccess: (prompt) => {
+      setFormData({ ...formData, business_fine_tuning_prompt: prompt });
+      setShowAIModal(null);
+      setAiInstruction('');
+      toast.success('AI prompt generated successfully');
+    },
+    onError: () => {
+      toast.error('Failed to generate prompt with AI');
+    },
+  });
+
+  const aiImproveMutation = useMutation({
+    mutationFn: async (instruction: string) => {
+      const res = await botConfigApi.improvePrompt(formData.business_fine_tuning_prompt, instruction);
+      return res.data.prompt;
+    },
+    onSuccess: (prompt) => {
+      setFormData({ ...formData, business_fine_tuning_prompt: prompt });
+      setShowAIModal(null);
+      setAiInstruction('');
+      toast.success('Prompt improved successfully');
+    },
+    onError: () => {
+      toast.error('Failed to improve prompt with AI');
     },
   });
 
@@ -153,10 +187,28 @@ Spezielle Hinweise:
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
         />
 
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={() => setShowAIModal('generate')}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700"
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Write Prompt
+          </button>
+          <button
+            onClick={() => setShowAIModal('improve')}
+            disabled={!formData.business_fine_tuning_prompt}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg hover:from-green-700 hover:to-teal-700 disabled:opacity-50"
+          >
+            <Wand2 className="w-4 h-4" />
+            AI Improve Prompt
+          </button>
+        </div>
+
         <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-sm text-green-800">
-            <strong>💡 Tip:</strong> Define your brand voice, cultural nuances, typical customer concerns, 
-            and any business-specific instructions here. This makes the bot feel like it truly represents your business.
+            <strong>💡 Tip:</strong> Use AI buttons to generate professional prompts from simple instructions, 
+            or improve your existing prompt. Define your brand voice, cultural nuances, typical customer concerns.
           </p>
         </div>
       </div>
@@ -197,6 +249,54 @@ Spezielle Hinweise:
           </p>
         </div>
       </div>
+
+      {/* AI Modal */}
+      {showAIModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h3 className="text-lg font-semibold mb-4">
+              {showAIModal === 'generate' ? '✨ AI Write Prompt' : '🪄 AI Improve Prompt'}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {showAIModal === 'generate' 
+                ? 'Describe your business and desired bot personality in a few sentences. AI will generate a professional prompt for you.'
+                : 'Tell the AI how to improve your existing prompt (e.g., "make it more empathetic", "add focus on Swiss culture").'
+              }
+            </p>
+            <textarea
+              value={aiInstruction}
+              onChange={(e) => setAiInstruction(e.target.value)}
+              placeholder={showAIModal === 'generate'
+                ? "Example: We're a Swiss dental practice specializing in anxiety-free treatments. We want a warm, empathetic bot that speaks formal German and reassures nervous patients..."
+                : "Example: Make it more empathetic and add emphasis on our eco-friendly practices..."
+              }
+              rows={6}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowAIModal(null); setAiInstruction(''); }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (showAIModal === 'generate') {
+                    aiGenerateMutation.mutate(aiInstruction);
+                  } else {
+                    aiImproveMutation.mutate(aiInstruction);
+                  }
+                }}
+                disabled={!aiInstruction.trim() || aiGenerateMutation.isPending || aiImproveMutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {(aiGenerateMutation.isPending || aiImproveMutation.isPending) ? 'Processing...' : 'Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Save Button */}
       <div className="flex justify-end">

@@ -515,4 +515,119 @@ router.post('/controls', async (req, res) => {
   }
 });
 
+// AI Prompt Generation (using OpenAI to help admins write better prompts)
+router.post('/ai-generate-prompt', async (req, res) => {
+  try {
+    const { instruction } = req.body;
+    const getOpenAI = (await import('../infrastructure/openai')).default;
+    const openai = await getOpenAI();
+    
+    const systemPrompt = `You are an expert at writing AI assistant system prompts for customer service bots. 
+Generate a professional, effective business prompt based on the admin's instruction.
+Focus on tone, personality, and customer service best practices.
+Return ONLY the prompt text, no explanations.`;
+
+    const userMessage = `Create a business prompt for our WhatsApp customer service bot based on this instruction:
+
+${instruction}
+
+Generate a clear, professional prompt that sets the right tone and behavior.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.7,
+    });
+
+    const generatedPrompt = response.choices[0]?.message?.content || '';
+    res.json({ prompt: generatedPrompt });
+  } catch (error: any) {
+    console.error('Error generating prompt:', error);
+    res.status(500).json({ error: 'Failed to generate prompt' });
+  }
+});
+
+router.post('/ai-improve-prompt', async (req, res) => {
+  try {
+    const { currentPrompt, instruction } = req.body;
+    const getOpenAI = (await import('../infrastructure/openai')).default;
+    const openai = await getOpenAI();
+    
+    const systemPrompt = `You are an expert at improving AI assistant system prompts for customer service bots.
+Improve the given prompt based on the admin's feedback while maintaining its core intent.
+Return ONLY the improved prompt text, no explanations.`;
+
+    const userMessage = `Current prompt:
+${currentPrompt}
+
+Improvement instruction:
+${instruction}
+
+Return the improved version of the prompt.`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.7,
+    });
+
+    const improvedPrompt = response.choices[0]?.message?.content || '';
+    res.json({ prompt: improvedPrompt });
+  } catch (error: any) {
+    console.error('Error improving prompt:', error);
+    res.status(500).json({ error: 'Failed to improve prompt' });
+  }
+});
+
+// TTS Configuration
+router.get('/tts-settings', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('bot_config')
+      .select('tts_reply_mode, tts_provider, tts_voice_id, tts_enabled')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      ttsReplyMode: data?.tts_reply_mode || 'text_only',
+      ttsProvider: data?.tts_provider || 'elevenlabs',
+      ttsVoiceId: data?.tts_voice_id || '',
+      ttsEnabled: data?.tts_enabled || false,
+    });
+  } catch (error: any) {
+    console.error('Error fetching TTS settings:', error);
+    res.status(500).json({ error: 'Failed to fetch TTS settings' });
+  }
+});
+
+router.post('/tts-settings', async (req, res) => {
+  try {
+    const { ttsReplyMode, ttsProvider, ttsVoiceId, ttsEnabled } = req.body;
+
+    const { error } = await supabase
+      .from('bot_config')
+      .update({
+        tts_reply_mode: ttsReplyMode,
+        tts_provider: ttsProvider,
+        tts_voice_id: ttsVoiceId,
+        tts_enabled: ttsEnabled,
+      })
+      .eq('id', 1);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error saving TTS settings:', error);
+    res.status(500).json({ error: 'Failed to save TTS settings' });
+  }
+});
+
 export default router;

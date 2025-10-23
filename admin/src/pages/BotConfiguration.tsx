@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Brain, Building2, MessageSquare, Shield, Mail, Settings as SettingsIcon, AlertTriangle } from 'lucide-react';
+import { Bot, Brain, Building2, MessageSquare, Shield, Mail, Settings as SettingsIcon, AlertTriangle, Volume2 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 
 // Import all configuration sections
@@ -11,6 +11,7 @@ import ServiceConfigSection from '../components/bot-config/ServiceConfigSection'
 import EmailCollectionSection from '../components/bot-config/EmailCollectionSection';
 import QuestionnaireSection from '../components/bot-config/QuestionnaireSection';
 import AdvancedControlsSection from '../components/bot-config/AdvancedControlsSection';
+import TTSConfigSection from '../components/bot-config/TTSConfigSection';
 
 const BotConfiguration = () => {
   const [activeTab, setActiveTab] = useState('business');
@@ -23,6 +24,7 @@ const BotConfiguration = () => {
     { id: 'services', label: 'Service Configuration', icon: SettingsIcon, description: 'Trigger words & restrictions' },
     { id: 'email', label: 'Email Collection', icon: Mail, description: 'How to gather emails' },
     { id: 'questionnaires', label: 'Questionnaires', icon: MessageSquare, description: 'Surveys & anamnesis' },
+    { id: 'tts', label: 'Voice & TTS', icon: Volume2, description: 'Voice message handling' },
     { id: 'controls', label: 'Advanced Controls', icon: Shield, description: 'Feature toggles & safeguards' },
   ];
 
@@ -72,6 +74,7 @@ const BotConfiguration = () => {
         {activeTab === 'services' && <ServiceConfigSection />}
         {activeTab === 'email' && <EmailCollectionSection />}
         {activeTab === 'questionnaires' && <QuestionnaireSection />}
+        {activeTab === 'tts' && <TTSConfigSection />}
         {activeTab === 'controls' && <AdvancedControlsSection />}
       </div>
 

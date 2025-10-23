@@ -111,6 +111,24 @@ export const reviewApi = {
     api.post(`/reviews/${bookingId}/feedback`, data),
 };
 
+export const uploadsApi = {
+  uploadServiceDocument: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/uploads/service-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  uploadPromotionImage: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/uploads/promotion-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deleteFile: (storagePath: string) => api.delete('/uploads/file', { data: { storagePath } }),
+};
+
 export const botConfigApi = {
   // Business Details
   getBusinessDetails: () => api.get('/bot-config/business-details'),
@@ -120,6 +138,15 @@ export const botConfigApi = {
   getPromptConfig: () => api.get('/bot-config/prompt-config'),
   savePromptConfig: (data: any) => api.post('/bot-config/prompt-config', data),
   getMasterPrompt: () => api.get('/bot-config/master-prompt'),
+  
+  // TTS Settings
+  getTTSSettings: () => api.get('/bot-config/tts-settings'),
+  saveTTSSettings: (data: any) => api.post('/bot-config/tts-settings', data),
+  
+  // AI Assist (for prompt generation)
+  generatePrompt: (instruction: string) => api.post('/bot-config/ai-generate-prompt', { instruction }),
+  improvePrompt: (currentPrompt: string, instruction: string) => 
+    api.post('/bot-config/ai-improve-prompt', { currentPrompt, instruction }),
   
   // Escalation Configuration
   getEscalationConfig: () => api.get('/bot-config/escalation'),
