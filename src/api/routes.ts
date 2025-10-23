@@ -617,30 +617,64 @@ router.get('/api/dashboard/stats', async (req, res) => {
       endDate ? new Date(endDate as string) : undefined
     );
 
-    // Get customer count
-    let customerQuery = supabase.from('contacts').select('id', { count: 'exact', head: true });
-    if (startDate) {
-      customerQuery = customerQuery.gte('created_at', new Date(startDate as string).toISOString());
-    }
-    if (endDate) {
-      customerQuery = customerQuery.lte('created_at', new Date(endDate as string).toISOString());
-    }
-    const { count: customerCount, error: customerError } = await customerQuery;
-    if (customerError) {
-      console.error('❌ Dashboard: Error counting customers:', customerError);
-    }
+    // Get customer count - use last_message_at for "today's activity" (customers with recent activity)
+    let customerCount = 0;
+    let conversationCount = 0;
+    
+    // For dashboard stats, we want ACTIVE customers (those with recent conversations)
+    // Use last_message_at from conversations to filter by activity date
+    if (startDate || endDate) {
+      let activeCustomersQuery = supabase
+        .from('conversations')
+        .select('contact_id');
+      
+      if (startDate) {
+        activeCustomersQuery = activeCustomersQuery.gte('last_message_at', new Date(startDate as string).toISOString());
+      }
+      if (endDate) {
+        activeCustomersQuery = activeCustomersQuery.lte('last_message_at', new Date(endDate as string).toISOString());
+      }
+      
+      const { data: activeContacts, error: activeError } = await activeCustomersQuery;
+      if (activeError) {
+        console.error('❌ Dashboard: Error fetching active contacts:', activeError);
+      }
+      
+      // Count unique contact IDs from conversations with activity in date range
+      const uniqueContactIds = new Set(activeContacts?.map(c => c.contact_id) || []);
+      customerCount = uniqueContactIds.size;
+      
+      // Get conversation count - use last_message_at for activity-based filtering
+      let conversationQuery = supabase.from('conversations').select('id', { count: 'exact', head: true });
+      if (startDate) {
+        conversationQuery = conversationQuery.gte('last_message_at', new Date(startDate as string).toISOString());
+      }
+      if (endDate) {
+        conversationQuery = conversationQuery.lte('last_message_at', new Date(endDate as string).toISOString());
+      }
+      const { count, error: conversationError } = await conversationQuery;
+      conversationCount = count || 0;
+      if (conversationError) {
+        console.error('❌ Dashboard: Error counting conversations:', conversationError);
+      }
+    } else {
+      // No date filter - return total counts
+      const { count, error: customerError } = await supabase
+        .from('contacts')
+        .select('id', { count: 'exact', head: true });
+      customerCount = count || 0;
+      if (customerError) {
+        console.error('❌ Dashboard: Error counting customers:', customerError);
+      }
 
-    // Get conversation count
-    let conversationQuery = supabase.from('conversations').select('id', { count: 'exact', head: true });
-    if (startDate) {
-      conversationQuery = conversationQuery.gte('created_at', new Date(startDate as string).toISOString());
-    }
-    if (endDate) {
-      conversationQuery = conversationQuery.lte('created_at', new Date(endDate as string).toISOString());
-    }
-    const { count: conversationCount, error: conversationError } = await conversationQuery;
-    if (conversationError) {
-      console.error('❌ Dashboard: Error counting conversations:', conversationError);
+      // Get conversation count
+      const { count: convCount, error: conversationError } = await supabase
+        .from('conversations')
+        .select('id', { count: 'exact', head: true });
+      conversationCount = convCount || 0;
+      if (conversationError) {
+        console.error('❌ Dashboard: Error counting conversations:', conversationError);
+      }
     }
 
     // Get message activity count

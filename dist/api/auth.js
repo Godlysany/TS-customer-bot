@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 15 * 60 * 1000,
+            maxAge: 8 * 60 * 60 * 1000, // 8 hours instead of 15 minutes
         });
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
@@ -61,7 +61,7 @@ router.post('/refresh', async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 15 * 60 * 1000,
+            maxAge: 8 * 60 * 60 * 1000, // 8 hours instead of 15 minutes
         });
         res.json({ message: 'Token refreshed' });
     }
