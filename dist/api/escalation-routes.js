@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -93,6 +126,55 @@ router.put('/escalations/:id/status', auth_1.authMiddleware, async (req, res) =>
     }
     catch (error) {
         console.error('Error updating escalation status:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+/**
+ * Send admin reply directly from escalation
+ */
+router.post('/escalations/:id/reply', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { content } = req.body;
+        if (!content || content.trim() === '') {
+            return res.status(400).json({ error: 'Message content is required' });
+        }
+        // Get escalation with conversation and contact details
+        const escalation = await EscalationService_1.default.getEscalationById(id);
+        if (!escalation) {
+            return res.status(404).json({ error: 'Escalation not found' });
+        }
+        // Get conversation and contact details
+        const { supabase } = await Promise.resolve().then(() => __importStar(require('../infrastructure/supabase')));
+        const { data: conversation } = await supabase
+            .from('conversations')
+            .select('id, contact_id, contact:contacts(phone_number)')
+            .eq('id', escalation.conversationId)
+            .single();
+        if (!conversation || !conversation.contact) {
+            return res.status(404).json({ error: 'Conversation or contact not found' });
+        }
+        const phoneNumber = conversation.contact.phone_number;
+        const contactId = conversation.contact_id;
+        console.log(`📤 Sending escalation reply to ${phoneNumber} from escalation ${id}`);
+        // Send message via WhatsApp
+        const { sendProactiveMessage } = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+        await sendProactiveMessage(phoneNumber, content, contactId);
+        console.log(`✅ Escalation reply sent via WhatsApp to ${phoneNumber}`);
+        // Save message to database
+        const messageService = (await Promise.resolve().then(() => __importStar(require('../core/MessageService')))).default;
+        await messageService.createMessage({
+            conversationId: escalation.conversationId,
+            content,
+            messageType: 'text',
+            direction: 'outbound',
+            sender: 'agent',
+        });
+        await messageService.updateConversationLastMessage(escalation.conversationId);
+        res.json({ success: true, message: 'Reply sent successfully' });
+    }
+    catch (error) {
+        console.error('Error sending escalation reply:', error);
         res.status(500).json({ error: error.message });
     }
 });

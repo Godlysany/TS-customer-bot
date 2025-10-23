@@ -34,6 +34,7 @@ interface Escalation {
 const Escalations = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'resolved'>('pending');
   const [selectedEscalation, setSelectedEscalation] = useState<string | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -88,6 +89,19 @@ const Escalations = () => {
     },
   });
 
+  const replyMutation = useMutation({
+    mutationFn: ({ escalationId, content }: { escalationId: string; content: string }) =>
+      escalationsApi.reply(escalationId, content),
+    onSuccess: () => {
+      toast.success('Reply sent to customer via WhatsApp');
+      setReplyMessage('');
+      queryClient.invalidateQueries({ queryKey: ['escalations'] });
+    },
+    onError: () => {
+      toast.error('Failed to send reply');
+    },
+  });
+
   const handleAssignToMe = (escalationId: string) => {
     if (currentUser?.id) {
       assignMutation.mutate({ escalationId, agentId: currentUser.id });
@@ -96,6 +110,13 @@ const Escalations = () => {
 
   const handleResolve = (escalationId: string) => {
     resolveMutation.mutate(escalationId);
+  };
+
+  const handleSendReply = () => {
+    if (!selectedEscalation || !replyMessage.trim()) {
+      return;
+    }
+    replyMutation.mutate({ escalationId: selectedEscalation, content: replyMessage.trim() });
   };
 
   const getStatusColor = (status: string) => {
@@ -346,6 +367,42 @@ const Escalations = () => {
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <p className="text-sm text-gray-500 mb-1">Latest Message</p>
                     <p className="text-gray-800">{selected.conversation.lastMessage}</p>
+                  </div>
+                )}
+
+                {/* Quick Reply Section */}
+                {selected.status !== 'resolved' && (
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Send Reply via WhatsApp
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendReply();
+                          }
+                        }}
+                        placeholder="Type your message..."
+                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={replyMutation.isPending}
+                      />
+                      <button
+                        onClick={handleSendReply}
+                        disabled={!replyMessage.trim() || replyMutation.isPending}
+                        className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        {replyMutation.isPending ? 'Sending...' : 'Send'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Message will be sent directly to customer's WhatsApp
+                    </p>
                   </div>
                 )}
 

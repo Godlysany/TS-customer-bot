@@ -210,6 +210,8 @@ export const escalationsApi = {
     api.put(`/escalations/${id}/status`, { status }),
   resolve: (id: string) => 
     api.post(`/escalations/${id}/resolve`),
+  reply: (id: string, content: string) =>
+    api.post(`/escalations/${id}/reply`, { content }),
   getCounts: () => 
     api.get('/escalations-stats/counts'),
 };

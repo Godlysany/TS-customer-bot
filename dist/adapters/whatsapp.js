@@ -59,6 +59,8 @@ const CustomerAnalyticsService_1 = __importDefault(require("../core/CustomerAnal
 const BookingChatHandler_1 = __importDefault(require("../core/BookingChatHandler"));
 const QuestionnaireRuntimeService_1 = __importDefault(require("../core/QuestionnaireRuntimeService"));
 const QuestionnaireService_1 = require("../core/QuestionnaireService");
+const BotDiscountService_1 = __importDefault(require("../core/BotDiscountService"));
+const PromotionService_1 = __importDefault(require("../core/PromotionService"));
 const debounceTimers = new Map();
 const messageBuffers = new Map();
 // Store current QR code for frontend display
@@ -217,6 +219,62 @@ async function handleQuestionnaireResponse(conversationId, response, contactId) 
     // More questions remaining - ask next question
     const nextQuestion = QuestionnaireRuntimeService_1.default.formatCurrentQuestion(conversationId);
     return nextQuestion || 'Error loading next question. Please try again.';
+}
+/**
+ * Check if bot can autonomously offer discounts or promotions
+ * Appends offer to reply text if eligible
+ */
+async function checkAndAppendAutonomousOffers(contactId, conversationId, currentReply, intent) {
+    let enhancedReply = currentReply;
+    try {
+        // STEP 1: Check bot-initiated discounts (sentiment, inactivity, VIP)
+        const discountEval = await BotDiscountService_1.default.evaluateDiscountEligibility(contactId, conversationId);
+        if (discountEval.can_offer_autonomously && discountEval.recommended_chf > 0) {
+            console.log(`💰 Bot discount eligible: CHF ${discountEval.recommended_chf} - ${discountEval.reason}`);
+            const discountOffer = `\n\n✨ **Special Offer for You!**\n` +
+                `I can offer you a CHF ${discountEval.recommended_chf} discount on your next booking as a token of our appreciation. ` +
+                `${discountEval.reason}\n\n` +
+                `Would you like to use this discount when booking your next appointment?`;
+            enhancedReply += discountOffer;
+        }
+        else if (discountEval.requires_approval && discountEval.recommended_chf > 0) {
+            console.log(`⚠️ Discount CHF ${discountEval.recommended_chf} requires admin approval - not offering autonomously`);
+        }
+        // STEP 2: Check active promotions bot can offer
+        const eligiblePromotions = await PromotionService_1.default.getBotAutonomousPromotions(contactId);
+        if (eligiblePromotions.length > 0) {
+            // Offer the best promotion (highest discount)
+            const bestPromo = eligiblePromotions[0];
+            console.log(`🎁 Autonomous promotion available: ${bestPromo.name} (${bestPromo.discount_type === 'percentage' ? bestPromo.discount_value + '%' : 'CHF ' + bestPromo.discount_value})`);
+            let promoText = `\n\n🎁 **Limited Time Offer!**\n${bestPromo.name}`;
+            if (bestPromo.description) {
+                promoText += `\n${bestPromo.description}`;
+            }
+            if (bestPromo.discount_type === 'percentage') {
+                promoText += `\nGet ${bestPromo.discount_value}% off`;
+                if (bestPromo.max_discount_chf) {
+                    promoText += ` (up to CHF ${bestPromo.max_discount_chf})`;
+                }
+            }
+            else {
+                promoText += `\nSave CHF ${bestPromo.discount_value}`;
+            }
+            if (bestPromo.voucher_code) {
+                promoText += `\n\nUse code: **${bestPromo.voucher_code}**`;
+            }
+            if (bestPromo.valid_until) {
+                const expiryDate = new Date(bestPromo.valid_until).toLocaleDateString();
+                promoText += `\n\n⏰ Valid until ${expiryDate}`;
+            }
+            promoText += `\n\nWould you like to book an appointment with this special offer?`;
+            enhancedReply += promoText;
+        }
+    }
+    catch (error) {
+        console.error('❌ Error checking autonomous offers:', error.message);
+        // Don't fail the whole reply if offers fail - just skip them
+    }
+    return enhancedReply;
 }
 let isStarting = false;
 let sock;
@@ -383,6 +441,8 @@ async function handleMessage(msg) {
                 else {
                     // Pass intent to generateReply for context-aware confidence scoring
                     replyText = await AIService_1.default.generateReply(conversation.id, messageHistory, text, intent.intent, conversation.contactId);
+                    // Check and append autonomous discount/promotion offers (for non-booking intents)
+                    replyText = await checkAndAppendAutonomousOffers(contact.id, conversation.id, replyText, intent.intent);
                 }
             }
         }

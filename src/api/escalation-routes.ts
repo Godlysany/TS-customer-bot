@@ -105,6 +105,66 @@ router.put('/escalations/:id/status', authMiddleware, async (req, res) => {
 });
 
 /**
+ * Send admin reply directly from escalation
+ */
+router.post('/escalations/:id/reply', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+    
+    // Get escalation with conversation and contact details
+    const escalation = await escalationService.getEscalationById(id);
+    
+    if (!escalation) {
+      return res.status(404).json({ error: 'Escalation not found' });
+    }
+    
+    // Get conversation and contact details
+    const { supabase } = await import('../infrastructure/supabase');
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('id, contact_id, contact:contacts(phone_number)')
+      .eq('id', escalation.conversationId)
+      .single();
+    
+    if (!conversation || !conversation.contact) {
+      return res.status(404).json({ error: 'Conversation or contact not found' });
+    }
+    
+    const phoneNumber = (conversation.contact as any).phone_number;
+    const contactId = conversation.contact_id;
+    
+    console.log(`📤 Sending escalation reply to ${phoneNumber} from escalation ${id}`);
+    
+    // Send message via WhatsApp
+    const { sendProactiveMessage } = await import('../adapters/whatsapp');
+    await sendProactiveMessage(phoneNumber, content, contactId);
+    console.log(`✅ Escalation reply sent via WhatsApp to ${phoneNumber}`);
+    
+    // Save message to database
+    const messageService = (await import('../core/MessageService')).default;
+    await messageService.createMessage({
+      conversationId: escalation.conversationId,
+      content,
+      messageType: 'text',
+      direction: 'outbound',
+      sender: 'agent',
+    });
+    
+    await messageService.updateConversationLastMessage(escalation.conversationId);
+    
+    res.json({ success: true, message: 'Reply sent successfully' });
+  } catch (error: any) {
+    console.error('Error sending escalation reply:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * Resolve escalation
  */
 router.post('/escalations/:id/resolve', authMiddleware, async (req, res) => {

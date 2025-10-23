@@ -145,6 +145,75 @@ class PromotionService {
   }
 
   /**
+   * Get promotions bot can offer autonomously to a specific customer
+   * Filters by bot_can_offer, validity dates, usage limits, and autonomy amount
+   */
+  async getBotAutonomousPromotions(contactId: string): Promise<Promotion[]> {
+    try {
+      const now = new Date().toISOString();
+      
+      // Get all active promotions that bot can offer
+      const { data: promotions, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .eq('bot_can_offer', true)
+        .lte('valid_from', now)
+        .or(`valid_until.is.null,valid_until.gte.${now}`)
+        .order('discount_value', { ascending: false }); // Highest discount first
+
+      if (error || !promotions) {
+        console.error('Error fetching bot promotions:', error);
+        return [];
+      }
+
+      // Filter promotions based on bot autonomy limits and customer usage
+      const eligiblePromotions: Promotion[] = [];
+
+      for (const promo of promotions) {
+        // Check if promotion is within bot's autonomous limit
+        let estimatedDiscount = 0;
+        if (promo.discount_type === 'fixed_chf') {
+          estimatedDiscount = promo.discount_value;
+        } else if (promo.discount_type === 'percentage') {
+          // For percentage, use max_discount_chf if set, otherwise use the bot limit
+          estimatedDiscount = promo.max_discount_chf || promo.bot_max_chf;
+        }
+
+        if (estimatedDiscount > promo.bot_max_chf) {
+          console.log(`Skipping promotion ${promo.name} - exceeds bot autonomy limit (${estimatedDiscount} > ${promo.bot_max_chf})`);
+          continue;
+        }
+
+        // Check global usage limit
+        if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+          continue;
+        }
+
+        // Check per-customer usage limit
+        if (promo.max_uses_per_customer) {
+          const { count } = await supabase
+            .from('promotion_usage')
+            .select('*', { count: 'exact', head: true })
+            .eq('promotion_id', promo.id)
+            .eq('contact_id', contactId);
+
+          if (count !== null && count >= promo.max_uses_per_customer) {
+            continue;
+          }
+        }
+
+        eligiblePromotions.push(promo);
+      }
+
+      return eligiblePromotions;
+    } catch (error: any) {
+      console.error('Error getting bot autonomous promotions:', error);
+      return [];
+    }
+  }
+
+  /**
    * Validate if a promotion can be applied to a booking
    */
   async validatePromotion(application: PromotionApplication): Promise<PromotionApplicationResult> {
