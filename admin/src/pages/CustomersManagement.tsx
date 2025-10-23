@@ -342,7 +342,7 @@ const CustomersManagement = () => {
                 <tr 
                   key={contact.id} 
                   className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => navigate(`/customer-detail/${contact.id}`)}
+                  onClick={() => navigate(`/customers/${contact.id}`)}
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
