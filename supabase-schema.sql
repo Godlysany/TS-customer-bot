@@ -1278,3 +1278,4 @@ CREATE TRIGGER update_service_blockers_updated_at BEFORE UPDATE ON service_block
 -- Deploy via: GitHub Actions → .github/workflows/deploy-supabase.yml
 -- Deployment date: October 22, 2025
 -- Phase 4: Service booking windows deployed Wed Oct 22 08:08:09 AM UTC 2025
+-- October 23, 2025 HOTFIX: Fixed settings persistence category mapping and customer_analytics API response structure

@@ -144,15 +144,18 @@ router.get('/:id/analytics', async (req, res) => {
       .select('*', { count: 'exact', head: true })
       .eq('contact_id', id);
 
-    // Format response
+    // Format response - map DB columns to API response
+    const sentimentScore = analytics?.sentiment_score || 0;
+    const sentiment = sentimentScore > 0.3 ? 'positive' : sentimentScore < -0.3 ? 'negative' : 'neutral';
+    
     const response = {
-      sentiment: analytics?.sentiment || 'neutral',
+      sentiment,
       upsellPotential: analytics?.upsell_potential || 'low',
-      lastEngagementScore: analytics?.last_engagement_score || 0,
+      lastEngagementScore: analytics?.sentiment_score || 0,
       keywords: analytics?.keywords || [],
       appointmentHistory: bookingCount || 0,
       conversationCount: conversationCount || 0,
-      lastInteractionAt: analytics?.last_interaction_at || null,
+      lastInteractionAt: analytics?.last_appointment_at || null,
     };
 
     res.json(response);

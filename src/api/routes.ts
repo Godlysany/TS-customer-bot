@@ -42,7 +42,10 @@ router.get('/api/conversations', authMiddleware, async (req, res) => {
       .order('last_message_at', { ascending: false });
 
     if (error) throw error;
-    res.json(data);
+    
+    // Map to camelCase for frontend compatibility
+    const { toCamelCaseArray } = await import('../infrastructure/mapper');
+    res.json(toCamelCaseArray(data || []));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -367,8 +370,8 @@ router.get('/api/settings', authMiddleware, async (req, res) => {
 
 router.put('/api/settings/:key', authMiddleware, requireRole('master'), async (req, res) => {
   try {
-    const { value } = req.body;
-    await settingsService.updateSetting(req.params.key, value);
+    const { value, category, description } = req.body;
+    await settingsService.updateSetting(req.params.key, value, category, description);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

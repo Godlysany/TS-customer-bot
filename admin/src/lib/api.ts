@@ -38,8 +38,8 @@ export const conversationsApi = {
 export const settingsApi = {
   getAll: (category?: string) => 
     api.get('/settings', { params: { category } }),
-  update: (key: string, value: string, isSecret = false) => 
-    api.put(`/settings/${key}`, { value, isSecret }),
+  update: (key: string, value: string, isSecret = false, category = 'bot_config') => 
+    api.put(`/settings/${key}`, { value, isSecret, category }),
   toggleBot: () => 
     api.post('/settings/bot/toggle'),
   getWhatsAppStatus: () => 
