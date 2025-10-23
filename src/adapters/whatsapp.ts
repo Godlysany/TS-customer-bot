@@ -20,6 +20,7 @@ import questionnaireRuntimeService from '../core/QuestionnaireRuntimeService';
 import { QuestionnaireService } from '../core/QuestionnaireService';
 import botDiscountService from '../core/BotDiscountService';
 import promotionService from '../core/PromotionService';
+import ttsService from '../core/TTSService';
 
 const debounceTimers = new Map();
 const messageBuffers = new Map();
@@ -328,6 +329,9 @@ async function handleMessage(msg: WAMessage) {
   let isVoice = false;
   let messageType: 'text' | 'voice' | 'image' | 'file' = 'text';
 
+  let voiceTranscription: string | undefined;
+  let voiceDuration: number | undefined;
+
   try {
     if (msg.message.audioMessage?.ptt) {
       isVoice = true;
@@ -335,7 +339,10 @@ async function handleMessage(msg: WAMessage) {
       const buffer = await downloadMediaMessage(msg, 'buffer', {});
       const filePath = `./voice-${Date.now()}.ogg`;
       fs.writeFileSync(filePath, buffer);
-      text = await transcribeVoice(filePath);
+      const { transcript, duration } = await ttsService.transcribeVoice(filePath);
+      text = transcript;
+      voiceTranscription = transcript;
+      voiceDuration = duration;
       fs.unlinkSync(filePath);
     } else if (msg.message.imageMessage) {
       messageType = 'image';
@@ -354,13 +361,22 @@ async function handleMessage(msg: WAMessage) {
     
     const { conversation, contact } = await conversationService.getOrCreateConversation(phoneNumber, whatsappName);
 
-    await messageService.createMessage({
+    const inboundMessage = await messageService.createMessage({
       conversationId: conversation.id,
       content: text,
       messageType,
       direction: 'inbound',
       sender: phoneNumber,
     });
+
+    // Store voice transcription if it was a voice message
+    if (voiceTranscription && inboundMessage.id) {
+      await ttsService.updateMessageWithVoiceData(
+        inboundMessage.id,
+        voiceTranscription,
+        voiceDuration
+      );
+    }
 
     const messageHistory = await messageService.getConversationMessages(conversation.id);
 
@@ -550,12 +566,12 @@ async function handleMessage(msg: WAMessage) {
 
     await messageService.updateConversationLastMessage(conversation.id);
 
-    const shouldSendVoice = config.whatsapp.replyMode === 'voice' || 
-      (config.whatsapp.replyMode === 'voice-on-voice' && isVoice);
+    // Determine if we should reply with voice based on TTS settings
+    const shouldSendVoice = await ttsService.shouldReplyWithVoice(contact.id, isVoice);
 
-    if (shouldSendVoice && config.elevenlabs.apiKey) {
+    if (shouldSendVoice) {
       try {
-        const audioPath = await textToSpeech(replyText);
+        const audioPath = await ttsService.textToSpeech(replyText);
         if (audioPath) {
           const audioBuffer = fs.readFileSync(audioPath);
           await sock.sendMessage(sender, {
@@ -565,7 +581,18 @@ async function handleMessage(msg: WAMessage) {
           });
           fs.unlinkSync(audioPath);
           console.log('✅ Voice note sent');
+          
+          // Update message record with TTS audio info
+          await ttsService.updateMessageWithVoiceData(
+            messageRecord.id,
+            undefined,
+            undefined,
+            'tts_audio_sent'
+          );
+          
           return;
+        } else {
+          console.warn('⚠️ TTS generation failed, falling back to text');
         }
       } catch (err: any) {
         console.warn('⚠️ Voice failed, fallback to text:', err.message);
