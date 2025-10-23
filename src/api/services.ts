@@ -71,9 +71,14 @@ router.post('/', requireRole('master'), async (req, res) => {
 router.put('/:id', requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const serviceData = toSnakeCase(req.body);
 
-    const { data: service, error } = await supabase
+    const { data: service, error} = await supabase
       .from('services')
       .update(serviceData)
       .eq('id', id)
@@ -92,6 +97,10 @@ router.put('/:id', requireRole('master'), async (req, res) => {
 router.delete('/:id', requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
 
     const { error } = await supabase
       .from('services')
@@ -115,6 +124,11 @@ router.delete('/:id', requireRole('master'), async (req, res) => {
 router.get('/:id/booking-windows', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const windows = await serviceAvailabilityService.getBookingWindows(id);
     res.json(windows);
   } catch (error: any) {
@@ -127,6 +141,11 @@ router.get('/:id/booking-windows', async (req, res) => {
 router.post('/:id/booking-windows', requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const windowData = { ...req.body, serviceId: id };
     const window = await serviceAvailabilityService.createBookingWindow(windowData);
     res.json(window);
@@ -140,6 +159,11 @@ router.post('/:id/booking-windows', requireRole('master'), async (req, res) => {
 router.put('/:id/booking-windows', requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const { windows } = req.body;
     const updated = await serviceAvailabilityService.replaceBookingWindows(id, windows);
     res.json(updated);
@@ -153,6 +177,11 @@ router.put('/:id/booking-windows', requireRole('master'), async (req, res) => {
 router.patch('/booking-windows/:windowId', requireRole('master'), async (req, res) => {
   try {
     const { windowId } = req.params;
+    
+    if (!isValidUUID(windowId)) {
+      return res.status(400).json({ error: 'Invalid window ID format' });
+    }
+    
     const window = await serviceAvailabilityService.updateBookingWindow(windowId, req.body);
     res.json(window);
   } catch (error: any) {
@@ -165,6 +194,11 @@ router.patch('/booking-windows/:windowId', requireRole('master'), async (req, re
 router.delete('/booking-windows/:windowId', requireRole('master'), async (req, res) => {
   try {
     const { windowId } = req.params;
+    
+    if (!isValidUUID(windowId)) {
+      return res.status(400).json({ error: 'Invalid window ID format' });
+    }
+    
     await serviceAvailabilityService.deleteBookingWindow(windowId);
     res.json({ success: true });
   } catch (error: any) {
@@ -181,6 +215,11 @@ router.delete('/booking-windows/:windowId', requireRole('master'), async (req, r
 router.get('/:id/blockers', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const blockers = await serviceAvailabilityService.getServiceBlockers(id);
     res.json(blockers);
   } catch (error: any) {
@@ -193,6 +232,11 @@ router.get('/:id/blockers', async (req, res) => {
 router.post('/:id/blockers', requireRole('master'), async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
     const blockerData = { ...req.body, serviceId: id };
     const blocker = await serviceAvailabilityService.createServiceBlocker(blockerData);
     res.json(blocker);
@@ -206,6 +250,11 @@ router.post('/:id/blockers', requireRole('master'), async (req, res) => {
 router.patch('/blockers/:blockerId', requireRole('master'), async (req, res) => {
   try {
     const { blockerId } = req.params;
+    
+    if (!isValidUUID(blockerId)) {
+      return res.status(400).json({ error: 'Invalid blocker ID format' });
+    }
+    
     const blocker = await serviceAvailabilityService.updateServiceBlocker(blockerId, req.body);
     res.json(blocker);
   } catch (error: any) {
@@ -218,6 +267,11 @@ router.patch('/blockers/:blockerId', requireRole('master'), async (req, res) => 
 router.delete('/blockers/:blockerId', requireRole('master'), async (req, res) => {
   try {
     const { blockerId } = req.params;
+    
+    if (!isValidUUID(blockerId)) {
+      return res.status(400).json({ error: 'Invalid blocker ID format' });
+    }
+    
     await serviceAvailabilityService.deleteServiceBlocker(blockerId);
     res.json({ success: true });
   } catch (error: any) {
@@ -230,6 +284,10 @@ router.delete('/blockers/:blockerId', requireRole('master'), async (req, res) =>
 router.post('/:id/validate-time', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
     const { dateTime } = req.body;
     const validation = await serviceAvailabilityService.validateBookingTime(id, new Date(dateTime));
     res.json(validation);

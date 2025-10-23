@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const MessageApprovalService_1 = __importDefault(require("../core/MessageApprovalService"));
 const auth_1 = require("../middleware/auth");
+const uuid_validator_1 = require("../utils/uuid-validator");
 const router = (0, express_1.Router)();
 router.use(auth_1.authMiddleware);
 // Get all pending approval messages
@@ -55,8 +56,11 @@ router.get('/pending', async (req, res) => {
 // Approve a message and trigger WhatsApp send
 router.post('/:id/approve', async (req, res) => {
     try {
-        const agentId = req.user.id;
         const messageId = req.params.id;
+        if (!(0, uuid_validator_1.isValidUUID)(messageId)) {
+            return res.status(400).json({ error: 'Invalid message ID format' });
+        }
+        const agentId = req.user.id;
         // Get message to check current state
         let message = await MessageApprovalService_1.default.getMessageById(messageId);
         if (!message) {
@@ -158,8 +162,12 @@ router.post('/:id/approve', async (req, res) => {
 // Reject a message
 router.post('/:id/reject', async (req, res) => {
     try {
+        const messageId = req.params.id;
+        if (!(0, uuid_validator_1.isValidUUID)(messageId)) {
+            return res.status(400).json({ error: 'Invalid message ID format' });
+        }
         const agentId = req.user.id;
-        const message = await MessageApprovalService_1.default.rejectMessage(req.params.id, agentId);
+        const message = await MessageApprovalService_1.default.rejectMessage(messageId, agentId);
         res.json(message);
     }
     catch (error) {

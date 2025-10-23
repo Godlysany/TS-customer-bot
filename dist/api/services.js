@@ -67,6 +67,9 @@ router.post('/', (0, auth_1.requireRole)('master'), async (req, res) => {
 router.put('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const serviceData = (0, mapper_1.toSnakeCase)(req.body);
         const { data: service, error } = await supabase_1.supabase
             .from('services')
@@ -86,6 +89,9 @@ router.put('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
 router.delete('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const { error } = await supabase_1.supabase
             .from('services')
             .delete()
@@ -106,6 +112,9 @@ router.delete('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
 router.get('/:id/booking-windows', async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const windows = await ServiceAvailabilityService_1.default.getBookingWindows(id);
         res.json(windows);
     }
@@ -118,6 +127,9 @@ router.get('/:id/booking-windows', async (req, res) => {
 router.post('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const windowData = { ...req.body, serviceId: id };
         const window = await ServiceAvailabilityService_1.default.createBookingWindow(windowData);
         res.json(window);
@@ -131,6 +143,9 @@ router.post('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (re
 router.put('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const { windows } = req.body;
         const updated = await ServiceAvailabilityService_1.default.replaceBookingWindows(id, windows);
         res.json(updated);
@@ -144,6 +159,9 @@ router.put('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req
 router.patch('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { windowId } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(windowId)) {
+            return res.status(400).json({ error: 'Invalid window ID format' });
+        }
         const window = await ServiceAvailabilityService_1.default.updateBookingWindow(windowId, req.body);
         res.json(window);
     }
@@ -156,6 +174,9 @@ router.patch('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), as
 router.delete('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { windowId } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(windowId)) {
+            return res.status(400).json({ error: 'Invalid window ID format' });
+        }
         await ServiceAvailabilityService_1.default.deleteBookingWindow(windowId);
         res.json({ success: true });
     }
@@ -171,6 +192,9 @@ router.delete('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), a
 router.get('/:id/blockers', async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const blockers = await ServiceAvailabilityService_1.default.getServiceBlockers(id);
         res.json(blockers);
     }
@@ -183,6 +207,9 @@ router.get('/:id/blockers', async (req, res) => {
 router.post('/:id/blockers', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const blockerData = { ...req.body, serviceId: id };
         const blocker = await ServiceAvailabilityService_1.default.createServiceBlocker(blockerData);
         res.json(blocker);
@@ -196,6 +223,9 @@ router.post('/:id/blockers', (0, auth_1.requireRole)('master'), async (req, res)
 router.patch('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { blockerId } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(blockerId)) {
+            return res.status(400).json({ error: 'Invalid blocker ID format' });
+        }
         const blocker = await ServiceAvailabilityService_1.default.updateServiceBlocker(blockerId, req.body);
         res.json(blocker);
     }
@@ -208,6 +238,9 @@ router.patch('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (r
 router.delete('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (req, res) => {
     try {
         const { blockerId } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(blockerId)) {
+            return res.status(400).json({ error: 'Invalid blocker ID format' });
+        }
         await ServiceAvailabilityService_1.default.deleteServiceBlocker(blockerId);
         res.json({ success: true });
     }
@@ -220,6 +253,9 @@ router.delete('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (
 router.post('/:id/validate-time', async (req, res) => {
     try {
         const { id } = req.params;
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid service ID format' });
+        }
         const { dateTime } = req.body;
         const validation = await ServiceAvailabilityService_1.default.validateBookingTime(id, new Date(dateTime));
         res.json(validation);

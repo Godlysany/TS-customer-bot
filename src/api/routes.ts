@@ -9,6 +9,7 @@ import conversationTakeoverService from '../core/ConversationTakeoverService';
 import marketingService from '../core/MarketingService';
 import { supabase } from '../infrastructure/supabase';
 import { authMiddleware, requireRole, AuthRequest } from '../middleware/auth';
+import { isValidUUID } from '../utils/uuid-validator';
 
 // Import new feature routes
 import promotionRoutes from './promotion-routes';
@@ -49,7 +50,13 @@ router.get('/api/conversations', authMiddleware, async (req, res) => {
 
 router.get('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
   try {
-    const messages = await messageService.getConversationMessages(req.params.id);
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    const messages = await messageService.getConversationMessages(id);
     res.json(messages);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -58,12 +65,17 @@ router.get('/api/conversations/:id/messages', authMiddleware, async (req, res) =
 
 router.post('/api/conversations/:id/messages', authMiddleware, async (req, res) => {
   try {
+    const { id } = req.params;
     const { content } = req.body;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
     
     const { data: conversation } = await supabase
       .from('conversations')
       .select('contact_id, contact:contacts(phone_number)')
-      .eq('id', req.params.id)
+      .eq('id', id)
       .single();
     
     if (!conversation || !conversation.contact) {
@@ -97,7 +109,13 @@ router.post('/api/conversations/:id/messages', authMiddleware, async (req, res) 
 
 router.post('/api/conversations/:id/escalate', async (req, res) => {
   try {
-    await conversationService.updateConversationStatus(req.params.id, 'escalated');
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    await conversationService.updateConversationStatus(id, 'escalated');
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -106,7 +124,13 @@ router.post('/api/conversations/:id/escalate', async (req, res) => {
 
 router.post('/api/conversations/:id/resolve', async (req, res) => {
   try {
-    await conversationService.updateConversationStatus(req.params.id, 'resolved');
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    await conversationService.updateConversationStatus(id, 'resolved');
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -152,12 +176,18 @@ router.post('/api/prompts', async (req, res) => {
 
 router.put('/api/prompts/:id/activate', async (req, res) => {
   try {
-    await supabase.from('prompts').update({ is_active: false }).neq('id', req.params.id);
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid prompt ID format' });
+    }
+    
+    await supabase.from('prompts').update({ is_active: false }).neq('id', id);
     
     const { data, error } = await supabase
       .from('prompts')
       .update({ is_active: true })
-      .eq('id', req.params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -268,7 +298,13 @@ router.post('/api/bookings', authMiddleware, async (req, res) => {
 
 router.post('/api/bookings/:id/cancel', async (req, res) => {
   try {
-    await bookingService.cancelBooking(req.params.id);
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid booking ID format' });
+    }
+    
+    await bookingService.cancelBooking(id);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -278,8 +314,12 @@ router.post('/api/bookings/:id/cancel', async (req, res) => {
 // Update booking status (with multi-session completion trigger)
 router.patch('/api/bookings/:id/status', authMiddleware, async (req, res) => {
   try {
-    const { status } = req.body;
     const bookingId = req.params.id;
+    const { status } = req.body;
+    
+    if (!isValidUUID(bookingId)) {
+      return res.status(400).json({ error: 'Invalid booking ID format' });
+    }
 
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
@@ -414,8 +454,14 @@ router.post('/api/contacts/:id/analytics/refresh', async (req, res) => {
 // Conversation takeover endpoints
 router.post('/api/conversations/:id/takeover', async (req, res) => {
   try {
+    const { id } = req.params;
     const { agentId, type, notes } = req.body;
-    await conversationTakeoverService.startTakeover(req.params.id, agentId, type, notes);
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    await conversationTakeoverService.startTakeover(id, agentId, type, notes);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -424,7 +470,13 @@ router.post('/api/conversations/:id/takeover', async (req, res) => {
 
 router.post('/api/conversations/:id/takeover/end', async (req, res) => {
   try {
-    await conversationTakeoverService.endTakeover(req.params.id);
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    await conversationTakeoverService.endTakeover(id);
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -433,7 +485,13 @@ router.post('/api/conversations/:id/takeover/end', async (req, res) => {
 
 router.get('/api/conversations/:id/takeover/status', async (req, res) => {
   try {
-    const takeover = await conversationTakeoverService.getActiveTakeover(req.params.id);
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid conversation ID format' });
+    }
+    
+    const takeover = await conversationTakeoverService.getActiveTakeover(id);
     res.json({ takeover });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

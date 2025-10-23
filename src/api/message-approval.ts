@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import messageApprovalService from '../core/MessageApprovalService';
 import { authMiddleware } from '../middleware/auth';
+import { isValidUUID } from '../utils/uuid-validator';
 
 const router = Router();
 
@@ -20,8 +21,13 @@ router.get('/pending', async (req, res) => {
 // Approve a message and trigger WhatsApp send
 router.post('/:id/approve', async (req, res) => {
   try {
-    const agentId = (req as any).user.id;
     const messageId = req.params.id;
+    
+    if (!isValidUUID(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID format' });
+    }
+    
+    const agentId = (req as any).user.id;
 
     // Get message to check current state
     let message = await messageApprovalService.getMessageById(messageId);
@@ -131,8 +137,14 @@ router.post('/:id/approve', async (req, res) => {
 // Reject a message
 router.post('/:id/reject', async (req, res) => {
   try {
+    const messageId = req.params.id;
+    
+    if (!isValidUUID(messageId)) {
+      return res.status(400).json({ error: 'Invalid message ID format' });
+    }
+    
     const agentId = (req as any).user.id;
-    const message = await messageApprovalService.rejectMessage(req.params.id, agentId);
+    const message = await messageApprovalService.rejectMessage(messageId, agentId);
     res.json(message);
   } catch (error: any) {
     console.error('Error rejecting message:', error);
