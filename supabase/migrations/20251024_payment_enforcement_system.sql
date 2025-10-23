@@ -136,17 +136,25 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION update_contact_outstanding_balance()
 RETURNS TRIGGER AS $$
 DECLARE
+  v_contact_id UUID;
   v_outstanding NUMERIC(10,2);
   v_has_overdue BOOLEAN;
 BEGIN
+  -- Determine which contact to update (NEW for INSERT/UPDATE, OLD for DELETE)
+  IF TG_OP = 'DELETE' THEN
+    v_contact_id := OLD.contact_id;
+  ELSE
+    v_contact_id := NEW.contact_id;
+  END IF;
+
   -- Calculate outstanding balance for this contact
-  SELECT calculate_contact_outstanding_balance(NEW.contact_id)
+  SELECT calculate_contact_outstanding_balance(v_contact_id)
   INTO v_outstanding;
   
   -- Check if any payments are overdue (past due date and not paid)
   SELECT EXISTS(
     SELECT 1 FROM payment_transactions
-    WHERE contact_id = NEW.contact_id
+    WHERE contact_id = v_contact_id
       AND status IN ('pending', 'failed')
       AND due_date < NOW()
   ) INTO v_has_overdue;
@@ -157,17 +165,30 @@ BEGIN
     outstanding_balance_chf = v_outstanding,
     has_overdue_payments = v_has_overdue,
     updated_at = NOW()
-  WHERE id = NEW.contact_id;
+  WHERE id = v_contact_id;
   
-  RETURN NEW;
+  -- Return appropriate row
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create triggers to update outstanding balance on ALL status changes
+-- INCLUDING 'cancelled', 'forgiven', 'refunded' to properly clear balances
 DROP TRIGGER IF EXISTS update_outstanding_balance_on_transaction ON payment_transactions;
+DROP TRIGGER IF EXISTS update_outstanding_balance_on_delete ON payment_transactions;
+
 CREATE TRIGGER update_outstanding_balance_on_transaction
   AFTER INSERT OR UPDATE ON payment_transactions
   FOR EACH ROW
-  WHEN (NEW.status IN ('pending', 'failed', 'succeeded'))
+  EXECUTE FUNCTION update_contact_outstanding_balance();
+
+CREATE TRIGGER update_outstanding_balance_on_delete
+  AFTER DELETE ON payment_transactions
+  FOR EACH ROW
   EXECUTE FUNCTION update_contact_outstanding_balance();
 
 -- ====================
