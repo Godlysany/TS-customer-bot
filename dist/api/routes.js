@@ -334,10 +334,27 @@ router.patch('/api/bookings/:id/status', auth_1.authMiddleware, async (req, res)
             .single();
         if (error)
             throw error;
-        // If status is 'completed', trigger multi-session completion check
+        // If status is 'completed', trigger multi-session completion check and nurturing activities
         if (status === 'completed') {
             const sessionCompletionTrigger = (await Promise.resolve().then(() => __importStar(require('../core/SessionCompletionTrigger')))).default;
             await sessionCompletionTrigger.onBookingCompleted(bookingId);
+            const nurturingService = (await Promise.resolve().then(() => __importStar(require('../core/NurturingService')))).default;
+            try {
+                await nurturingService.logActivity({
+                    contactId: booking.contact_id,
+                    activityType: 'post_appointment_followup',
+                    status: 'pending',
+                    metadata: {
+                        bookingId,
+                        serviceId: booking.service_id,
+                        completedAt: new Date().toISOString(),
+                    },
+                });
+                console.log('✅ Logged post-appointment nurturing activity for booking:', bookingId);
+            }
+            catch (err) {
+                console.error('❌ Failed to log nurturing activity:', err);
+            }
         }
         res.json({ success: true, booking });
     }

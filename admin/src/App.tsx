@@ -20,6 +20,7 @@ import Promotions from './pages/Promotions';
 import BotDiscounts from './pages/BotDiscounts';
 import CustomersManagement from './pages/CustomersManagement';
 import Escalations from './pages/Escalations';
+import Nurturing from './pages/Nurturing';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,6 +115,14 @@ function App() {
                 element={
                   <ProtectedRoute requireMaster>
                     <CustomersManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="nurturing"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <Nurturing />
                   </ProtectedRoute>
                 }
               />

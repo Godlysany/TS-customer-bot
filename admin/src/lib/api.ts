@@ -221,3 +221,20 @@ export const calendarApi = {
   getStatus: () => api.get('/calendar/status'),
   disconnect: () => api.post('/calendar/disconnect'),
 };
+
+export const nurturingApi = {
+  getSettings: () => api.get('/nurturing/settings'),
+  getSetting: (key: string) => api.get(`/nurturing/settings/${key}`),
+  updateSetting: (key: string, value: string) => api.put(`/nurturing/settings/${key}`, { value }),
+  getStats: (startDate?: string, endDate?: string) => 
+    api.get('/nurturing/stats', { params: { startDate, endDate } }),
+  getContactProfile: (contactId: string) => api.get(`/nurturing/contacts/${contactId}/profile`),
+  getContactActivities: (contactId: string, limit?: number) => 
+    api.get(`/nurturing/contacts/${contactId}/activities`, { params: { limit } }),
+  updateContactBirthdate: (contactId: string, birthdate: string | null) => 
+    api.put(`/nurturing/contacts/${contactId}/birthdate`, { birthdate }),
+  updateContactPreferences: (contactId: string, preferences: any) => 
+    api.put(`/nurturing/contacts/${contactId}/preferences`, preferences),
+  getBirthdayContacts: () => api.get('/nurturing/birthday-contacts'),
+  getReviewEligibleContacts: () => api.get('/nurturing/review-eligible-contacts'),
+};

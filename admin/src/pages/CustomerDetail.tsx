@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { customersApi } from '../lib/api';
-import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock } from 'lucide-react';
+import { customersApi, nurturingApi } from '../lib/api';
+import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity } from 'lucide-react';
 
 const CustomerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +26,15 @@ const CustomerDetail = () => {
     queryKey: ['customer-service-history', id],
     queryFn: async () => {
       const res = await customersApi.getServiceHistory(id!);
+      return res.data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: nurturingActivities } = useQuery({
+    queryKey: ['customer-nurturing-activities', id],
+    queryFn: async () => {
+      const res = await nurturingApi.getContactActivities(id!, 20);
       return res.data;
     },
     enabled: !!id,
@@ -191,6 +200,43 @@ const CustomerDetail = () => {
               </div>
             ) : (
               <p className="text-gray-500">No service history yet</p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-purple-500" />
+              Nurturing Activities
+            </h2>
+            
+            {nurturingActivities && nurturingActivities.length > 0 ? (
+              <div className="space-y-2">
+                {nurturingActivities.map((activity: any) => (
+                  <div key={activity.id} className="border-l-4 border-purple-200 bg-purple-50 p-3 rounded">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-900 capitalize">
+                        {activity.activityType.replace(/_/g, ' ')}
+                      </span>
+                      <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                        activity.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        activity.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                        activity.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {activity.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
+                    </p>
+                    {activity.messageContent && (
+                      <p className="text-xs text-gray-700 mt-2 italic">{activity.messageContent}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No nurturing activities yet</p>
             )}
           </div>
 
