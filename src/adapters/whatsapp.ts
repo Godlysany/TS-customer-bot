@@ -418,6 +418,75 @@ async function handleMessage(msg: WAMessage) {
       }
     }
 
+    // DOCUMENT TRIGGER CHECK: Detect if customer message contains document keywords
+    // Send documents with GPT-personalized messages before generating main reply
+    try {
+      const { default: documentMessageService } = await import('../core/DocumentMessageService');
+      const documentMatches = await documentMessageService.detectDocumentTriggers(text);
+      
+      if (documentMatches.length > 0) {
+        console.log(`📄 Document triggers detected: ${documentMatches.length} matches`);
+        
+        for (const match of documentMatches) {
+          // Check if already sent recently
+          const alreadySent = await documentMessageService.wasDocumentAlreadySent(contact.id, match.serviceId);
+          if (alreadySent) {
+            console.log(`⏭️  Skipping ${match.serviceName} document (already sent recently)`);
+            continue;
+          }
+          
+          // Personalize document message with GPT
+          const personalizedMessage = await documentMessageService.personalizeDocumentMessage(
+            match.documentDescription,
+            contact,
+            conversation.id,
+            match.serviceName
+          );
+          
+          // Send personalized message
+          await sock.sendMessage(sender, { text: personalizedMessage });
+          console.log(`✅ Personalized message sent for ${match.serviceName}`);
+          
+          // Send document (TODO: This needs to be implemented in WhatsApp adapter to send files)
+          // For now, send as text with link
+          await sock.sendMessage(sender, { text: `📎 ${match.documentName}: ${match.documentUrl}` });
+          console.log(`📎 Document sent: ${match.documentName}`);
+          
+          // Record delivery
+          await documentMessageService.recordDocumentSent(
+            contact.id,
+            conversation.id,
+            match.serviceId,
+            match.documentUrl
+          );
+          
+          // Save messages to database
+          await messageService.createMessage({
+            conversationId: conversation.id,
+            content: personalizedMessage,
+            messageType: 'text',
+            direction: 'outbound',
+            sender: 'bot',
+            approvalStatus: 'approved',
+          });
+          
+          await messageService.createMessage({
+            conversationId: conversation.id,
+            content: `📎 ${match.documentName}`,
+            messageType: 'file',
+            direction: 'outbound',
+            sender: 'bot',
+            approvalStatus: 'approved',
+          });
+        }
+        
+        await messageService.updateConversationLastMessage(conversation.id);
+      }
+    } catch (docError: any) {
+      console.error('❌ Document trigger check failed:', docError.message);
+      // Continue with normal flow if document check fails
+    }
+
     let replyText: string | null = null;
 
     try {

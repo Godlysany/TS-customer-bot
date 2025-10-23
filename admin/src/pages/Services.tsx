@@ -33,6 +33,7 @@ interface Service {
   documentTiming?: string | null;
   documentDescription?: string | null;
   documentStoragePath?: string | null;
+  documentKeywords?: string[] | null;
 }
 
 const Services = () => {
@@ -841,7 +842,29 @@ const Services = () => {
                           rows={2}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Optional message to send with the document
+                          Optional message to send with the document (will be personalized with GPT)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Trigger Keywords (comma-separated)
+                        </label>
+                        <input
+                          type="text"
+                          value={(formData.documentKeywords || []).join(', ')}
+                          onChange={(e) => {
+                            const keywords = e.target.value
+                              .split(',')
+                              .map(k => k.trim())
+                              .filter(k => k.length > 0);
+                            setFormData({ ...formData, documentKeywords: keywords });
+                          }}
+                          placeholder="E.g., preparation, guidelines, instructions, what to bring"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Bot will send this document when customer mentions these keywords (only for "as_info" timing)
                         </p>
                       </div>
                     </div>
