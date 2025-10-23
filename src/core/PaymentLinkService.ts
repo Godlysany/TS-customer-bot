@@ -177,7 +177,7 @@ class PaymentLinkService {
       // Update payment link status
       const { data: paymentLink } = await supabase
         .from('payment_links')
-        .select('booking_id, contact_id, amount_chf')
+        .select('booking_id, contact_id, amount_chf') // amount_chf exists in payment_links table
         .eq('stripe_checkout_session_id', session.id)
         .single();
 
@@ -204,13 +204,14 @@ class PaymentLinkService {
         })
         .eq('id', paymentLink.booking_id);
 
-      // Create payment transaction record
+      // Create payment transaction record (using 'amount' column)
       await supabase.from('payment_transactions').insert({
         contact_id: paymentLink.contact_id,
         booking_id: paymentLink.booking_id,
-        amount_chf: paymentLink.amount_chf,
+        amount: paymentLink.amount_chf, // Use base 'amount' column
         currency: 'CHF',
         payment_method: 'card',
+        payment_type: 'booking',
         status: 'succeeded',
         stripe_payment_intent_id: session.payment_intent as string,
         stripe_charge_id: session.payment_intent as string,

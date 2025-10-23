@@ -230,4 +230,64 @@ router.get('/:id/service-history', async (req, res) => {
   }
 });
 
+// Get payment transactions for a customer
+router.get('/:id/transactions', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: transactions, error } = await supabase
+      .from('payment_transactions')
+      .select(`
+        *,
+        booking:bookings(id, title, start_time),
+        service:services(id, name)
+      `)
+      .eq('contact_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Calculate summary
+    const totalPaid = transactions?.filter(t => t.status === 'succeeded')
+      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+    
+    const totalPending = transactions?.filter(t => t.status === 'pending')
+      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+    
+    const totalPenalties = transactions?.filter(t => t.is_penalty)
+      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+
+    res.json({
+      transactions: transactions || [],
+      summary: {
+        total_paid: totalPaid.toFixed(2),
+        total_pending: totalPending.toFixed(2),
+        total_penalties: totalPenalties.toFixed(2),
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching customer transactions:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get payment escalations for a customer
+router.get('/:id/payment-escalations', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: escalations, error } = await supabase
+      .from('payment_escalations')
+      .select('*')
+      .eq('contact_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json({ escalations: escalations || [] });
+  } catch (error: any) {
+    console.error('Error fetching payment escalations:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

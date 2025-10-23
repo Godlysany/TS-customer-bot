@@ -9,14 +9,8 @@
 -- Update payment_transactions to use CHF as default (Swiss market)
 ALTER TABLE payment_transactions ALTER COLUMN currency SET DEFAULT 'CHF';
 
--- Add amount_chf column for clarity (same as amount, kept for backward compatibility)
-ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS amount_chf NUMERIC(10,2)
-  GENERATED ALWAYS AS (
-    CASE 
-      WHEN currency = 'CHF' THEN amount
-      ELSE amount -- For now, assume all amounts are in CHF
-    END
-  ) STORED;
+-- Note: amount_chf is NOT needed as separate column - we use 'amount' column with CHF currency
+-- Removed generated column to allow direct inserts
 
 -- ====================
 -- 2. ADD OUTSTANDING BALANCE TRACKING TO CONTACTS
@@ -28,7 +22,7 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS has_overdue_payments BOOLEAN DEFAU
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_restriction_reason TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_allowance_granted BOOLEAN DEFAULT FALSE NOT NULL;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_allowance_notes TEXT;
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_allowance_granted_by UUID REFERENCES admins(id);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_allowance_granted_by UUID; -- Admin ID who granted allowance
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS payment_allowance_granted_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_payment_reminder_sent_at TIMESTAMP WITH TIME ZONE;
 
@@ -101,7 +95,7 @@ CREATE TABLE IF NOT EXISTS payment_escalations (
   outstanding_amount_chf NUMERIC(10,2) NOT NULL,
   escalation_level VARCHAR(20) CHECK (escalation_level IN ('reminder', 'urgent', 'collection', 'resolved', 'forgiven')),
   admin_notes TEXT,
-  resolved_by UUID REFERENCES admins(id),
+  resolved_by UUID, -- Admin ID who resolved escalation
   resolved_at TIMESTAMP WITH TIME ZONE,
   resolution_action VARCHAR(50) CHECK (resolution_action IN ('paid', 'forgiven', 'payment_plan', 'legal_action', 'customer_allowance')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -123,12 +117,13 @@ RETURNS NUMERIC AS $$
 DECLARE
   v_total NUMERIC(10,2);
 BEGIN
+  -- Sum ALL pending/failed payments regardless of due date
+  -- Outstanding balance reflects any open liability immediately
   SELECT COALESCE(SUM(amount), 0)
   INTO v_total
   FROM payment_transactions
   WHERE contact_id = p_contact_id
-    AND status IN ('pending', 'failed')
-    AND (due_date IS NULL OR due_date < NOW());
+    AND status IN ('pending', 'failed');
   
   RETURN v_total;
 END;

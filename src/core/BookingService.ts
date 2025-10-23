@@ -235,20 +235,20 @@ export class BookingService {
       try {
         console.log(`💰 Creating penalty payment transaction: CHF ${penaltyFee} for late cancellation`);
         
-        // Create payment transaction record
+        // Create payment transaction record (using 'amount' column, NOT amount_chf)
         const { data: penaltyTransaction, error: penaltyError } = await supabase
           .from('payment_transactions')
-          .insert({
-            booking_id: bookingId,
-            contact_id: booking.contactId,
-            service_id: booking.serviceId,
-            amount: penaltyFee,
+          .insert(toSnakeCase({
+            bookingId: bookingId,
+            contactId: booking.contactId,
+            serviceId: booking.serviceId,
+            amount: penaltyFee, // Base amount column
             currency: 'CHF',
             status: 'pending',
-            payment_type: 'penalty',
-            is_penalty: true,
-            related_booking_id: bookingId,
-            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+            paymentType: 'penalty',
+            isPenalty: true,
+            relatedBookingId: bookingId,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
             notes: `Late cancellation penalty for booking cancelled ${hoursUntilAppointment.toFixed(1)} hours before appointment`,
             metadata: {
               reason: 'late_cancellation',
@@ -256,7 +256,7 @@ export class BookingService {
               policy_hours: policyHours,
               cancellation_reason: reason,
             }
-          })
+          }))
           .select()
           .single();
 
