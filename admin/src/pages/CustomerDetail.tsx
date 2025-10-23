@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '../lib/api';
-import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock } from 'lucide-react';
 
 const CustomerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +20,15 @@ const CustomerDetail = () => {
       const res = await customersApi.getQuestionnaires(id!);
       return res.data;
     },
+  });
+
+  const { data: serviceHistory } = useQuery({
+    queryKey: ['customer-service-history', id],
+    queryFn: async () => {
+      const res = await customersApi.getServiceHistory(id!);
+      return res.data;
+    },
+    enabled: !!id,
   });
 
   if (isLoading) {
@@ -114,6 +123,74 @@ const CustomerDetail = () => {
               </div>
             ) : (
               <p className="text-gray-500">No analytics data available</p>
+            )}
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              Service History
+            </h2>
+            
+            {serviceHistory && serviceHistory.length > 0 ? (
+              <div className="space-y-3">
+                {serviceHistory.map((booking: any) => (
+                  <div key={booking.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{booking.service?.name || 'Service'}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(booking.scheduledTime).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })} at {new Date(booking.scheduledTime).toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded font-medium ${
+                        booking.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        booking.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                        booking.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {booking.status}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-600 mt-3">
+                      {booking.service?.durationMinutes && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{booking.service.durationMinutes} min</span>
+                        </div>
+                      )}
+                      {booking.teamMember && (
+                        <div className="flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          <span>{booking.teamMember.name}</span>
+                        </div>
+                      )}
+                      {booking.cost && (
+                        <div className="flex items-center gap-1">
+                          <span className="font-semibold">CHF {booking.cost}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {booking.notes && (
+                      <p className="text-xs text-gray-600 mt-2 italic bg-gray-50 p-2 rounded">
+                        {booking.notes}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No service history yet</p>
             )}
           </div>
 

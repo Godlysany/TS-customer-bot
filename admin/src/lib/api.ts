@@ -153,6 +153,7 @@ export const customersApi = {
   getAll: () => api.get('/customers'),
   getById: (id: string) => api.get(`/customers/${id}`),
   getQuestionnaires: (id: string) => api.get(`/customers/${id}/questionnaires`),
+  getServiceHistory: (id: string) => api.get(`/customers/${id}/service-history`),
 };
 
 export const questionnaireResponsesApi = {
