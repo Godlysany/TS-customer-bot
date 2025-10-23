@@ -50,6 +50,7 @@ The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind 
 - **Intelligent Multi-Language System**: Ensures customer-friendly, deliberate language selection and persistence, only changing language on explicit customer request with GPT-powered detection.
 - **Currency Standardization**: All financial transactions and settings are standardized to CHF.
 - **Promotion & Payment System**: Features a B2B marketing platform with promotions, smart bot discounts, admin approval queues for high-value discounts, bulk CSV customer import, service-specific promotions, and voucher code generation.
+- **Customer Nurturing System**: Complete production-ready nurturing infrastructure with 10 RESTful API endpoints, comprehensive admin UI with 4 tabs (Settings, Birthday Wishes, Review Requests, Statistics), automatic activity logging on booking completion, Google Review link configuration with customizable templates, birthday wishes automation with optional discount offering, post-appointment follow-up automation with configurable delays, and customer profile nurturing activity visibility with color-coded status badges.
 
 ### System Design Choices
 - **Optional WhatsApp Connection**: The server starts independently of WhatsApp status.
