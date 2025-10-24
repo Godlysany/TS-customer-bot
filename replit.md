@@ -25,6 +25,22 @@ The system utilizes a modular TypeScript architecture based on Node.js (v20+), s
 ### UI/UX Decisions
 The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with five main navigation pages: conversations, settings, customer analytics, marketing campaigns, and bookings. A TypeScript API client with React Query hooks ensures type-safe interactions.
 
+### Recent Changes (October 24, 2025)
+- **Production-Ready Payment Enforcement System**: Comprehensive B2B payment infrastructure for Swiss market (CHF standardization)
+  - Database schema: payment_transactions extended fields, outstanding_balance_chf tracking in contacts, payment_escalations table
+  - Auto-calculation triggers: Outstanding balances update on ALL transaction status changes (INSERT/UPDATE/DELETE), handles forgiveness/cancellation/refunds
+  - Booking restrictions: Customers with outstanding_balance > 0 blocked from booking unless admin grants payment_allowance
+  - Penalty enforcement: Late cancellations create payment_transaction records with 7-day due dates, Stripe payment links sent via WhatsApp
+  - Stripe webhook integration: WhatsApp notifications in customer language (de/en/fr) for success/failure/expiration
+  - Payment History API: GET /customers/:id/transactions and /payment-escalations with UUID validation
+  - Gentle prepayment: Database settings for optional prepayment suggestions (suggest_prepayment flag + multi-language templates)
+  - **4 Critical Bugs Fixed**:
+    1. Removed GENERATED ALWAYS column (amount_chf) - use base 'amount' with CHF currency
+    2. Outstanding balance sums ALL pending/failed regardless of due_date (immediate liability tracking)
+    3. All inserts use 'amount' column with toSnakeCase() mapper for consistency
+    4. Trigger fires on ALL status changes (not just pending/failed/succeeded) + DELETE trigger for balance clearing
+  - **Architect Verified**: All payment flows, triggers, booking restrictions, webhook handling production-ready
+
 ### Technical Implementations & Features
 - **WhatsApp Payment Integration**: Production-ready end-to-end payment integration for WhatsApp booking flow across multi-session strategies, including Stripe checkout, payment link generation, and webhook-based status tracking.
 - **Production Readiness**: Implemented email collection enforcement, dynamic template placeholder replacement, extended contacts table with CRM columns, and AI-powered CRM extraction from conversations using GPT-4.
