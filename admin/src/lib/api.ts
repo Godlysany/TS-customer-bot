@@ -181,6 +181,8 @@ export const customersApi = {
   getById: (id: string) => api.get(`/customers/${id}`),
   getQuestionnaires: (id: string) => api.get(`/customers/${id}/questionnaires`),
   getServiceHistory: (id: string) => api.get(`/customers/${id}/service-history`),
+  getTransactions: (id: string) => api.get(`/customers/${id}/transactions`),
+  getPaymentEscalations: (id: string) => api.get(`/customers/${id}/payment-escalations`),
 };
 
 export const questionnaireResponsesApi = {
