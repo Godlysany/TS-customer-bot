@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { bookingsApi, waitlistApi } from '../lib/api';
+import { bookingsApi, waitlistApi, customersApi } from '../lib/api';
 import type { Booking } from '../types';
 import { format } from 'date-fns';
-import { Calendar, Clock, X, Users, Phone, Mail, User } from 'lucide-react';
+import { Calendar, Clock, X, Users, Phone, Mail, User, AlertCircle } from 'lucide-react';
 
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState<'appointments' | 'waitlist'>('appointments');
@@ -16,6 +16,18 @@ const Bookings = () => {
     queryFn: async () => {
       const res = await bookingsApi.getAll();
       return res.data;
+    },
+  });
+
+  const { data: outstandingBalances } = useQuery({
+    queryKey: ['outstanding-balances-map'],
+    queryFn: async () => {
+      const res = await customersApi.getOutstandingBalances();
+      const customersMap: any = {};
+      res.data.customers.forEach((c: any) => {
+        customersMap[c.id] = c.outstanding_balance_chf;
+      });
+      return customersMap;
     },
   });
 
@@ -149,6 +161,12 @@ const Bookings = () => {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {format(new Date(booking.startTime), 'MMMM d, yyyy')}
                           </h3>
+                          {outstandingBalances && outstandingBalances[booking.contactId] > 0 && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-red-50 border border-red-200 rounded-full text-xs font-medium text-red-700">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>CHF {outstandingBalances[booking.contactId].toFixed(2)} outstanding</span>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-6 text-sm text-gray-600">
                           <div className="flex items-center gap-2">

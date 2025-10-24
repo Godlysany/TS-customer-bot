@@ -29,9 +29,20 @@ The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind 
 - **L1 & L2 Production Infrastructure** (October 24, 2025):
   - **Winston Structured Logging**: Production-grade logging with daily file rotation (14d app logs, 30d error logs), JSON structured format, multiple transports (console + file), exception/rejection handlers, configurable log levels
   - **Redis Distributed Locks**: Idempotent message handling, lock acquisition/release/extend with Lua scripts, graceful fallback when Redis unavailable, prevents race conditions in WhatsApp message sending
-  - **Payment History UI**: Customer transaction history component with summary cards (total paid/pending/penalties), transaction table with status indicators, empty states, integrated with Customer Detail page
-  - **Payment API Extensions**: Added getTransactions() and getPaymentEscalations() endpoints to customersApi for CRM payment visibility
+  - **Payment History UI**: Customer transaction history component with summary cards (total paid/pending/penalties), transaction table with status indicators, empty states, integrated with tabbed Customer Detail page
+  - **Payment API Extensions**: Added getTransactions(), getPaymentEscalations(), and getOutstandingBalances() (master-only) endpoints to customersApi for CRM payment visibility
   - **SQL Migration Triggered**: Touched payment enforcement migration file for GitHub Actions deployment
+  
+- **P7-P9 Payment Management Features** (October 24, 2025):
+  - **Payment Escalation Dashboard**: Master-only admin page displaying all customers with outstanding balances, featuring real-time filters (high/medium/low priority), sorting options, summary metrics (total outstanding, customer count, average debt), detailed transaction breakdowns, payment allowance indicators, and direct navigation to customer profiles
+  - **Customer Detail Tabs**: Professional tabbed interface in CustomerDetail page with 5 tabs (Analytics, Service History, Payments, Questionnaires, Nurturing), integrated PaymentHistory component showing transaction summaries and full payment records
+  - **Calendar Payment Indicators**: Visual warning badges on Bookings calendar displaying outstanding balance amounts (CHF) with red alert styling for customers with unpaid fees, preventing scheduling conflicts with payment-restricted accounts
+  
+- **M1-M2 Production Error Handling** (October 24, 2025):
+  - **Comprehensive Payment Link Error Handling**: PaymentLinkService enhanced with structured Winston logging, pre-flight validation for bookings/contacts, Stripe API error catching with descriptive messages, database insert failure detection
+  - **Transaction Rollback System**: Automatic Stripe session expiration when database operations fail (M2 requirement), preventing orphaned payment sessions, rollback logging with full context (session IDs, booking IDs, error messages), graceful degradation when rollback itself fails
+  - **Security Hardening**: Master-role enforcement on `/admin/outstanding-balances` endpoint (403 Forbidden for non-master users), prevents support agents from accessing sensitive financial data
+  - **Cache Management Fix**: Distinct React Query keys ('outstanding-balances' vs 'outstanding-balances-map') to prevent cache collision between PaymentEscalations and Bookings pages
   
 - **Production-Ready Payment Enforcement System**: Comprehensive B2B payment infrastructure for Swiss market (CHF standardization)
   - Database schema: payment_transactions extended fields, outstanding_balance_chf tracking in contacts, payment_escalations table

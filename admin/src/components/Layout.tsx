@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase, Percent, CheckSquare, UserCog, AlertCircle, Heart } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase, Percent, CheckSquare, UserCog, AlertCircle, Heart, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import WhatsAppBanner from './WhatsAppBanner';
 
@@ -18,6 +18,7 @@ const Layout = () => {
     { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
+    { path: '/payment-escalations', label: 'Payment Issues', icon: DollarSign, roles: ['master'] },
     { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master'] },
     { path: '/promotions', label: 'Promotions', icon: Percent, roles: ['master'] },
     { path: '/bot-discounts', label: 'Discount Approvals', icon: CheckSquare, roles: ['master'] },

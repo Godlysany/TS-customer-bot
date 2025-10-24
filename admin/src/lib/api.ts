@@ -183,6 +183,7 @@ export const customersApi = {
   getServiceHistory: (id: string) => api.get(`/customers/${id}/service-history`),
   getTransactions: (id: string) => api.get(`/customers/${id}/transactions`),
   getPaymentEscalations: (id: string) => api.get(`/customers/${id}/payment-escalations`),
+  getOutstandingBalances: () => api.get('/customers/admin/outstanding-balances'),
 };
 
 export const questionnaireResponsesApi = {

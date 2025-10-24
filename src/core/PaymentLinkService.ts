@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { supabase } from '../infrastructure/supabase';
 import settingsService from './SettingsService';
+import { logError, logInfo, logWarn } from '../infrastructure/logger';
 
 export interface PaymentLinkRequest {
   booking_id: string;
@@ -45,28 +46,41 @@ class PaymentLinkService {
    * Create a payment link for a booking
    */
   async createPaymentLink(request: PaymentLinkRequest): Promise<PaymentLinkResult> {
+    let stripeSessionId: string | null = null;
+    let paymentLinkId: string | null = null;
+
     try {
+      logInfo('Creating payment link', { booking_id: request.booking_id, amount: request.amount_chf });
+      
       const stripe = await this.getStripeClient();
 
       // Get booking details for metadata
-      const { data: booking } = await supabase
+      const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .select('title, start_time, service_id')
         .eq('id', request.booking_id)
         .single();
 
+      if (bookingError || !booking) {
+        throw new Error(`Booking not found: ${request.booking_id}`);
+      }
+
       // Get contact details
-      const { data: contact } = await supabase
+      const { data: contact, error: contactError } = await supabase
         .from('contacts')
         .select('name, email, phone_number')
         .eq('id', request.contact_id)
         .single();
 
+      if (contactError || !contact) {
+        throw new Error(`Contact not found: ${request.contact_id}`);
+      }
+
       // Prepare metadata
       const metadata: Record<string, string> = {
         booking_id: request.booking_id,
         contact_id: request.contact_id,
-        phone_number: contact?.phone_number || '',
+        phone_number: contact.phone_number || '',
         ...request.metadata,
       };
 
@@ -80,29 +94,37 @@ class PaymentLinkService {
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : await settingsService.getSetting('base_url') || 'http://localhost:8080';
 
-      // Create Stripe Checkout Session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'chf',
-              product_data: {
-                name: booking?.title || request.description,
-                description: request.description,
+      // Create Stripe Checkout Session with retry logic
+      let session: Stripe.Checkout.Session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [
+            {
+              price_data: {
+                currency: 'chf',
+                product_data: {
+                  name: booking.title || request.description,
+                  description: request.description,
+                },
+                unit_amount: Math.round(request.amount_chf * 100),
               },
-              unit_amount: Math.round(request.amount_chf * 100), // Convert to cents
+              quantity: 1,
             },
-            quantity: 1,
-          },
-        ],
-        mode: 'payment',
-        success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
-        customer_email: contact?.email || undefined,
-        metadata,
-        expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
-      });
+          ],
+          mode: 'payment',
+          success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/payment/cancel?session_id={CHECKOUT_SESSION_ID}`,
+          customer_email: contact.email || undefined,
+          metadata,
+          expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+        });
+        stripeSessionId = session.id;
+        logInfo('Stripe session created', { session_id: session.id });
+      } catch (stripeError: any) {
+        logError('Stripe checkout session creation failed', stripeError);
+        throw new Error(`Stripe payment link creation failed: ${stripeError.message}`);
+      }
 
       // Store payment link in database
       const expiresAt = new Date(session.expires_at * 1000).toISOString();
@@ -124,7 +146,13 @@ class PaymentLinkService {
         .select('id')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        logError('Database insert failed for payment link', error);
+        throw new Error(`Failed to save payment link: ${error.message}`);
+      }
+
+      paymentLinkId = paymentLink.id;
+      logInfo('Payment link created successfully', { payment_link_id: paymentLinkId });
 
       return {
         payment_link_id: paymentLink.id,
@@ -133,8 +161,28 @@ class PaymentLinkService {
         expires_at: expiresAt,
       };
     } catch (error: any) {
-      console.error('Error creating payment link:', error);
-      throw error;
+      logError('Payment link creation failed - initiating rollback', { 
+        error: error.message,
+        booking_id: request.booking_id,
+        stripe_session_id: stripeSessionId
+      });
+
+      // M2: ROLLBACK - Clean up Stripe session if database insert failed
+      if (stripeSessionId && !paymentLinkId) {
+        try {
+          const stripe = await this.getStripeClient();
+          await stripe.checkout.sessions.expire(stripeSessionId);
+          logInfo('Stripe session expired during rollback', { session_id: stripeSessionId });
+        } catch (rollbackError: any) {
+          logWarn('Failed to expire Stripe session during rollback', { 
+            session_id: stripeSessionId,
+            error: rollbackError.message 
+          });
+        }
+      }
+
+      // Re-throw with context
+      throw new Error(`Payment link creation failed: ${error.message}`);
     }
   }
 

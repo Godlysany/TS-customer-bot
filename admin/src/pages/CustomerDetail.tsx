@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi, nurturingApi } from '../lib/api';
-import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity, DollarSign } from 'lucide-react';
+import PaymentHistory from '../components/PaymentHistory';
 
 const CustomerDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'payments' | 'questionnaires' | 'nurturing'>('overview');
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', id],
@@ -94,8 +97,36 @@ const CustomerDetail = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Insights</h2>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-4 px-6">
+                {[
+                  { id: 'overview', label: 'Analytics', icon: TrendingUp },
+                  { id: 'history', label: 'Service History', icon: ClipboardList },
+                  { id: 'payments', label: 'Payments', icon: DollarSign },
+                  { id: 'questionnaires', label: 'Questionnaires', icon: FileText },
+                  { id: 'nurturing', label: 'Nurturing', icon: Heart }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`py-4 px-4 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                      activeTab === tab.id
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            <div className="p-6">
+              {activeTab === 'overview' && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Insights</h2>
             
             {customer?.analytics ? (
               <div className="space-y-4">
@@ -133,13 +164,15 @@ const CustomerDetail = () => {
             ) : (
               <p className="text-gray-500">No analytics data available</p>
             )}
-          </div>
+                </div>
+              )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ClipboardList className="w-5 h-5" />
-              Service History
-            </h2>
+              {activeTab === 'history' && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5" />
+                    Service History
+                  </h2>
             
             {serviceHistory && serviceHistory.length > 0 ? (
               <div className="space-y-3">
@@ -201,50 +234,19 @@ const CustomerDetail = () => {
             ) : (
               <p className="text-gray-500">No service history yet</p>
             )}
-          </div>
+                </div>
+              )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-purple-500" />
-              Nurturing Activities
-            </h2>
-            
-            {nurturingActivities && nurturingActivities.length > 0 ? (
-              <div className="space-y-2">
-                {nurturingActivities.map((activity: any) => (
-                  <div key={activity.id} className="border-l-4 border-purple-200 bg-purple-50 p-3 rounded">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900 capitalize">
-                        {activity.activityType.replace(/_/g, ' ')}
-                      </span>
-                      <span className={`px-2 py-0.5 text-xs rounded font-medium ${
-                        activity.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        activity.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                        activity.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {activity.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
-                    </p>
-                    {activity.messageContent && (
-                      <p className="text-xs text-gray-700 mt-2 italic">{activity.messageContent}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No nurturing activities yet</p>
-            )}
-          </div>
+              {activeTab === 'payments' && id && (
+                <PaymentHistory customerId={id} />
+              )}
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Questionnaire Responses
-            </h2>
+              {activeTab === 'questionnaires' && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Questionnaire Responses
+                  </h2>
             
             {questionnaires && questionnaires.length > 0 ? (
               <div className="space-y-4">
@@ -275,6 +277,48 @@ const CustomerDetail = () => {
             ) : (
               <p className="text-gray-500">No questionnaire responses yet</p>
             )}
+                </div>
+              )}
+
+              {activeTab === 'nurturing' && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-purple-500" />
+                    Nurturing Activities
+                  </h2>
+                  
+                  {nurturingActivities && nurturingActivities.length > 0 ? (
+                    <div className="space-y-2">
+                      {nurturingActivities.map((activity: any) => (
+                        <div key={activity.id} className="border-l-4 border-purple-200 bg-purple-50 p-3 rounded">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-900 capitalize">
+                              {activity.activityType.replace(/_/g, ' ')}
+                            </span>
+                            <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                              activity.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              activity.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                              activity.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {activity.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600">
+                            {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
+                          </p>
+                          {activity.messageContent && (
+                            <p className="text-xs text-gray-700 mt-2 italic">{activity.messageContent}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No nurturing activities yet</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -268,4 +268,60 @@ router.get('/:id/payment-escalations', auth_1.authMiddleware, async (req, res) =
         res.status(500).json({ error: error.message });
     }
 });
+// Get all customers with outstanding balances (Admin Dashboard - MASTER ONLY)
+router.get('/admin/outstanding-balances', auth_1.authMiddleware, async (req, res) => {
+    try {
+        // SECURITY: Master-only endpoint for financial data
+        if (req.agent?.role !== 'master') {
+            return res.status(403).json({ error: 'Master role required to access payment data' });
+        }
+        const { data: customers, error } = await supabase_1.supabase
+            .from('contacts')
+            .select(`
+        id,
+        name,
+        phone_number,
+        email,
+        outstanding_balance_chf,
+        payment_allowance,
+        preferred_language,
+        created_at
+      `)
+            .gt('outstanding_balance_chf', 0)
+            .order('outstanding_balance_chf', { ascending: false });
+        if (error)
+            throw error;
+        const customersWithDetails = await Promise.all((customers || []).map(async (customer) => {
+            const { data: pendingTransactions } = await supabase_1.supabase
+                .from('payment_transactions')
+                .select('id, amount, is_penalty, payment_type, created_at, due_date')
+                .eq('contact_id', customer.id)
+                .in('status', ['pending', 'failed'])
+                .order('created_at', { ascending: false });
+            const { data: escalations } = await supabase_1.supabase
+                .from('payment_escalations')
+                .select('id, escalation_level, status, created_at')
+                .eq('contact_id', customer.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            return {
+                ...customer,
+                pending_transactions: pendingTransactions || [],
+                latest_escalation: escalations?.[0] || null,
+            };
+        }));
+        const totalOutstanding = customersWithDetails.reduce((sum, c) => sum + parseFloat(c.outstanding_balance_chf || 0), 0);
+        res.json({
+            customers: customersWithDetails,
+            summary: {
+                total_customers: customersWithDetails.length,
+                total_outstanding: totalOutstanding,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Error fetching outstanding balances:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 exports.default = router;

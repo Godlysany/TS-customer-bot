@@ -21,6 +21,7 @@ import BotDiscounts from './pages/BotDiscounts';
 import CustomersManagement from './pages/CustomersManagement';
 import Escalations from './pages/Escalations';
 import Nurturing from './pages/Nurturing';
+import PaymentEscalations from './pages/PaymentEscalations';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +124,14 @@ function App() {
                 element={
                   <ProtectedRoute requireMaster>
                     <Nurturing />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="payment-escalations"
+                element={
+                  <ProtectedRoute requireMaster>
+                    <PaymentEscalations />
                   </ProtectedRoute>
                 }
               />
