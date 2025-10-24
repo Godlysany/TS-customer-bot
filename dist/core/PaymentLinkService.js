@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -146,7 +179,7 @@ class PaymentLinkService {
             // Update payment link status
             const { data: paymentLink } = await supabase_1.supabase
                 .from('payment_links')
-                .select('booking_id, contact_id, amount_chf')
+                .select('booking_id, contact_id, amount_chf') // amount_chf exists in payment_links table
                 .eq('stripe_checkout_session_id', session.id)
                 .single();
             if (!paymentLink) {
@@ -169,18 +202,21 @@ class PaymentLinkService {
                 updated_at: new Date().toISOString(),
             })
                 .eq('id', paymentLink.booking_id);
-            // Create payment transaction record
+            // Create payment transaction record (using 'amount' column)
             await supabase_1.supabase.from('payment_transactions').insert({
                 contact_id: paymentLink.contact_id,
                 booking_id: paymentLink.booking_id,
-                amount_chf: paymentLink.amount_chf,
+                amount: paymentLink.amount_chf, // Use base 'amount' column
                 currency: 'CHF',
                 payment_method: 'card',
+                payment_type: 'booking',
                 status: 'succeeded',
                 stripe_payment_intent_id: session.payment_intent,
                 stripe_charge_id: session.payment_intent,
             });
             console.log(`Payment confirmed for booking: ${paymentLink.booking_id}`);
+            // BOT INTEGRATION: Send WhatsApp confirmation to customer
+            await this.sendPaymentConfirmationWhatsApp(paymentLink.contact_id, paymentLink.amount_chf, 'success', paymentLink.booking_id);
         }
         catch (error) {
             console.error('Error handling checkout session completed:', error);
@@ -233,6 +269,17 @@ class PaymentLinkService {
                 }
             }
             console.log(`Payment link expired for session: ${session.id}`);
+            // BOT INTEGRATION: Notify customer of expiration
+            if (paymentLink) {
+                const { data: linkData } = await supabase_1.supabase
+                    .from('payment_links')
+                    .select('contact_id, amount_chf')
+                    .eq('stripe_checkout_session_id', session.id)
+                    .single();
+                if (linkData) {
+                    await this.sendPaymentConfirmationWhatsApp(linkData.contact_id, linkData.amount_chf, 'expired');
+                }
+            }
         }
         catch (error) {
             console.error('Error handling checkout session expired:', error);
@@ -336,6 +383,15 @@ class PaymentLinkService {
                 }
             }
             console.log(`Payment intent failed: ${paymentIntent.id}`);
+            // BOT INTEGRATION: Notify customer of payment failure
+            const { data: linkData } = await supabase_1.supabase
+                .from('payment_links')
+                .select('contact_id, amount_chf')
+                .eq('stripe_checkout_session_id', checkoutSessionId)
+                .single();
+            if (linkData) {
+                await this.sendPaymentConfirmationWhatsApp(linkData.contact_id, linkData.amount_chf, 'failure');
+            }
         }
         catch (error) {
             console.error('Error handling payment intent failed:', error);
@@ -439,6 +495,65 @@ class PaymentLinkService {
         catch (error) {
             console.error('Error cancelling payment link:', error);
             throw error;
+        }
+    }
+    /**
+     * Send payment confirmation/failure WhatsApp notification to customer
+     */
+    async sendPaymentConfirmationWhatsApp(contactId, amount, status, bookingId) {
+        try {
+            const { data: contact } = await supabase_1.supabase
+                .from('contacts')
+                .select('phone_number, name, language')
+                .eq('id', contactId)
+                .single();
+            if (!contact?.phone_number) {
+                console.warn('Cannot send payment notification: No phone number for contact');
+                return;
+            }
+            const language = contact.language || 'de';
+            let message;
+            if (status === 'success') {
+                const messages = {
+                    de: `✅ *Zahlung erfolgreich*\n\nVielen Dank! Ihre Zahlung über CHF ${amount.toFixed(2)} wurde erfolgreich verarbeitet.\n\nIhr Termin ist nun bestätigt. Sie erhalten in Kürze eine Bestätigungs-E-Mail.`,
+                    en: `✅ *Payment Successful*\n\nThank you! Your payment of CHF ${amount.toFixed(2)} has been processed successfully.\n\nYour appointment is now confirmed. You'll receive a confirmation email shortly.`,
+                    fr: `✅ *Paiement réussi*\n\nMerci! Votre paiement de CHF ${amount.toFixed(2)} a été traité avec succès.\n\nVotre rendez-vous est maintenant confirmé. Vous recevrez un e-mail de confirmation sous peu.`,
+                };
+                message = messages[language] || messages.de;
+            }
+            else if (status === 'failure') {
+                const messages = {
+                    de: `❌ *Zahlung fehlgeschlagen*\n\nLeider ist Ihre Zahlung über CHF ${amount.toFixed(2)} fehlgeschlagen.\n\nBitte versuchen Sie es erneut oder wählen Sie eine andere Zahlungsmethode. Bei weiteren Fragen kontaktieren Sie uns gerne.`,
+                    en: `❌ *Payment Failed*\n\nUnfortunately, your payment of CHF ${amount.toFixed(2)} failed.\n\nPlease try again or choose a different payment method. Feel free to contact us if you have any questions.`,
+                    fr: `❌ *Paiement échoué*\n\nMalheureusement, votre paiement de CHF ${amount.toFixed(2)} a échoué.\n\nVeuillez réessayer ou choisir un autre mode de paiement. N'hésitez pas à nous contacter si vous avez des questions.`,
+                };
+                message = messages[language] || messages.de;
+            }
+            else { // expired
+                const messages = {
+                    de: `⏰ *Zahlungslink abgelaufen*\n\nIhr Zahlungslink über CHF ${amount.toFixed(2)} ist abgelaufen.\n\nWenn Sie den Termin noch buchen möchten, starten Sie bitte eine neue Buchung.`,
+                    en: `⏰ *Payment Link Expired*\n\nYour payment link for CHF ${amount.toFixed(2)} has expired.\n\nIf you still want to book the appointment, please start a new booking.`,
+                    fr: `⏰ *Lien de paiement expiré*\n\nVotre lien de paiement pour CHF ${amount.toFixed(2)} a expiré.\n\nSi vous souhaitez toujours réserver le rendez-vous, veuillez démarrer une nouvelle réservation.`,
+                };
+                message = messages[language] || messages.de;
+            }
+            // Send via WhatsApp
+            try {
+                const whatsappModule = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+                const sock = whatsappModule.default;
+                if (sock) {
+                    const formattedPhone = contact.phone_number.includes('@') ? contact.phone_number : `${contact.phone_number}@s.whatsapp.net`;
+                    await sock.sendMessage(formattedPhone, { text: message });
+                    console.log(`✅ Payment ${status} notification sent to ${contact.name}`);
+                }
+            }
+            catch (whatsappError) {
+                console.error('❌ Failed to send payment notification via WhatsApp:', whatsappError);
+            }
+        }
+        catch (error) {
+            console.error('❌ Failed to send payment notification:', error);
+            // Don't throw - notification failure shouldn't block payment processing
         }
     }
 }

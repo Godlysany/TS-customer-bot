@@ -367,6 +367,56 @@ async function handleMessage(msg) {
                 return; // Stop here - wait for customer's response to first question
             }
         }
+        // DOCUMENT TRIGGER CHECK: Detect if customer message contains document keywords
+        // Send documents with GPT-personalized messages before generating main reply
+        try {
+            const { default: documentMessageService } = await Promise.resolve().then(() => __importStar(require('../core/DocumentMessageService')));
+            const documentMatches = await documentMessageService.detectDocumentTriggers(text);
+            if (documentMatches.length > 0) {
+                console.log(`📄 Document triggers detected: ${documentMatches.length} matches`);
+                for (const match of documentMatches) {
+                    // Check if already sent recently
+                    const alreadySent = await documentMessageService.wasDocumentAlreadySent(contact.id, match.serviceId);
+                    if (alreadySent) {
+                        console.log(`⏭️  Skipping ${match.serviceName} document (already sent recently)`);
+                        continue;
+                    }
+                    // Personalize document message with GPT
+                    const personalizedMessage = await documentMessageService.personalizeDocumentMessage(match.documentDescription, contact, conversation.id, match.serviceName);
+                    // Send personalized message
+                    await sock.sendMessage(sender, { text: personalizedMessage });
+                    console.log(`✅ Personalized message sent for ${match.serviceName}`);
+                    // Send document (TODO: This needs to be implemented in WhatsApp adapter to send files)
+                    // For now, send as text with link
+                    await sock.sendMessage(sender, { text: `📎 ${match.documentName}: ${match.documentUrl}` });
+                    console.log(`📎 Document sent: ${match.documentName}`);
+                    // Record delivery
+                    await documentMessageService.recordDocumentSent(contact.id, conversation.id, match.serviceId, match.documentUrl);
+                    // Save messages to database
+                    await MessageService_1.default.createMessage({
+                        conversationId: conversation.id,
+                        content: personalizedMessage,
+                        messageType: 'text',
+                        direction: 'outbound',
+                        sender: 'bot',
+                        approvalStatus: 'approved',
+                    });
+                    await MessageService_1.default.createMessage({
+                        conversationId: conversation.id,
+                        content: `📎 ${match.documentName}`,
+                        messageType: 'file',
+                        direction: 'outbound',
+                        sender: 'bot',
+                        approvalStatus: 'approved',
+                    });
+                }
+                await MessageService_1.default.updateConversationLastMessage(conversation.id);
+            }
+        }
+        catch (docError) {
+            console.error('❌ Document trigger check failed:', docError.message);
+            // Continue with normal flow if document check fails
+        }
         let replyText = null;
         try {
             // PRIORITY 0: Check for explicit language change request
@@ -407,8 +457,34 @@ async function handleMessage(msg) {
                 const intent = await AIService_1.default.detectIntent(text);
                 console.log('🎯 Intent detected:', intent);
                 if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
-                    // Start new booking conversation flow
-                    replyText = await BookingChatHandler_1.default.handleBookingIntent(intent.intent, conversation.id, contact.id, phoneNumber, text, messageHistory);
+                    // Start new booking conversation flow with payment restriction handling
+                    try {
+                        replyText = await BookingChatHandler_1.default.handleBookingIntent(intent.intent, conversation.id, contact.id, phoneNumber, text, messageHistory);
+                    }
+                    catch (bookingError) {
+                        // Handle payment restriction errors with customer-friendly messaging
+                        if (bookingError.message && bookingError.message.includes('PAYMENT_REQUIRED:')) {
+                            const paymentMessage = bookingError.message.replace('PAYMENT_REQUIRED:', '').trim();
+                            // Fetch outstanding balance details for personalized message
+                            const { data: contactData } = await supabase_1.supabase.from('contacts')
+                                .select('outstanding_balance_chf, has_overdue_payments')
+                                .eq('id', contact.id)
+                                .single();
+                            const language = contact.preferred_language || contact.preferredLanguage || 'de';
+                            const balance = contactData?.outstanding_balance_chf || 0;
+                            const messages = {
+                                de: `⚠️ *Zahlung erforderlich*\n\n${paymentMessage}\n\nSobald Sie die ausstehende Zahlung beglichen haben, können Sie wieder Termine buchen. Wenn Sie Fragen haben oder eine Zahlungsvereinbarung treffen möchten, kontaktieren Sie uns bitte.`,
+                                en: `⚠️ *Payment Required*\n\n${paymentMessage}\n\nOnce you've settled the outstanding payment, you'll be able to book appointments again. If you have questions or would like to arrange a payment plan, please contact us.`,
+                                fr: `⚠️ *Paiement requis*\n\n${paymentMessage}\n\nUne fois le paiement en suspens réglé, vous pourrez à nouveau prendre rendez-vous. Si vous avez des questions ou souhaitez convenir d'un plan de paiement, veuillez nous contacter.`,
+                            };
+                            replyText = messages[language] || messages.de;
+                            console.log(`🚫 Booking blocked due to outstanding balance: CHF ${balance}`);
+                        }
+                        else {
+                            // Other booking errors - rethrow
+                            throw bookingError;
+                        }
+                    }
                 }
                 else {
                     // Pass intent to generateReply for context-aware confidence scoring

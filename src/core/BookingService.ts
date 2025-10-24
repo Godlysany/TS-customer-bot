@@ -630,25 +630,25 @@ export class BookingService {
         .eq('id', transactionId);
 
       // Generate payment link
-      const { PaymentLinkService } = await import('./PaymentLinkService');
-      const paymentLinkService = PaymentLinkService;
+      const paymentLinkService = (await import('./PaymentLinkService')).default;
       
       const paymentLink = await paymentLinkService.createPaymentLink({
-        contactId,
-        bookingId: booking.id,
-        serviceId: booking.serviceId,
-        amount: penaltyAmount,
+        contact_id: contactId,
+        booking_id: booking.id,
+        amount_chf: penaltyAmount,
         description: `Late cancellation penalty for ${booking.title}`,
-        purpose: 'penalty',
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        metadata: {
+          purpose: 'penalty',
+          transaction_id: transactionId,
+        },
       });
 
       // Send WhatsApp message with payment link
       const language = contact.language || 'de';
       const messages: Record<string, string> = {
-        de: `⚠️ *Stornierungsgebühr*\n\nDa Sie Ihren Termin weniger als 24 Stunden im Voraus storniert haben, fällt eine Gebühr von CHF ${penaltyAmount.toFixed(2)} an.\n\nBitte begleichen Sie diese Gebühr innerhalb von 7 Tagen:\n${paymentLink.url}\n\nSobald die Zahlung eingegangen ist, können Sie wieder neue Termine buchen.`,
-        en: `⚠️ *Cancellation Fee*\n\nSince you cancelled your appointment less than 24 hours in advance, a fee of CHF ${penaltyAmount.toFixed(2)} applies.\n\nPlease settle this fee within 7 days:\n${paymentLink.url}\n\nOnce payment is received, you'll be able to book new appointments again.`,
-        fr: `⚠️ *Frais d'annulation*\n\nComme vous avez annulé votre rendez-vous moins de 24 heures à l'avance, des frais de CHF ${penaltyAmount.toFixed(2)} s'appliquent.\n\nVeuillez régler ces frais dans les 7 jours:\n${paymentLink.url}\n\nUne fois le paiement reçu, vous pourrez à nouveau réserver des rendez-vous.`,
+        de: `⚠️ *Stornierungsgebühr*\n\nDa Sie Ihren Termin weniger als 24 Stunden im Voraus storniert haben, fällt eine Gebühr von CHF ${penaltyAmount.toFixed(2)} an.\n\nBitte begleichen Sie diese Gebühr innerhalb von 7 Tagen:\n${paymentLink.checkout_url}\n\nSobald die Zahlung eingegangen ist, können Sie wieder neue Termine buchen.`,
+        en: `⚠️ *Cancellation Fee*\n\nSince you cancelled your appointment less than 24 hours in advance, a fee of CHF ${penaltyAmount.toFixed(2)} applies.\n\nPlease settle this fee within 7 days:\n${paymentLink.checkout_url}\n\nOnce payment is received, you'll be able to book new appointments again.`,
+        fr: `⚠️ *Frais d'annulation*\n\nComme vous avez annulé votre rendez-vous moins de 24 heures à l'avance, des frais de CHF ${penaltyAmount.toFixed(2)} s'appliquent.\n\nVeuillez régler ces frais dans les 7 jours:\n${paymentLink.checkout_url}\n\nUne fois le paiement reçu, vous pourrez à nouveau réserver des rendez-vous.`,
       };
 
       const message = messages[language] || messages.de;

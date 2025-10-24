@@ -77,6 +77,26 @@ class BookingService {
         if (suspension.suspended && suspension.until) {
             throw new Error(`Booking privileges suspended until ${suspension.until.toLocaleDateString()}. Please contact us for assistance.`);
         }
+        // PAYMENT ENFORCEMENT: Check for outstanding balance before allowing booking
+        const { data: contactData } = await supabase_1.supabase
+            .from('contacts')
+            .select('outstanding_balance_chf, has_overdue_payments, payment_allowance_granted, payment_restriction_reason')
+            .eq('id', contactId)
+            .single();
+        if (contactData) {
+            const contact = (0, mapper_1.toCamelCase)(contactData);
+            // Block booking if customer has outstanding balance (unless admin granted allowance)
+            if (contact.outstandingBalanceChf > 0 && !contact.paymentAllowanceGranted) {
+                const restrictionReason = contact.paymentRestrictionReason ||
+                    `You have an outstanding balance of CHF ${contact.outstandingBalanceChf.toFixed(2)} that must be settled before booking new appointments.`;
+                console.log(`🚫 Booking blocked for contact ${contactId}: Outstanding balance CHF ${contact.outstandingBalanceChf}`);
+                throw new Error(`PAYMENT_REQUIRED: ${restrictionReason}`);
+            }
+            // Warning for overdue payments even if allowance granted
+            if (contact.hasOverduePayments && contact.paymentAllowanceGranted) {
+                console.warn(`⚠️ Booking allowed with admin override despite overdue payments for contact ${contactId}`);
+            }
+        }
         let bufferTimeBefore = 0;
         let bufferTimeAfter = 0;
         if (options?.serviceId) {
@@ -198,6 +218,50 @@ class BookingService {
             }
             catch (error) {
                 console.error('Failed to process refund:', error);
+            }
+        }
+        // PENALTY ENFORCEMENT: Create actual payment transaction for late cancellation fee
+        if (isLateCancellation && penaltyFee > 0) {
+            try {
+                console.log(`💰 Creating penalty payment transaction: CHF ${penaltyFee} for late cancellation`);
+                // Create payment transaction record (using 'amount' column, NOT amount_chf)
+                const { data: penaltyTransaction, error: penaltyError } = await supabase_1.supabase
+                    .from('payment_transactions')
+                    .insert((0, mapper_1.toSnakeCase)({
+                    bookingId: bookingId,
+                    contactId: booking.contactId,
+                    serviceId: booking.serviceId,
+                    amount: penaltyFee, // Base amount column
+                    currency: 'CHF',
+                    status: 'pending',
+                    paymentType: 'penalty',
+                    isPenalty: true,
+                    relatedBookingId: bookingId,
+                    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+                    notes: `Late cancellation penalty for booking cancelled ${hoursUntilAppointment.toFixed(1)} hours before appointment`,
+                    metadata: {
+                        reason: 'late_cancellation',
+                        hours_until_appointment: hoursUntilAppointment,
+                        policy_hours: policyHours,
+                        cancellation_reason: reason,
+                    }
+                }))
+                    .select()
+                    .single();
+                if (penaltyError) {
+                    console.error('❌ Failed to create penalty transaction:', penaltyError);
+                }
+                else {
+                    console.log(`✅ Penalty transaction created: ${penaltyTransaction.id}`);
+                    // Send Stripe payment link for penalty via WhatsApp (async, don't block cancellation)
+                    this.sendPenaltyPaymentLink(penaltyTransaction.id, booking.contactId, penaltyFee, booking).catch(err => {
+                        console.error('❌ Failed to send penalty payment link:', err);
+                    });
+                }
+            }
+            catch (error) {
+                console.error('❌ Penalty transaction creation failed:', error);
+                // Don't block cancellation if penalty tracking fails
             }
         }
         if (this.calendarProvider) {
@@ -451,6 +515,71 @@ class BookingService {
             totalPenaltyFees: totalPenaltyFees.toFixed(2),
             totalDiscounts: totalDiscounts.toFixed(2),
         };
+    }
+    /**
+     * Send penalty payment link to customer via WhatsApp
+     */
+    async sendPenaltyPaymentLink(transactionId, contactId, penaltyAmount, booking) {
+        try {
+            const { data: contact } = await supabase_1.supabase
+                .from('contacts')
+                .select('phone_number, name, language')
+                .eq('id', contactId)
+                .single();
+            if (!contact?.phone_number) {
+                console.error('❌ Cannot send penalty link: No phone number for contact');
+                return;
+            }
+            // Create Stripe payment intent for penalty
+            const paymentResult = await PaymentService_1.default.createPaymentIntent(penaltyAmount, contactId, booking.id, booking.serviceId, 'penalty', {
+                reason: 'late_cancellation',
+                transaction_id: transactionId,
+            });
+            // Update transaction with Stripe payment intent ID
+            await supabase_1.supabase
+                .from('payment_transactions')
+                .update({
+                stripe_payment_intent_id: paymentResult.paymentIntentId,
+            })
+                .eq('id', transactionId);
+            // Generate payment link
+            const paymentLinkService = (await Promise.resolve().then(() => __importStar(require('./PaymentLinkService')))).default;
+            const paymentLink = await paymentLinkService.createPaymentLink({
+                contact_id: contactId,
+                booking_id: booking.id,
+                amount_chf: penaltyAmount,
+                description: `Late cancellation penalty for ${booking.title}`,
+                metadata: {
+                    purpose: 'penalty',
+                    transaction_id: transactionId,
+                },
+            });
+            // Send WhatsApp message with payment link
+            const language = contact.language || 'de';
+            const messages = {
+                de: `⚠️ *Stornierungsgebühr*\n\nDa Sie Ihren Termin weniger als 24 Stunden im Voraus storniert haben, fällt eine Gebühr von CHF ${penaltyAmount.toFixed(2)} an.\n\nBitte begleichen Sie diese Gebühr innerhalb von 7 Tagen:\n${paymentLink.checkout_url}\n\nSobald die Zahlung eingegangen ist, können Sie wieder neue Termine buchen.`,
+                en: `⚠️ *Cancellation Fee*\n\nSince you cancelled your appointment less than 24 hours in advance, a fee of CHF ${penaltyAmount.toFixed(2)} applies.\n\nPlease settle this fee within 7 days:\n${paymentLink.checkout_url}\n\nOnce payment is received, you'll be able to book new appointments again.`,
+                fr: `⚠️ *Frais d'annulation*\n\nComme vous avez annulé votre rendez-vous moins de 24 heures à l'avance, des frais de CHF ${penaltyAmount.toFixed(2)} s'appliquent.\n\nVeuillez régler ces frais dans les 7 jours:\n${paymentLink.checkout_url}\n\nUne fois le paiement reçu, vous pourrez à nouveau réserver des rendez-vous.`,
+            };
+            const message = messages[language] || messages.de;
+            // Send via WhatsApp
+            try {
+                const whatsappModule = await Promise.resolve().then(() => __importStar(require('../adapters/whatsapp')));
+                const sock = whatsappModule.default;
+                if (sock) {
+                    const formattedPhone = contact.phone_number.includes('@') ? contact.phone_number : `${contact.phone_number}@s.whatsapp.net`;
+                    await sock.sendMessage(formattedPhone, { text: message });
+                    console.log(`✅ Penalty payment link sent to ${contact.name} (CHF ${penaltyAmount})`);
+                }
+            }
+            catch (whatsappError) {
+                console.error('❌ Failed to send penalty link via WhatsApp:', whatsappError);
+            }
+        }
+        catch (error) {
+            console.error('❌ Failed to send penalty payment link:', error);
+            throw error;
+        }
     }
 }
 exports.BookingService = BookingService;

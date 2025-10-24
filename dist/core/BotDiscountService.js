@@ -114,10 +114,10 @@ class BotDiscountService {
                 .in('status', ['confirmed', 'completed']);
             const { data: transactions } = await supabase_1.supabase
                 .from('payment_transactions')
-                .select('amount_chf')
+                .select('amount')
                 .eq('contact_id', contactId)
                 .eq('status', 'succeeded');
-            const totalSpent = transactions?.reduce((sum, t) => sum + (t.amount_chf || 0), 0) || 0;
+            const totalSpent = transactions?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0;
             return {
                 sentiment_score: analytics?.sentiment_score || 0,
                 days_inactive: daysInactive,

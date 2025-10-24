@@ -559,7 +559,7 @@ async function handleMessage(msg: WAMessage) {
                 .eq('id', contact.id)
                 .single();
 
-              const language = contact.language || 'de';
+              const language = (contact as any).preferred_language || (contact as any).preferredLanguage || 'de';
               const balance = contactData?.outstanding_balance_chf || 0;
               
               const messages: Record<string, string> = {

@@ -206,4 +206,66 @@ router.get('/:id/service-history', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch service history' });
     }
 });
+// Get payment transactions for a customer
+router.get('/:id/transactions', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
+        const { data: transactions, error } = await supabase_1.supabase
+            .from('payment_transactions')
+            .select(`
+        *,
+        booking:bookings(id, title, start_time),
+        service:services(id, name)
+      `)
+            .eq('contact_id', id)
+            .order('created_at', { ascending: false });
+        if (error)
+            throw error;
+        // Calculate summary
+        const totalPaid = transactions?.filter(t => t.status === 'succeeded')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+        const totalPending = transactions?.filter(t => t.status === 'pending')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+        const totalPenalties = transactions?.filter(t => t.is_penalty)
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) || 0;
+        res.json({
+            transactions: transactions || [],
+            summary: {
+                total_paid: totalPaid,
+                total_pending: totalPending,
+                total_penalties: totalPenalties,
+            }
+        });
+    }
+    catch (error) {
+        console.error('Error fetching customer transactions:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Get payment escalations for a customer
+router.get('/:id/payment-escalations', auth_1.authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Validate UUID format
+        if (!(0, uuid_validator_1.isValidUUID)(id)) {
+            return res.status(400).json({ error: 'Invalid customer ID format' });
+        }
+        const { data: escalations, error } = await supabase_1.supabase
+            .from('payment_escalations')
+            .select('*')
+            .eq('contact_id', id)
+            .order('created_at', { ascending: false });
+        if (error)
+            throw error;
+        res.json({ escalations: escalations || [] });
+    }
+    catch (error) {
+        console.error('Error fetching payment escalations:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 exports.default = router;
