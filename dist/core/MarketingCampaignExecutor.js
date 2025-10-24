@@ -42,6 +42,8 @@ const mapper_1 = require("../infrastructure/mapper");
 const QuestionnaireService_1 = require("./QuestionnaireService");
 const QuestionnaireRuntimeService_1 = __importDefault(require("./QuestionnaireRuntimeService"));
 const whatsapp_1 = require("../adapters/whatsapp");
+const logger_1 = require("../infrastructure/logger");
+const crypto_1 = __importDefault(require("crypto"));
 /**
  * Marketing Campaign Executor
  * Processes marketing_campaigns table and:
@@ -57,11 +59,11 @@ class MarketingCampaignExecutor {
         this.questionnaireService = new QuestionnaireService_1.QuestionnaireService();
     }
     /**
-     * Process scheduled marketing campaigns
+     * H2: Process scheduled marketing campaigns with delivery tracking
      * Called by scheduler or manually triggered
      */
     async processCampaigns() {
-        console.log('📧 Processing marketing campaigns...');
+        (0, logger_1.logInfo)('📧 Processing marketing campaigns...');
         // Get campaigns that are scheduled or ready to send
         const { data: campaigns, error } = await supabase_1.supabase
             .from('marketing_campaigns')
@@ -69,7 +71,7 @@ class MarketingCampaignExecutor {
             .in('status', ['scheduled', 'ready'])
             .lte('scheduled_at', new Date().toISOString());
         if (error) {
-            console.error('Error fetching campaigns:', error);
+            (0, logger_1.logError)('Error fetching campaigns:', error);
             return { sent: 0, failed: 0, questionnairesTriggered: 0 };
         }
         let totalSent = 0;
@@ -77,15 +79,29 @@ class MarketingCampaignExecutor {
         let totalQuestionnairesTriggered = 0;
         for (const campaignData of campaigns || []) {
             const campaign = (0, mapper_1.toCamelCase)(campaignData);
+            // H2 FIX: Reset per-campaign counters
+            let campaignSent = 0;
+            let campaignFailed = 0;
+            let campaignQuestionnaires = 0;
             try {
-                console.log(`📋 Processing campaign: ${campaign.name}`);
-                // Get filtered contacts based on campaign criteria
-                const { MarketingService } = await Promise.resolve().then(() => __importStar(require('./MarketingService')));
-                const marketingService = new MarketingService();
-                const contacts = await marketingService.getFilteredContacts(campaign.filterCriteria);
-                console.log(`   Found ${contacts.length} target contacts`);
-                if (contacts.length === 0) {
-                    // Mark campaign as completed
+                (0, logger_1.logInfo)(`📋 Processing campaign: ${campaign.name} (ID: ${campaign.id})`);
+                // H2: Check for existing delivery records or create new ones
+                await this.ensureDeliveryRecords(campaign);
+                // H2: Get pending deliveries for this campaign
+                const { data: pendingDeliveries, error: deliveryError } = await supabase_1.supabase
+                    .from('campaign_deliveries')
+                    .select('*, contacts(name, phone_number, preferred_language)')
+                    .eq('campaign_id', campaign.id)
+                    .eq('delivery_status', 'pending')
+                    .order('scheduled_at', { ascending: true });
+                if (deliveryError) {
+                    (0, logger_1.logError)(`Error fetching deliveries for campaign ${campaign.id}:`, deliveryError);
+                    continue;
+                }
+                const deliveries = pendingDeliveries || [];
+                (0, logger_1.logInfo)(`   Found ${deliveries.length} pending deliveries`);
+                if (deliveries.length === 0) {
+                    // Mark campaign as completed if no pending deliveries
                     await supabase_1.supabase
                         .from('marketing_campaigns')
                         .update({
@@ -96,51 +112,68 @@ class MarketingCampaignExecutor {
                         .eq('id', campaign.id);
                     continue;
                 }
-                // Send messages to each contact
-                for (const contact of contacts) {
+                // H2: Process each delivery with idempotency
+                for (const delivery of deliveries) {
                     try {
-                        const phoneNumber = contact.phoneNumber || contact.phone_number;
+                        const contact = delivery.contacts;
+                        const phoneNumber = contact?.phone_number;
                         if (!phoneNumber) {
-                            console.log(`   ⚠️ Skipping contact ${contact.id} - no phone number`);
+                            await this.markDeliveryFailed(delivery.id, 'No phone number');
                             totalFailed++;
                             continue;
                         }
-                        // Format message with placeholders and GPT personalization
-                        const message = await this.formatCampaignMessage(campaign.messageTemplate, contact);
-                        // Send message
-                        const success = await (0, whatsapp_1.sendProactiveMessage)(phoneNumber, message, contact.id);
+                        // Use pre-personalized message or generate if missing
+                        const message = delivery.message_content ||
+                            await this.formatCampaignMessage(campaign.messageTemplate, (0, mapper_1.toCamelCase)(contact));
+                        // H2: Send with idempotency key
+                        const success = await (0, whatsapp_1.sendProactiveMessage)(phoneNumber, message, delivery.contact_id);
                         if (success) {
+                            await this.markDeliverySuccess(delivery.id);
+                            campaignSent++;
                             totalSent++;
-                            console.log(`   ✅ Sent to ${contact.name || phoneNumber}`);
+                            (0, logger_1.logInfo)(`   ✅ Sent to ${contact.name || phoneNumber}`);
                             // QUESTIONNAIRE TRIGGER: If campaign has linked questionnaire
                             if (campaign.questionnaireId) {
-                                const triggered = await this.triggerCampaignQuestionnaire(campaign, contact, phoneNumber);
+                                const triggered = await this.triggerCampaignQuestionnaire(campaign, (0, mapper_1.toCamelCase)(contact), phoneNumber);
                                 if (triggered) {
+                                    campaignQuestionnaires++;
                                     totalQuestionnairesTriggered++;
                                 }
                             }
                         }
                         else {
+                            await this.markDeliveryFailed(delivery.id, 'Send failed');
+                            campaignFailed++;
                             totalFailed++;
-                            console.log(`   ❌ Failed to send to ${contact.name || phoneNumber}`);
+                            (0, logger_1.logWarn)(`   ❌ Failed to send to ${contact.name || phoneNumber}`);
                         }
                         // Rate limiting
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                     catch (error) {
+                        await this.markDeliveryFailed(delivery.id, error.message);
+                        campaignFailed++;
                         totalFailed++;
-                        console.error(`   ❌ Error processing contact ${contact.id}:`, error.message);
+                        (0, logger_1.logError)(`   ❌ Error processing delivery ${delivery.id}:`, error);
                     }
                 }
-                // Update campaign status
-                await supabase_1.supabase
-                    .from('marketing_campaigns')
-                    .update({
-                    status: 'completed',
-                    sent_at: new Date().toISOString(),
-                    actual_recipients: totalSent,
-                })
-                    .eq('id', campaign.id);
+                // Update campaign status if all deliveries processed
+                const { count: remainingCount } = await supabase_1.supabase
+                    .from('campaign_deliveries')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('campaign_id', campaign.id)
+                    .eq('delivery_status', 'pending');
+                if (remainingCount === 0) {
+                    await supabase_1.supabase
+                        .from('marketing_campaigns')
+                        .update({
+                        status: 'completed',
+                        sent_at: new Date().toISOString(),
+                        actual_recipients: campaignSent, // H2 FIX: Use per-campaign counter
+                    })
+                        .eq('id', campaign.id);
+                }
+                (0, logger_1.logInfo)(`   Campaign ${campaign.name}: ${campaignSent} sent, ${campaignFailed} failed, ${campaignQuestionnaires} questionnaires`);
                 console.log(`   ✅ Campaign "${campaign.name}" completed`);
             }
             catch (error) {
@@ -349,6 +382,100 @@ Personalize this for the customer based on their history and language preference
             .eq('id', campaignId);
         const result = await this.processCampaigns();
         return { sent: result.sent, failed: result.failed };
+    }
+    /**
+     * H2: Ensure delivery records exist for all target contacts
+     */
+    async ensureDeliveryRecords(campaign) {
+        try {
+            // Check if deliveries already exist
+            const { count } = await supabase_1.supabase
+                .from('campaign_deliveries')
+                .select('id', { count: 'exact', head: true })
+                .eq('campaign_id', campaign.id);
+            if (count && count > 0) {
+                // Deliveries already created (resuming campaign)
+                (0, logger_1.logInfo)(`   Campaign ${campaign.id} has ${count} existing delivery records`);
+                return;
+            }
+            // Get filtered contacts for this campaign
+            const { MarketingService } = await Promise.resolve().then(() => __importStar(require('./MarketingService')));
+            const marketingService = new MarketingService();
+            const contacts = await marketingService.getFilteredContacts(campaign.filterCriteria);
+            if (contacts.length === 0) {
+                (0, logger_1.logWarn)(`   No contacts match filter criteria for campaign ${campaign.id}`);
+                return;
+            }
+            // Create delivery records with personalized messages
+            const deliveries = [];
+            for (const contact of contacts) {
+                const message = await this.formatCampaignMessage(campaign.messageTemplate, contact);
+                const idempotencyKey = crypto_1.default.randomUUID();
+                deliveries.push({
+                    campaign_id: campaign.id,
+                    contact_id: contact.id,
+                    delivery_status: 'pending',
+                    scheduled_at: campaign.scheduledAt || new Date().toISOString(),
+                    message_content: message,
+                    idempotency_key: idempotencyKey,
+                });
+            }
+            const { error } = await supabase_1.supabase
+                .from('campaign_deliveries')
+                .insert(deliveries);
+            if (error) {
+                (0, logger_1.logError)(`Failed to create delivery records for campaign ${campaign.id}:`, error);
+            }
+            else {
+                (0, logger_1.logInfo)(`   Created ${deliveries.length} delivery records for campaign ${campaign.id}`);
+            }
+        }
+        catch (error) {
+            (0, logger_1.logError)(`Error ensuring delivery records:`, error);
+        }
+    }
+    /**
+     * H2: Mark delivery as successfully sent
+     */
+    async markDeliverySuccess(deliveryId) {
+        try {
+            await supabase_1.supabase
+                .from('campaign_deliveries')
+                .update({
+                delivery_status: 'sent',
+                sent_at: new Date().toISOString(),
+            })
+                .eq('id', deliveryId);
+        }
+        catch (error) {
+            (0, logger_1.logError)(`Failed to mark delivery ${deliveryId} as sent:`, error);
+        }
+    }
+    /**
+     * H2: Mark delivery as failed with reason
+     */
+    async markDeliveryFailed(deliveryId, reason) {
+        try {
+            const { data: delivery } = await supabase_1.supabase
+                .from('campaign_deliveries')
+                .select('retry_count')
+                .eq('id', deliveryId)
+                .single();
+            const retryCount = (delivery?.retry_count || 0) + 1;
+            await supabase_1.supabase
+                .from('campaign_deliveries')
+                .update({
+                delivery_status: 'failed',
+                failed_at: new Date().toISOString(),
+                failure_reason: reason,
+                retry_count: retryCount,
+                last_retry_at: new Date().toISOString(),
+            })
+                .eq('id', deliveryId);
+        }
+        catch (error) {
+            (0, logger_1.logError)(`Failed to mark delivery ${deliveryId} as failed:`, error);
+        }
     }
 }
 exports.MarketingCampaignExecutor = MarketingCampaignExecutor;

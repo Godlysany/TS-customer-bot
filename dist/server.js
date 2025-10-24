@@ -63,6 +63,8 @@ const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentSche
 const MarketingCampaignScheduler_1 = require("./core/MarketingCampaignScheduler");
 const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"));
 const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
+const QuestionnaireRuntimeService_1 = __importDefault(require("./core/QuestionnaireRuntimeService"));
+const logger_1 = require("./infrastructure/logger");
 // Validate critical environment variables
 const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -157,6 +159,12 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     catch (err) {
         console.error(`❌ Error checking admin/dist:`, err);
     }
+    // H1: Rehydrate questionnaire sessions on startup
+    QuestionnaireRuntimeService_1.default.rehydrateSessions().then(() => {
+        (0, logger_1.logInfo)('H1: Questionnaire session rehydration complete');
+    }).catch(err => {
+        console.warn('⚠️ Failed to rehydrate questionnaire sessions:', err);
+    });
     // Start reminder scheduler (checks every 5 minutes)
     ReminderScheduler_1.reminderScheduler.start(5);
     // Start engagement scheduler (checks every 60 minutes)

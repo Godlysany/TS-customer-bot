@@ -26,6 +26,8 @@ import { startMarketingCampaignScheduler, stopMarketingCampaignScheduler } from 
 import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
 import recurringServiceScheduler from './core/RecurringServiceScheduler';
+import questionnaireRuntimeService from './core/QuestionnaireRuntimeService';
+import { logInfo } from './infrastructure/logger';
 import fs from 'fs';
 
 // Validate critical environment variables
@@ -135,6 +137,13 @@ const server = app.listen(config.port, config.host, () => {
   } catch (err) {
     console.error(`❌ Error checking admin/dist:`, err);
   }
+
+  // H1: Rehydrate questionnaire sessions on startup
+  questionnaireRuntimeService.rehydrateSessions().then(() => {
+    logInfo('H1: Questionnaire session rehydration complete');
+  }).catch(err => {
+    console.warn('⚠️ Failed to rehydrate questionnaire sessions:', err);
+  });
 
   // Start reminder scheduler (checks every 5 minutes)
   reminderScheduler.start(5);

@@ -66,6 +66,8 @@ export const marketingApi = {
     api.post('/marketing/campaigns', data),
   getCampaigns: () => 
     api.get('/marketing/campaigns'),
+  getCampaignDeliveries: (campaignId: string) =>
+    api.get(`/marketing/campaigns/${campaignId}/deliveries`),
 };
 
 export const bookingsApi = {
