@@ -26,6 +26,13 @@ The system utilizes a modular TypeScript architecture based on Node.js (v20+), s
 The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with five main navigation pages: conversations, settings, customer analytics, marketing campaigns, and bookings. A TypeScript API client with React Query hooks ensures type-safe interactions.
 
 ### Recent Changes (October 24, 2025)
+- **L1 & L2 Production Infrastructure** (October 24, 2025):
+  - **Winston Structured Logging**: Production-grade logging with daily file rotation (14d app logs, 30d error logs), JSON structured format, multiple transports (console + file), exception/rejection handlers, configurable log levels
+  - **Redis Distributed Locks**: Idempotent message handling, lock acquisition/release/extend with Lua scripts, graceful fallback when Redis unavailable, prevents race conditions in WhatsApp message sending
+  - **Payment History UI**: Customer transaction history component with summary cards (total paid/pending/penalties), transaction table with status indicators, empty states, integrated with Customer Detail page
+  - **Payment API Extensions**: Added getTransactions() and getPaymentEscalations() endpoints to customersApi for CRM payment visibility
+  - **SQL Migration Triggered**: Touched payment enforcement migration file for GitHub Actions deployment
+  
 - **Production-Ready Payment Enforcement System**: Comprehensive B2B payment infrastructure for Swiss market (CHF standardization)
   - Database schema: payment_transactions extended fields, outstanding_balance_chf tracking in contacts, payment_escalations table
   - Auto-calculation triggers: Outstanding balances update on ALL transaction status changes (INSERT/UPDATE/DELETE), handles forgiveness/cancellation/refunds
@@ -62,7 +69,9 @@ The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind 
 - **Message Pre-Approval System**: Prevents race conditions and ensures idempotency for sending messages.
 - **No-Show Protection**: Automated detection and penalty system for no-shows.
 - **Document Sharing**: Automated delivery of service-specific documents via WhatsApp or email.
-- **Stripe Payment Integration**: Secure payment processing with intent creation, confirmation, and refunds.
+- **Stripe Payment Integration**: Secure payment processing with intent creation, confirmation, refunds, penalty fee collection, and outstanding balance tracking.
+- **Production Logging & Monitoring**: Winston structured logging with daily rotation, JSON format, error tracking, and log level configuration.
+- **Redis Lock System**: Distributed locking for message idempotency, race condition prevention, and graceful degradation without Redis.
 - **Intelligent Multi-Language System**: Ensures customer-friendly, deliberate language selection and persistence, only changing language on explicit customer request with GPT-powered detection.
 - **Currency Standardization**: All financial transactions and settings are standardized to CHF.
 - **Promotion & Payment System**: Features a B2B marketing platform with promotions, smart bot discounts, admin approval queues for high-value discounts, bulk CSV customer import, service-specific promotions, and voucher code generation.
@@ -87,3 +96,4 @@ The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind 
 - **Stripe**: For secure payment processing.
 - **Deepgram** (optional): Voice transcription services.
 - **ElevenLabs** (optional): Text-to-speech capabilities.
+- **Redis** (optional): Distributed locking and message idempotency (gracefully degrades if unavailable).

@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import logger from './logger';
+import { logInfo, logError, logWarn, logDebug } from './logger';
 
 const REDIS_URL = process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL;
 const isRedisEnabled = !!REDIS_URL;
@@ -12,7 +12,7 @@ if (isRedisEnabled) {
       maxRetriesPerRequest: 3,
       retryStrategy: (times) => {
         if (times > 3) {
-          logger.logError('Redis connection failed after 3 retries');
+          logError('Redis connection failed after 3 retries');
           return null;
         }
         return Math.min(times * 100, 2000);
@@ -24,14 +24,14 @@ if (isRedisEnabled) {
     });
 
     redisClient.on('connect', () => {
-      logger.logInfo('Redis connected successfully');
+      logInfo('Redis connected successfully');
     });
 
     redisClient.on('error', (err) => {
-      logger.logError('Redis connection error', err);
+      logError('Redis connection error', err);
     });
   } catch (error: any) {
-    logger.logError('Failed to initialize Redis', error);
+    logError('Failed to initialize Redis', error);
   }
 }
 
@@ -48,7 +48,7 @@ export class RedisLock {
 
   async acquire(): Promise<boolean> {
     if (!redisClient) {
-      logger.logWarn(`Redis not available, proceeding without lock for ${this.lockKey}`);
+      logWarn(`Redis not available, proceeding without lock for ${this.lockKey}`);
       return true;
     }
 
@@ -62,14 +62,14 @@ export class RedisLock {
       );
 
       if (result === 'OK') {
-        logger.logDebug(`Lock acquired: ${this.lockKey}`);
+        logDebug(`Lock acquired: ${this.lockKey}`);
         return true;
       }
 
-      logger.logDebug(`Failed to acquire lock: ${this.lockKey}`);
+      logDebug(`Failed to acquire lock: ${this.lockKey}`);
       return false;
     } catch (error: any) {
-      logger.logError(`Error acquiring lock: ${this.lockKey}`, error);
+      logError(`Error acquiring lock: ${this.lockKey}`, error);
       return true;
     }
   }
@@ -89,9 +89,9 @@ export class RedisLock {
       `;
 
       await redisClient.eval(script, 1, this.lockKey, this.lockValue);
-      logger.logDebug(`Lock released: ${this.lockKey}`);
+      logDebug(`Lock released: ${this.lockKey}`);
     } catch (error: any) {
-      logger.logError(`Error releasing lock: ${this.lockKey}`, error);
+      logError(`Error releasing lock: ${this.lockKey}`, error);
     }
   }
 
@@ -119,7 +119,7 @@ export class RedisLock {
 
       return result === 1;
     } catch (error: any) {
-      logger.logError(`Error extending lock: ${this.lockKey}`, error);
+      logError(`Error extending lock: ${this.lockKey}`, error);
       return false;
     }
   }
@@ -158,7 +158,7 @@ export async function ensureMessageIdempotency(
     const result = await redisClient.set(key, '1', 'PX', ttl, 'NX');
     return result === 'OK';
   } catch (error: any) {
-    logger.logError(`Error checking message idempotency: ${messageId}`, error);
+    logError(`Error checking message idempotency: ${messageId}`, error);
     return true;
   }
 }
