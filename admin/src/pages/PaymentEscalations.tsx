@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { customersApi } from '../lib/api';
-import { DollarSign, AlertTriangle, TrendingUp, Users, Phone, Mail, Calendar, CheckCircle } from 'lucide-react';
+import { DollarSign, AlertTriangle, TrendingUp, Users, Phone, Mail, CheckCircle } from 'lucide-react';
 
 const PaymentEscalations = () => {
   const navigate = useNavigate();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { servicesApi, uploadsApi } from '../lib/api';
+import { servicesApi } from '../lib/api';
 import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X, FileText } from 'lucide-react';
 import DocumentUpload from '../components/shared/DocumentUpload';
 
