@@ -1,4 +1,6 @@
 import { Questionnaire, Question } from './QuestionnaireService';
+import { supabase } from '../infrastructure/supabase';
+import { logInfo, logWarn, logError } from '../infrastructure/logger';
 
 /**
  * Tracks questionnaire conversation state
@@ -12,25 +14,71 @@ interface QuestionnaireContext {
   startedAt: Date;
   conversationId: string;
   contactId: string;
+  sessionId?: string; // H1: Database session ID for persistence
 }
 
 /**
  * QuestionnaireRuntimeService
  * Manages questionnaire conversation flow, question delivery, and response collection
+ * H1: Database-backed session persistence to prevent loss on server restart
  */
 export class QuestionnaireRuntimeService {
-  // In-memory context storage (per conversation)
-  // In production, this could be moved to Redis or database for persistence
+  // H1: Database-backed with in-memory cache for performance
   private activeContexts: Map<string, QuestionnaireContext> = new Map();
+  private isRehydrated: boolean = false;
 
   /**
-   * Start a new questionnaire conversation
+   * H1: Rehydrate sessions from database on startup
    */
-  startQuestionnaire(
+  async rehydrateSessions(): Promise<void> {
+    if (this.isRehydrated) return;
+    
+    try {
+      const { data: sessions, error } = await supabase
+        .from('questionnaire_sessions')
+        .select('*')
+        .eq('is_active', true)
+        .gt('expires_at', new Date().toISOString());
+
+      if (error) throw error;
+
+      for (const session of sessions || []) {
+        // Fetch questionnaire data
+        const { data: questionnaire } = await supabase
+          .from('questionnaires')
+          .select('*')
+          .eq('id', session.questionnaire_id)
+          .single();
+
+        if (questionnaire) {
+          this.activeContexts.set(session.conversation_id, {
+            questionnaireId: session.questionnaire_id,
+            questionnaire: questionnaire as any,
+            currentQuestionIndex: session.current_question_index,
+            responses: session.answers || {},
+            startedAt: new Date(session.started_at),
+            conversationId: session.conversation_id,
+            contactId: session.contact_id,
+            sessionId: session.id,
+          });
+        }
+      }
+
+      this.isRehydrated = true;
+      logInfo(`H1: Rehydrated ${sessions?.length || 0} active questionnaire sessions`);
+    } catch (error: any) {
+      logError('Failed to rehydrate questionnaire sessions', error);
+    }
+  }
+
+  /**
+   * Start a new questionnaire conversation (H1: with database persistence)
+   */
+  async startQuestionnaire(
     conversationId: string,
     contactId: string,
     questionnaire: Questionnaire
-  ): void {
+  ): Promise<void> {
     const context: QuestionnaireContext = {
       questionnaireId: questionnaire.id,
       questionnaire,
@@ -41,8 +89,30 @@ export class QuestionnaireRuntimeService {
       contactId,
     };
 
+    // H1: Persist to database
+    try {
+      const { data: session, error } = await supabase
+        .from('questionnaire_sessions')
+        .insert({
+          conversation_id: conversationId,
+          contact_id: contactId,
+          questionnaire_id: questionnaire.id,
+          current_question_index: 0,
+          answers: {},
+          is_active: true,
+        })
+        .select('id')
+        .single();
+
+      if (!error && session) {
+        context.sessionId = session.id;
+      }
+    } catch (error: any) {
+      logWarn('Failed to persist questionnaire session to database', error);
+    }
+
     this.activeContexts.set(conversationId, context);
-    console.log(`📋 Started questionnaire "${questionnaire.name}" for conversation ${conversationId}`);
+    logInfo(`📋 Started questionnaire "${questionnaire.name}" for conversation ${conversationId}`);
   }
 
   /**
@@ -142,16 +212,21 @@ export class QuestionnaireRuntimeService {
     // Save the response
     context.responses[question.id] = validation.parsedValue || response;
     
-    console.log(`✅ Saved response for question ${context.currentQuestionIndex + 1}: ${response}`);
+    logInfo(`✅ Saved response for question ${context.currentQuestionIndex + 1}: ${response}`);
 
     // Move to next question
     context.currentQuestionIndex++;
+
+    // H1: Persist progress to database
+    this.persistSessionProgress(context).catch(err => 
+      logWarn('Failed to persist questionnaire progress', err)
+    );
 
     // Check if questionnaire is complete
     const completed = context.currentQuestionIndex >= context.questionnaire.questions.length;
 
     if (completed) {
-      console.log(`🎉 Questionnaire "${context.questionnaire.name}" completed!`);
+      logInfo(`🎉 Questionnaire "${context.questionnaire.name}" completed!`);
     }
 
     return { valid: true, completed };
@@ -319,6 +394,46 @@ export class QuestionnaireRuntimeService {
     const percentage = Math.round((answered / total) * 100);
 
     return `Progress: ${answered}/${total} questions (${percentage}%)`;
+  }
+
+  /**
+   * H1: Persist session progress to database
+   */
+  private async persistSessionProgress(context: QuestionnaireContext): Promise<void> {
+    if (!context.sessionId) return;
+
+    try {
+      await supabase
+        .from('questionnaire_sessions')
+        .update({
+          current_question_index: context.currentQuestionIndex,
+          answers: context.responses,
+          last_activity_at: new Date().toISOString(),
+        })
+        .eq('id', context.sessionId);
+    } catch (error: any) {
+      logError('Failed to persist questionnaire session', error);
+    }
+  }
+
+  /**
+   * H1: Mark session as completed in database
+   */
+  async completeSession(conversationId: string): Promise<void> {
+    const context = this.activeContexts.get(conversationId);
+    if (!context?.sessionId) return;
+
+    try {
+      await supabase
+        .from('questionnaire_sessions')
+        .update({
+          is_active: false,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', context.sessionId);
+    } catch (error: any) {
+      logError('Failed to complete questionnaire session', error);
+    }
   }
 }
 
