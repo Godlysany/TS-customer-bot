@@ -235,6 +235,11 @@ router.get('/:id/transactions', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
     const { data: transactions, error } = await supabase
       .from('payment_transactions')
       .select(`
@@ -260,9 +265,9 @@ router.get('/:id/transactions', authMiddleware, async (req, res) => {
     res.json({
       transactions: transactions || [],
       summary: {
-        total_paid: totalPaid.toFixed(2),
-        total_pending: totalPending.toFixed(2),
-        total_penalties: totalPenalties.toFixed(2),
+        total_paid: totalPaid,
+        total_pending: totalPending,
+        total_penalties: totalPenalties,
       }
     });
   } catch (error: any) {
@@ -275,6 +280,11 @@ router.get('/:id/transactions', authMiddleware, async (req, res) => {
 router.get('/:id/payment-escalations', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
 
     const { data: escalations, error } = await supabase
       .from('payment_escalations')
