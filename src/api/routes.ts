@@ -385,7 +385,7 @@ router.get('/api/settings', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/api/settings/:key', authMiddleware, requireRole('master'), async (req, res) => {
+router.put('/api/settings/:key', authMiddleware, requireRole('master', 'operator'), async (req, res) => {
   try {
     const { value, category, description } = req.body;
     await settingsService.updateSetting(req.params.key, value, category, description);
@@ -395,7 +395,7 @@ router.put('/api/settings/:key', authMiddleware, requireRole('master'), async (r
   }
 });
 
-router.post('/api/settings/bot/toggle', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/api/settings/bot/toggle', authMiddleware, requireRole('master', 'operator'), async (req, res) => {
   try {
     // Get current state and toggle it
     const currentState = await settingsService.getBotEnabled();
@@ -531,7 +531,7 @@ router.post('/api/marketing/filter', async (req, res) => {
   }
 });
 
-router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/api/marketing/campaigns', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, status, createdBy } = req.body;
     const campaign = await marketingService.createCampaign(
@@ -551,7 +551,7 @@ router.post('/api/marketing/campaigns', authMiddleware, requireRole('master'), a
   }
 });
 
-router.get('/api/marketing/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
+router.get('/api/marketing/campaigns', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const campaigns = await marketingService.getCampaigns();
     res.json(campaigns);
@@ -587,7 +587,7 @@ router.post('/api/whatsapp/disconnect', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/api/whatsapp/reset', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/api/whatsapp/reset', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const fs = await import('fs');
     const path = await import('path');
@@ -789,7 +789,7 @@ router.get('/api/questionnaires', async (req, res) => {
   }
 });
 
-router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
+router.put('/api/questionnaires/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -813,7 +813,7 @@ router.put('/api/questionnaires/:id', authMiddleware, requireRole('master'), asy
   }
 });
 
-router.delete('/api/questionnaires/:id', authMiddleware, requireRole('master'), async (req, res) => {
+router.delete('/api/questionnaires/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     

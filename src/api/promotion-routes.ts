@@ -5,7 +5,7 @@ import { authMiddleware, requireRole, AuthRequest } from '../middleware/auth';
 const router = Router();
 
 // Create promotion (Master only)
-router.post('/promotions', authMiddleware, requireRole('master'), async (req: AuthRequest, res) => {
+router.post('/promotions', authMiddleware, requireRole('master', 'operator', 'support'), async (req: AuthRequest, res) => {
   try {
     const result = await promotionService.createPromotion(req.body, req.agent!.id);
     res.status(201).json(result);
@@ -15,7 +15,7 @@ router.post('/promotions', authMiddleware, requireRole('master'), async (req: Au
 });
 
 // Update promotion (Master only)
-router.put('/promotions/:id', authMiddleware, requireRole('master'), async (req: AuthRequest, res) => {
+router.put('/promotions/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req: AuthRequest, res) => {
   try {
     await promotionService.updatePromotion(req.params.id, req.body);
     res.json({ success: true });
@@ -111,7 +111,7 @@ router.get('/promotions/contact/:contactId/history', authMiddleware, async (req,
 });
 
 // Deactivate promotion (Master only)
-router.delete('/promotions/:id/deactivate', authMiddleware, requireRole('master'), async (req: AuthRequest, res) => {
+router.delete('/promotions/:id/deactivate', authMiddleware, requireRole('master', 'operator', 'support'), async (req: AuthRequest, res) => {
   try {
     await promotionService.deactivatePromotion(req.params.id);
     res.json({ success: true });

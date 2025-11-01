@@ -29,7 +29,7 @@ router.get('/campaigns/:id', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/campaigns', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/campaigns', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const campaign = await engagementService.createCampaign(req.body);
     if (!campaign) {
@@ -42,7 +42,7 @@ router.post('/campaigns', authMiddleware, requireRole('master'), async (req, res
   }
 });
 
-router.put('/campaigns/:id', authMiddleware, requireRole('master'), async (req, res) => {
+router.put('/campaigns/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const campaign = await engagementService.updateCampaign(req.params.id, req.body);
     if (!campaign) {
@@ -55,7 +55,7 @@ router.put('/campaigns/:id', authMiddleware, requireRole('master'), async (req, 
   }
 });
 
-router.delete('/campaigns/:id', authMiddleware, requireRole('master'), async (req, res) => {
+router.delete('/campaigns/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const success = await engagementService.deleteCampaign(req.params.id);
     if (!success) {
@@ -68,7 +68,7 @@ router.delete('/campaigns/:id', authMiddleware, requireRole('master'), async (re
   }
 });
 
-router.post('/campaigns/:id/run', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/campaigns/:id/run', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const campaign = await engagementService.getCampaignById(req.params.id);
     if (!campaign) {
@@ -87,7 +87,7 @@ router.post('/campaigns/:id/run', authMiddleware, requireRole('master'), async (
   }
 });
 
-router.post('/scheduler/run-now', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/scheduler/run-now', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const scheduler = getEngagementScheduler();
     scheduler.runOnce();

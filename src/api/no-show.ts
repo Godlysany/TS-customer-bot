@@ -50,7 +50,7 @@ router.get('/status/:contactId', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/lift-suspension/:contactId', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/lift-suspension/:contactId', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { contactId } = req.params;
     await NoShowService.liftSuspension(contactId);
@@ -62,7 +62,7 @@ router.post('/lift-suspension/:contactId', authMiddleware, requireRole('master')
   }
 });
 
-router.post('/reset-strikes/:contactId', authMiddleware, requireRole('master'), async (req, res) => {
+router.post('/reset-strikes/:contactId', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { contactId } = req.params;
     await NoShowService.resetStrikes(contactId);

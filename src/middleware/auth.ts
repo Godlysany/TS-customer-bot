@@ -5,7 +5,7 @@ export interface AuthRequest extends Request {
   agent?: {
     id: string;
     email: string;
-    role: 'master' | 'support';
+    role: 'master' | 'operator' | 'support';
   };
 }
 
@@ -40,7 +40,7 @@ export const authMiddleware = async (
   }
 };
 
-export const requireRole = (...roles: Array<'master' | 'support'>) => {
+export const requireRole = (...roles: Array<'master' | 'operator' | 'support'>) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.agent) {
       return res.status(401).json({ error: 'Authentication required' });

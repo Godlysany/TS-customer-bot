@@ -79,7 +79,7 @@ router.get('/contacts/stats/summary', authMiddleware, async (req, res) => {
 });
 
 // Bulk CSV upload (Master only)
-router.post('/contacts/bulk-upload', authMiddleware, requireRole('master'), upload.single('file'), async (req: AuthRequest, res) => {
+router.post('/contacts/bulk-upload', authMiddleware, requireRole('master', 'operator', 'support'), upload.single('file'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -123,7 +123,7 @@ router.get('/contacts/batch/:batchId', authMiddleware, async (req, res) => {
 });
 
 // Delete contact
-router.delete('/contacts/:id', authMiddleware, requireRole('master'), async (req: AuthRequest, res) => {
+router.delete('/contacts/:id', authMiddleware, requireRole('master', 'operator', 'support'), async (req: AuthRequest, res) => {
   try {
     await contactService.deleteContact(req.params.id);
     res.json({ success: true });

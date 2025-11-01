@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireRole('master'), async (req, res) => {
+router.post('/', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const serviceData = toSnakeCase(req.body);
 
@@ -68,7 +68,7 @@ router.post('/', requireRole('master'), async (req, res) => {
   }
 });
 
-router.put('/:id', requireRole('master'), async (req, res) => {
+router.put('/:id', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -94,7 +94,7 @@ router.put('/:id', requireRole('master'), async (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole('master'), async (req, res) => {
+router.delete('/:id', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -138,7 +138,7 @@ router.get('/:id/booking-windows', async (req, res) => {
 });
 
 // Create a booking window for a service
-router.post('/:id/booking-windows', requireRole('master'), async (req, res) => {
+router.post('/:id/booking-windows', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -156,7 +156,7 @@ router.post('/:id/booking-windows', requireRole('master'), async (req, res) => {
 });
 
 // Bulk replace booking windows for a service
-router.put('/:id/booking-windows', requireRole('master'), async (req, res) => {
+router.put('/:id/booking-windows', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -174,7 +174,7 @@ router.put('/:id/booking-windows', requireRole('master'), async (req, res) => {
 });
 
 // Update a specific booking window
-router.patch('/booking-windows/:windowId', requireRole('master'), async (req, res) => {
+router.patch('/booking-windows/:windowId', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { windowId } = req.params;
     
@@ -191,7 +191,7 @@ router.patch('/booking-windows/:windowId', requireRole('master'), async (req, re
 });
 
 // Delete a booking window
-router.delete('/booking-windows/:windowId', requireRole('master'), async (req, res) => {
+router.delete('/booking-windows/:windowId', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { windowId } = req.params;
     
@@ -229,7 +229,7 @@ router.get('/:id/blockers', async (req, res) => {
 });
 
 // Create a blocker for a service
-router.post('/:id/blockers', requireRole('master'), async (req, res) => {
+router.post('/:id/blockers', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -247,7 +247,7 @@ router.post('/:id/blockers', requireRole('master'), async (req, res) => {
 });
 
 // Update a service blocker
-router.patch('/blockers/:blockerId', requireRole('master'), async (req, res) => {
+router.patch('/blockers/:blockerId', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { blockerId } = req.params;
     
@@ -264,7 +264,7 @@ router.patch('/blockers/:blockerId', requireRole('master'), async (req, res) => 
 });
 
 // Delete a service blocker
-router.delete('/blockers/:blockerId', requireRole('master'), async (req, res) => {
+router.delete('/blockers/:blockerId', requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { blockerId } = req.params;
     
