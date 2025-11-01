@@ -6,7 +6,7 @@ import WhatsAppBanner from './WhatsAppBanner';
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { agent, logout, isMaster } = useAuth();
+  const { agent, logout } = useAuth();
   
   const isActive = (path: string) => location.pathname === path || (path === '/' && location.pathname === '/');
   
@@ -71,7 +71,7 @@ const Layout = () => {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{agent?.fullName || agent?.username}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{agent?.name}</p>
               <p className="text-xs text-gray-500 capitalize truncate">{agent?.role}</p>
             </div>
           </div>

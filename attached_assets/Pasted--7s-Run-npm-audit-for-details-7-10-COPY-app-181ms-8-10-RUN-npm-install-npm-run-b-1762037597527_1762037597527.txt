@@ -1,0 +1,56 @@
+
+7s
+Run `npm audit` for details.
+
+[ 7/10] COPY . /app/.
+181ms
+
+[ 8/10] RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+36s
+npm warn config production Use `--omit=dev` instead.
+up to date, audited 499 packages in 2s
+88 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (5 low, 1 high)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues, run:
+  npm audit fix --force
+Run `npm audit` for details.
+npm warn config production Use `--omit=dev` instead.
+> whatsapp-crm-bot@2.0.0 build
+> tsc
+npm warn config production Use `--omit=dev` instead.
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'vite@7.1.12',
+npm warn EBADENGINE   required: { node: '^20.19.0 || >=22.12.0' },
+npm warn EBADENGINE   current: { node: 'v22.11.0', npm: '10.9.0' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@vitejs/plugin-react@5.1.0',
+npm warn EBADENGINE   required: { node: '^20.19.0 || >=22.12.0' },
+npm warn EBADENGINE   current: { node: 'v22.11.0', npm: '10.9.0' }
+npm warn EBADENGINE }
+added 242 packages, and audited 243 packages in 18s
+62 packages are looking for funding
+  run `npm fund` for details
+found 0 vulnerabilities
+npm warn config production Use `--omit=dev` instead.
+> admin@0.0.0 build
+> tsc -b && vite build
+src/components/Layout.tsx(9,26): error TS6133: 'isMaster' is declared but its value is never read.
+
+src/components/Layout.tsx(74,81): error TS2339: Property 'fullName' does not exist on type 'Agent'.
+
+src/components/Layout.tsx(74,100): error TS2339: Property 'username' does not exist on type 'Agent'.
+
+Dockerfile:24
+-------------------
+22 |     # build phase
+23 |     COPY . /app/.
+24 | >>> RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+25 |
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build" did not complete successfully: exit code: 2
+Error: Docker build failed
