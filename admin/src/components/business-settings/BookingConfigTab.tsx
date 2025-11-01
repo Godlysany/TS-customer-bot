@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tantml:react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesApi, settingsApi } from '../../lib/api';
 import { Save, Settings, Ban, Plus, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';

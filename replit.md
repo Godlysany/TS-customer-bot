@@ -20,8 +20,13 @@ This project is a professional B2B customer service platform integrating WhatsAp
 ## System Architecture
 The system utilizes a modular TypeScript architecture based on Node.js (v20+), separating concerns into `adapters`, `api`, `core`, and `infrastructure`. The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with main navigation pages: conversations, settings, customer analytics, marketing campaigns, bookings, and nurturing. A TypeScript API client with React Query hooks ensures type-safe interactions.
 
+**Admin UI Structure**:
+- **Nurturing Page** (6 tabs): Questionnaires with 3 subtabs (Management, Customer Responses, Settings), Campaigns, Promotions, Birthday Wishes, Testimonials, Service Documents
+- **Business Settings** (4 tabs): Business Details, Confirmation Templates, Services, Booking Configuration
+- **Bot Configuration** (5 tabs): GPT Prompts & Tone, Escalation Rules, Email Collection, Voice & TTS, Advanced Controls
+
 The Nurturing page features a 6-tab system:
-- **Questionnaires**: Session persistence for questionnaire responses during conversations
+- **Questionnaires**: Three subtabs - Questionnaire Management (create/edit questionnaires), Customer Responses (view submitted answers), Questionnaire Settings (triggers, activation, service linking)
 - **Campaigns**: Marketing campaign management with delivery tracking
 - **Promotions**: Special offer creation and management with discount configurations
 - **Birthday Wishes**: Automated birthday message system with optional promotion attachments
