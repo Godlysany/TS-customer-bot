@@ -33,6 +33,7 @@ const CustomersManagement = () => {
     name: '',
     email: '',
     preferred_language: '',
+    birthdate: '',
     notes: '',
     tags: ''
   });
@@ -117,6 +118,7 @@ const CustomersManagement = () => {
       name: '',
       email: '',
       preferred_language: '',
+      birthdate: '',
       notes: '',
       tags: ''
     });
@@ -130,7 +132,8 @@ const CustomersManagement = () => {
     const payload = {
       ...formData,
       preferred_language: formData.preferred_language === 'custom' ? customLanguage : formData.preferred_language,
-      tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : []
+      tags: formData.tags ? formData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      birthdate: formData.birthdate || null
     };
 
     if (editingContact) {
@@ -147,6 +150,7 @@ const CustomersManagement = () => {
       name: contact.name || '',
       email: contact.email || '',
       preferred_language: contact.preferred_language || '',
+      birthdate: contact.birthdate || '',
       notes: contact.notes || '',
       tags: contact.tags?.join(', ') || ''
     });
@@ -478,36 +482,50 @@ const CustomersManagement = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Language</label>
-                <select
-                  value={formData.preferred_language}
-                  onChange={(e) => {
-                    setFormData({ ...formData, preferred_language: e.target.value });
-                    if (e.target.value !== 'custom') setCustomLanguage('');
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Not specified</option>
-                  <option value="de">German (de)</option>
-                  <option value="fr">French (fr)</option>
-                  <option value="it">Italian (it)</option>
-                  <option value="en">English (en)</option>
-                  <option value="es">Spanish (es)</option>
-                  <option value="pt">Portuguese (pt)</option>
-                  <option value="custom">Custom Language...</option>
-                </select>
-                {formData.preferred_language === 'custom' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                  <input
+                    type="date"
+                    value={formData.birthdate}
+                    onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Language</label>
+                  <select
+                    value={formData.preferred_language}
+                    onChange={(e) => {
+                      setFormData({ ...formData, preferred_language: e.target.value });
+                      if (e.target.value !== 'custom') setCustomLanguage('');
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="de">German (Deutsch)</option>
+                    <option value="en">English</option>
+                    <option value="fr">French (Français)</option>
+                    <option value="it">Italian (Italiano)</option>
+                    <option value="es">Spanish (Español)</option>
+                    <option value="pt">Portuguese (Português)</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                </div>
+              </div>
+
+              {formData.preferred_language === 'custom' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Language Code</label>
                   <input
                     type="text"
                     value={customLanguage}
                     onChange={(e) => setCustomLanguage(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-2"
-                    placeholder="Enter custom language code (e.g., zh, ar, ru)"
-                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., ro, pl, sv"
                   />
-                )}
-              </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>

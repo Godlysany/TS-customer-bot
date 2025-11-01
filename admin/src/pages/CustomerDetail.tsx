@@ -128,24 +128,26 @@ const CustomerDetail = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Insights</h2>
             
-            {customer?.analytics ? (
+            {(customer?.sentiment_score !== null && customer?.sentiment_score !== undefined) || customer?.keywords || customer?.upsell_potential ? (
               <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-2">Sentiment</p>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    customer.analytics.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
-                    customer.analytics.sentiment === 'negative' ? 'bg-red-100 text-red-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {customer.analytics.sentiment || 'neutral'}
-                  </span>
-                </div>
+                {(customer?.sentiment_score !== null && customer?.sentiment_score !== undefined) && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">Sentiment</p>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      customer.sentiment_score >= 0.3 ? 'bg-green-100 text-green-700' :
+                      customer.sentiment_score >= -0.3 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {customer.sentiment_score >= 0.3 ? 'Positive' : customer.sentiment_score >= -0.3 ? 'Neutral' : 'Negative'}
+                    </span>
+                  </div>
+                )}
 
-                {customer.analytics.keywords && customer.analytics.keywords.length > 0 && (
+                {customer?.keywords && customer.keywords.length > 0 && (
                   <div>
                     <p className="text-sm text-gray-500 mb-2">Keywords</p>
                     <div className="flex flex-wrap gap-2">
-                      {customer.analytics.keywords.map((keyword: string, idx: number) => (
+                      {customer.keywords.map((keyword: string, idx: number) => (
                         <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
                           {keyword}
                         </span>
@@ -154,7 +156,7 @@ const CustomerDetail = () => {
                   </div>
                 )}
 
-                {customer.analytics.upsell_potential && (
+                {customer?.upsell_potential && (
                   <div className="flex items-center gap-2 text-green-600">
                     <TrendingUp className="w-5 h-5" />
                     <span className="font-medium">High upsell potential detected</span>
@@ -361,7 +363,8 @@ const CustomerDetail = () => {
           )}
 
           <Link
-            to={`/conversations?contact=${customer?.id}`}
+            to="/conversations"
+            state={{ preSelectContact: customer?.id }}
             className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             View Conversations

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsApi, messageApprovalApi, authApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, CheckCircle, User, FileText, Check, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const Conversations = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedConv, setSelectedConv] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const queryClient = useQueryClient();
@@ -28,6 +30,19 @@ const Conversations = () => {
       return res.data;
     },
   });
+
+  // Auto-select conversation when navigating from customer detail
+  useEffect(() => {
+    const state = location.state as { preSelectContact?: string };
+    if (state?.preSelectContact && conversations) {
+      const targetConversation = conversations.find((c: Conversation) => c.contactId === state.preSelectContact);
+      if (targetConversation) {
+        setSelectedConv(targetConversation.id);
+        // Clear state immediately after selection to prevent re-triggering
+        navigate('/conversations', { replace: true });
+      }
+    }
+  }, [conversations, location.state, navigate]);
 
   const { data: pendingApprovals } = useQuery({
     queryKey: ['pending-approvals'],
@@ -228,7 +243,8 @@ const Conversations = () => {
                     </span>
                     <button
                       onClick={() => toggleBotMutation.mutate()}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      disabled={toggleBotMutation.isPending}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                         takeoverStatus?.isActive ? 'bg-gray-400' : 'bg-blue-600'
                       }`}
                     >
