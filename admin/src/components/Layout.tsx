@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, BarChart3, Mail, Calendar, Users, LogOut, Shield, User, FileText, Briefcase, Percent, CheckSquare, UserCog, AlertCircle, Heart, DollarSign } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Calendar, Users, LogOut, Shield, User, UserCog, AlertCircle, Heart, Bot, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import WhatsAppBanner from './WhatsAppBanner';
 
@@ -11,22 +11,16 @@ const Layout = () => {
   const isActive = (path: string) => location.pathname === path || (path === '/' && location.pathname === '/');
   
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['master', 'support'] },
-    { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'support'] },
-    { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'support'] },
-    { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'support'] },
-    { path: '/questionnaires', label: 'Questionnaires', icon: FileText, roles: ['master', 'support'] },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['master', 'support'] },
-    { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'support'] },
-    { path: '/payment-escalations', label: 'Payment Issues', icon: DollarSign, roles: ['master'] },
+    { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['master', 'operator', 'support'] },
+    { path: '/conversations', label: 'Conversations', icon: MessageSquare, roles: ['master', 'operator', 'support'] },
+    { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'operator', 'support'] },
+    { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'operator', 'support'] },
+    { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'operator', 'support'] },
     { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master'] },
-    { path: '/promotions', label: 'Promotions', icon: Percent, roles: ['master'] },
-    { path: '/bot-discounts', label: 'Discount Approvals', icon: CheckSquare, roles: ['master'] },
-    { path: '/services', label: 'Services', icon: Briefcase, roles: ['master'] },
-    { path: '/bot-config', label: 'Bot Configuration', icon: Settings, roles: ['master'] },
-    { path: '/marketing', label: 'Marketing', icon: Mail, roles: ['master'] },
+    { path: '/business-settings', label: 'Business Settings', icon: Briefcase, roles: ['master', 'operator'] },
+    { path: '/bot-config', label: 'Bot Configuration', icon: Bot, roles: ['master'] },
     { path: '/admin', label: 'Admin Management', icon: Users, roles: ['master'] },
-    { path: '/settings', label: 'System Settings', icon: Settings, roles: ['master'] },
+    { path: '/settings', label: 'System Settings', icon: Settings, roles: ['master', 'operator'] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(agent?.role || ''));
@@ -68,17 +62,17 @@ const Layout = () => {
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              isMaster ? 'bg-purple-100' : 'bg-blue-100'
+              agent?.role === 'master' ? 'bg-purple-100' : agent?.role === 'operator' ? 'bg-indigo-100' : 'bg-blue-100'
             }`}>
-              {isMaster ? (
+              {agent?.role === 'master' ? (
                 <Shield className="w-5 h-5 text-purple-600" />
               ) : (
-                <User className="w-5 h-5 text-blue-600" />
+                <User className={`w-5 h-5 ${agent?.role === 'operator' ? 'text-indigo-600' : 'text-blue-600'}`} />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{agent?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{agent?.email}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{agent?.fullName || agent?.username}</p>
+              <p className="text-xs text-gray-500 capitalize truncate">{agent?.role}</p>
             </div>
           </div>
           <button
