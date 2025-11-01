@@ -209,7 +209,7 @@ const PaymentEscalations = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {customer.payment_allowance ? (
+                        {customer.payment_allowance_granted ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Granted
                           </span>

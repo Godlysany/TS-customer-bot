@@ -316,7 +316,7 @@ router.get('/admin/outstanding-balances', authMiddleware, async (req, res) => {
         phone_number,
         email,
         outstanding_balance_chf,
-        payment_allowance,
+        payment_allowance_granted,
         preferred_language,
         created_at
       `)

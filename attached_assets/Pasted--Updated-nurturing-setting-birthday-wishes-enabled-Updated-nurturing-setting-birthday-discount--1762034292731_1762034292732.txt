@@ -1,0 +1,58 @@
+✅ Updated nurturing setting: birthday_wishes_enabled
+✅ Updated nurturing setting: birthday_discount_enabled
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_delay_days
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+✅ Updated nurturing setting: followup_message_template
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.payment_allowance does not exist'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.payment_allowance does not exist'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.payment_allowance does not exist'
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 2, conversations: 2, messages: 4, bookings: 0 }
+📊 Dashboard stats: { customers: 2, conversations: 2, messages: 4, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 2, conversations: 2, messages: 4, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 1, bookings: 0 }
