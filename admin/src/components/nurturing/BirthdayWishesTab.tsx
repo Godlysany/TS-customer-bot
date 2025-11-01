@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Gift, Calendar, Check, X } from 'lucide-react';
 import { nurturingApi } from '../../lib/api';
@@ -6,7 +5,6 @@ import toast from 'react-hot-toast';
 
 const BirthdayWishesTab = () => {
   const queryClient = useQueryClient();
-  const [showPromotions, setShowPromotions] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ['nurturing-settings'],
@@ -32,13 +30,20 @@ const BirthdayWishesTab = () => {
     },
   });
 
+  const getSetting = (key: string): string => {
+    const setting = settings?.find((s: any) => s.settingKey === key);
+    return setting?.settingValue || '';
+  };
+
+  const enablePromotion = getSetting('birthday_enable_promotion') === 'true';
+
   const { data: promotions } = useQuery({
     queryKey: ['promotions'],
     queryFn: async () => {
       const res = await nurturingApi.getPromotions();
       return res.data;
     },
-    enabled: showPromotions,
+    enabled: enablePromotion,
   });
 
   const updateSettingMutation = useMutation({
@@ -57,13 +62,7 @@ const BirthdayWishesTab = () => {
     updateSettingMutation.mutate({ key, value });
   };
 
-  const getSetting = (key: string): string => {
-    const setting = settings?.find((s: any) => s.settingKey === key);
-    return setting?.settingValue || '';
-  };
-
   const enableBirthday = getSetting('enable_birthday_wishes') === 'true';
-  const enablePromotion = getSetting('birthday_enable_promotion') === 'true';
 
   return (
     <div className="space-y-6">
@@ -118,10 +117,7 @@ const BirthdayWishesTab = () => {
                   <p className="text-xs text-gray-500 mt-1">Attach a special birthday promotion to the message</p>
                 </div>
                 <button
-                  onClick={() => {
-                    handleSettingChange('birthday_enable_promotion', (!enablePromotion).toString());
-                    if (!enablePromotion) setShowPromotions(true);
-                  }}
+                  onClick={() => handleSettingChange('birthday_enable_promotion', (!enablePromotion).toString())}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     enablePromotion ? 'bg-blue-600' : 'bg-gray-300'
                   }`}
