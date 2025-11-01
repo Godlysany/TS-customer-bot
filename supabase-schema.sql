@@ -253,6 +253,18 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS voice_transcription TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS voice_duration_seconds INTEGER;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS tts_audio_url TEXT;
 
+-- Message approval system columns (for pre-approval workflow)
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) CHECK (approval_status IN ('pending_approval', 'sending', 'approved', 'rejected'));
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES agents(id);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS rejected_by UUID REFERENCES agents(id);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS whatsapp_message_id TEXT;
+
+-- Index for efficient approval queue queries
+CREATE INDEX IF NOT EXISTS idx_messages_approval_status ON messages(approval_status) WHERE approval_status = 'pending_approval';
+CREATE INDEX IF NOT EXISTS idx_messages_whatsapp_id ON messages(whatsapp_message_id) WHERE whatsapp_message_id IS NOT NULL;
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_contacts_tts_preference ON contacts(tts_preference) 
   WHERE tts_preference IS NOT NULL AND tts_preference != 'default';
