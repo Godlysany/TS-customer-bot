@@ -62,7 +62,7 @@ export interface Agent {
   id: string;
   name: string;
   email: string;
-  role: 'master' | 'support';
+  role: 'master' | 'operator' | 'support';
   isActive: boolean;
 }
 

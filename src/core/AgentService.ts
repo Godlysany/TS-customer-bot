@@ -6,7 +6,7 @@ export interface Agent {
   id: string;
   name: string;
   email: string;
-  role: 'master' | 'support';
+  role: 'master' | 'operator' | 'support';
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -16,14 +16,14 @@ export interface CreateAgentDto {
   name: string;
   email: string;
   password: string;
-  role: 'master' | 'support';
+  role: 'master' | 'operator' | 'support';
 }
 
 export interface UpdateAgentDto {
   name?: string;
   email?: string;
   password?: string;
-  role?: 'master' | 'support';
+  role?: 'master' | 'operator' | 'support';
   isActive?: boolean;
 }
 

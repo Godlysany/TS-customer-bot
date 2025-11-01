@@ -14,7 +14,7 @@ interface Agent {
   id: string;
   name: string;
   email: string;
-  role: 'master' | 'support';
+  role: 'master' | 'operator' | 'support';
   isActive: boolean;
   createdAt: string;
 }
@@ -26,7 +26,7 @@ const AdminManagement = () => {
     name: '',
     email: '',
     password: '',
-    role: 'support' as 'master' | 'support',
+    role: 'support' as 'master' | 'operator' | 'support',
   });
 
   const queryClient = useQueryClient();
@@ -145,10 +145,13 @@ const AdminManagement = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        agent.role === 'master' ? 'bg-purple-100' : 'bg-blue-100'
+                        agent.role === 'master' ? 'bg-purple-100' : 
+                        agent.role === 'operator' ? 'bg-amber-100' : 'bg-blue-100'
                       }`}>
                         {agent.role === 'master' ? (
                           <Shield className="w-5 h-5 text-purple-600" />
+                        ) : agent.role === 'operator' ? (
+                          <Shield className="w-5 h-5 text-amber-600" />
                         ) : (
                           <User className="w-5 h-5 text-blue-600" />
                         )}
@@ -159,11 +162,12 @@ const AdminManagement = () => {
                   <td className="px-6 py-4 text-gray-600">{agent.email}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                      agent.role === 'master'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-blue-100 text-blue-700'
+                      agent.role === 'master' ? 'bg-purple-100 text-purple-700' :
+                      agent.role === 'operator' ? 'bg-amber-100 text-amber-700' :
+                      'bg-blue-100 text-blue-700'
                     }`}>
-                      {agent.role === 'master' ? '👑 Master' : '🛟 Support'}
+                      {agent.role === 'master' ? '👑 Master' : 
+                       agent.role === 'operator' ? '⚙️ Operator' : '🛟 Support'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -267,10 +271,11 @@ const AdminManagement = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'support' })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'master' | 'operator' | 'support' })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 >
                   <option value="support">Support (Limited Access)</option>
+                  <option value="operator">Operator (Client Admin)</option>
                   <option value="master">Master (Full Access)</option>
                 </select>
                 <p className="mt-2 text-xs text-gray-500">

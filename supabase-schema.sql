@@ -290,6 +290,17 @@ COMMENT ON COLUMN bot_config.tts_reply_mode IS 'Bot TTS behavior: text_only (nev
 COMMENT ON COLUMN contacts.tts_preference IS 'Customer-specific TTS override: text_only, voice_only, voice_on_voice, or default (use bot setting)';
 COMMENT ON COLUMN messages.voice_transcription IS 'Deepgram transcription of voice messages';
 COMMENT ON COLUMN messages.tts_audio_url IS 'ElevenLabs TTS audio URL for voice replies';
+
+-- ====================
+-- ADD OPERATOR ROLE
+-- ====================
+-- November 1, 2025
+-- Purpose: Add Operator role for client admins (Master > Operator > Support)
+
+-- Update agents role constraint to include 'operator'
+ALTER TABLE agents DROP CONSTRAINT IF EXISTS agents_role_check;
+ALTER TABLE agents ADD CONSTRAINT agents_role_check 
+CHECK (role IN ('master', 'operator', 'support'));
 -- Payment Enforcement System for Swiss B2B CRM
 -- Created: October 24, 2025
 -- Purpose: Complete payment tracking, penalty enforcement, and overdue collection system
