@@ -18,7 +18,15 @@ This project is a professional B2B customer service platform integrating WhatsAp
   - **Support**: Limited to conversations, bookings, analytics, and dashboard
 
 ## System Architecture
-The system utilizes a modular TypeScript architecture based on Node.js (v20+), separating concerns into `adapters`, `api`, `core`, and `infrastructure`. The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with five main navigation pages: conversations, settings, customer analytics, marketing campaigns, and bookings. A TypeScript API client with React Query hooks ensures type-safe interactions.
+The system utilizes a modular TypeScript architecture based on Node.js (v20+), separating concerns into `adapters`, `api`, `core`, and `infrastructure`. The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with main navigation pages: conversations, settings, customer analytics, marketing campaigns, bookings, and nurturing. A TypeScript API client with React Query hooks ensures type-safe interactions.
+
+The Nurturing page features a 6-tab system:
+- **Questionnaires**: Session persistence for questionnaire responses during conversations
+- **Campaigns**: Marketing campaign management with delivery tracking
+- **Promotions**: Special offer creation and management with discount configurations
+- **Birthday Wishes**: Automated birthday message system with optional promotion attachments
+- **Testimonials**: Testimonial request automation with Google Review follow-up for positive feedback
+- **Service Documents**: Timing-based document delivery (as info, on confirmation, after booking)
 
 Core features include:
 - **Comprehensive Bot Configuration**: A two-tier prompt architecture (Master System Prompt, Business Fine-Tuning Prompt), 15+ business settings, confirmation templates, service-specific triggers, emergency blocker slots, user-friendly escalation configuration (5 modes), flexible email collection, intelligent CRM data extraction, multi-session booking support (3 strategies), and a multi-team member system with individual calendars and intelligent selection. AI-assisted prompt generation is available.
