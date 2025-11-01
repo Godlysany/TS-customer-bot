@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { conversationsApi, messageApprovalApi, authApi } from '../lib/api';
+import { conversationsApi, messageApprovalApi, authApi, settingsApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, CheckCircle, User, FileText, Check, X } from 'lucide-react';
@@ -80,17 +80,38 @@ const Conversations = () => {
     refetchInterval: 3000,
   });
 
+  const { data: whatsappStatus } = useQuery({
+    queryKey: ['whatsapp-status'],
+    queryFn: async () => {
+      const res = await settingsApi.getWhatsAppStatus();
+      return res.data;
+    },
+    refetchInterval: 10000,
+  });
+
+  const isWhatsAppConnected = whatsappStatus?.connected || false;
+
   const sendMessageMutation = useMutation({
-    mutationFn: (message: string) => 
-      conversationsApi.sendMessage(selectedConv!, message),
+    mutationFn: (message: string) => {
+      if (!isWhatsAppConnected) {
+        throw new Error('WhatsApp is not connected. Please connect WhatsApp first in Settings.');
+      }
+      return conversationsApi.sendMessage(selectedConv!, message);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', selectedConv] });
       setMessageInput('');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to send message');
     },
   });
 
   const toggleBotMutation = useMutation({
     mutationFn: async () => {
+      if (!isWhatsAppConnected) {
+        throw new Error('WhatsApp is not connected. Cannot toggle bot without active connection.');
+      }
       if (takeoverStatus?.isActive) {
         return conversationsApi.endTakeover(selectedConv!);
       } else {
@@ -107,7 +128,7 @@ const Conversations = () => {
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Failed to toggle bot');
+      toast.error(error.message || error.response?.data?.error || 'Failed to toggle bot');
     },
   });
 
@@ -121,24 +142,29 @@ const Conversations = () => {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (messageId: string) => messageApprovalApi.approve(messageId),
+    mutationFn: (messageId: string) => {
+      if (!isWhatsAppConnected) {
+        throw new Error('WhatsApp is not connected. Please connect WhatsApp first in Settings.');
+      }
+      return messageApprovalApi.approve(messageId);
+    },
     onSuccess: () => {
       toast.success('Message approved and sent');
       queryClient.invalidateQueries({ queryKey: ['messages', selectedConv] });
     },
-    onError: () => {
-      toast.error('Failed to approve message');
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to approve message');
     },
   });
 
   const rejectMutation = useMutation({
     mutationFn: (messageId: string) => messageApprovalApi.reject(messageId),
     onSuccess: () => {
-      toast.success('Message rejected');
+      toast.success('Message rejected - marked as rejected in conversation history');
       queryClient.invalidateQueries({ queryKey: ['messages', selectedConv] });
     },
-    onError: () => {
-      toast.error('Failed to reject message');
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to reject message');
     },
   });
 
@@ -279,6 +305,8 @@ const Conversations = () => {
                       msg.direction === 'outbound'
                         ? msg.approvalStatus === 'pending_approval'
                           ? 'bg-yellow-100 text-gray-900 border-2 border-yellow-400'
+                          : msg.approvalStatus === 'rejected'
+                          ? 'bg-red-50 text-gray-700 border-2 border-red-300 opacity-75'
                           : 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-900 border border-gray-200'
                     }`}>
@@ -288,11 +316,19 @@ const Conversations = () => {
                           Pending Approval
                         </div>
                       )}
+                      {msg.direction === 'outbound' && msg.approvalStatus === 'rejected' && (
+                        <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-red-700">
+                          <X className="w-3 h-3" />
+                          Message Rejected by Agent
+                        </div>
+                      )}
                       <p className="text-[15px] leading-relaxed">{msg.content}</p>
                       <p className={`text-xs mt-1.5 ${
                         msg.direction === 'outbound' 
                           ? msg.approvalStatus === 'pending_approval'
                             ? 'text-gray-600'
+                            : msg.approvalStatus === 'rejected'
+                            ? 'text-red-600'
                             : 'text-blue-100'
                           : 'text-gray-500'
                       }`}>
@@ -304,7 +340,9 @@ const Conversations = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => approveMutation.mutate(msg.id)}
-                          className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1.5"
+                          disabled={!isWhatsAppConnected}
+                          className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={!isWhatsAppConnected ? 'WhatsApp must be connected to approve messages' : ''}
                         >
                           <Check className="w-4 h-4" />
                           Approve

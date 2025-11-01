@@ -94,6 +94,17 @@ const CustomerDetail = () => {
                   </div>
                 </div>
               )}
+              {customer?.birthdate && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">Birthday</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {new Date(customer.birthdate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -128,27 +139,28 @@ const CustomerDetail = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Insights</h2>
             
-            {(customer?.sentiment_score !== null && customer?.sentiment_score !== undefined) || customer?.keywords || customer?.upsell_potential ? (
-              <div className="space-y-4">
+            {(customer?.sentiment_score !== null && customer?.sentiment_score !== undefined) || (customer?.keywords && customer.keywords.length > 0) || customer?.upsell_potential ? (
+              <div className="space-y-6">
                 {(customer?.sentiment_score !== null && customer?.sentiment_score !== undefined) && (
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">Sentiment</p>
+                    <p className="text-sm text-gray-500 mb-2">Customer Sentiment</p>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                       customer.sentiment_score >= 0.3 ? 'bg-green-100 text-green-700' :
                       customer.sentiment_score >= -0.3 ? 'bg-yellow-100 text-yellow-700' :
                       'bg-red-100 text-red-700'
                     }`}>
-                      {customer.sentiment_score >= 0.3 ? 'Positive' : customer.sentiment_score >= -0.3 ? 'Neutral' : 'Negative'}
+                      {customer.sentiment_score >= 0.3 ? '😊 Positive' : customer.sentiment_score >= -0.3 ? '😐 Neutral' : '😞 Negative'}
+                      <span className="ml-2 text-xs opacity-75">({customer.sentiment_score.toFixed(2)})</span>
                     </span>
                   </div>
                 )}
 
                 {customer?.keywords && customer.keywords.length > 0 && (
                   <div>
-                    <p className="text-sm text-gray-500 mb-2">Keywords</p>
+                    <p className="text-sm text-gray-500 mb-2">Common Keywords</p>
                     <div className="flex flex-wrap gap-2">
                       {customer.keywords.map((keyword: string, idx: number) => (
-                        <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
+                        <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
                           {keyword}
                         </span>
                       ))}
@@ -157,14 +169,18 @@ const CustomerDetail = () => {
                 )}
 
                 {customer?.upsell_potential && (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <TrendingUp className="w-5 h-5" />
-                    <span className="font-medium">High upsell potential detected</span>
+                  <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-green-600" />
+                    <span className="font-medium text-green-700">High upsell potential detected</span>
                   </div>
                 )}
               </div>
             ) : (
-              <p className="text-gray-500">No analytics data available</p>
+              <div className="text-center py-8">
+                <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No analytics data available yet</p>
+                <p className="text-sm text-gray-400 mt-1">Analytics will appear as the customer interacts with your business</p>
+              </div>
             )}
                 </div>
               )}
