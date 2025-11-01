@@ -1,29 +1,21 @@
 import { useState } from 'react';
-import { Bot, Brain, Building2, MessageSquare, Shield, Mail, Settings as SettingsIcon, AlertTriangle, Volume2 } from 'lucide-react';
+import { Bot, Brain, Shield, Mail, AlertTriangle, Volume2 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 
 // Import all configuration sections
-import BusinessDetailsSection from '../components/bot-config/BusinessDetailsSection';
 import PromptConfigSection from '../components/bot-config/PromptConfigSection';
 import EscalationConfigSection from '../components/bot-config/EscalationConfigSection';
-import ConfirmationTemplatesSection from '../components/bot-config/ConfirmationTemplatesSection';
-import ServiceConfigSection from '../components/bot-config/ServiceConfigSection';
 import EmailCollectionSection from '../components/bot-config/EmailCollectionSection';
-import QuestionnaireSection from '../components/bot-config/QuestionnaireSection';
-import AdvancedControlsSection from '../components/bot-config/AdvancedControlsSection';
 import TTSConfigSection from '../components/bot-config/TTSConfigSection';
+import AdvancedControlsSection from '../components/bot-config/AdvancedControlsSection';
 
 const BotConfiguration = () => {
-  const [activeTab, setActiveTab] = useState('business');
+  const [activeTab, setActiveTab] = useState('prompts');
 
   const tabs = [
-    { id: 'business', label: 'Business Details', icon: Building2, description: 'Name, location, hours' },
     { id: 'prompts', label: 'GPT Prompts & Tone', icon: Brain, description: 'AI personality & behavior' },
     { id: 'escalation', label: 'Escalation Rules', icon: AlertTriangle, description: 'When to involve humans' },
-    { id: 'confirmations', label: 'Confirmation Templates', icon: Mail, description: 'WhatsApp & Email messages' },
-    { id: 'services', label: 'Service Configuration', icon: SettingsIcon, description: 'Trigger words & restrictions' },
     { id: 'email', label: 'Email Collection', icon: Mail, description: 'How to gather emails' },
-    { id: 'questionnaires', label: 'Questionnaires', icon: MessageSquare, description: 'Surveys & anamnesis' },
     { id: 'tts', label: 'Voice & TTS', icon: Volume2, description: 'Voice message handling' },
     { id: 'controls', label: 'Advanced Controls', icon: Shield, description: 'Feature toggles & safeguards' },
   ];
@@ -67,13 +59,9 @@ const BotConfiguration = () => {
 
       {/* Tab Content */}
       <div className="min-h-[600px]">
-        {activeTab === 'business' && <BusinessDetailsSection />}
         {activeTab === 'prompts' && <PromptConfigSection />}
         {activeTab === 'escalation' && <EscalationConfigSection />}
-        {activeTab === 'confirmations' && <ConfirmationTemplatesSection />}
-        {activeTab === 'services' && <ServiceConfigSection />}
         {activeTab === 'email' && <EmailCollectionSection />}
-        {activeTab === 'questionnaires' && <QuestionnaireSection />}
         {activeTab === 'tts' && <TTSConfigSection />}
         {activeTab === 'controls' && <AdvancedControlsSection />}
       </div>
