@@ -21,7 +21,8 @@ router.post('/contacts', authMiddleware, async (req: AuthRequest, res) => {
 router.put('/contacts/:id', authMiddleware, async (req, res) => {
   try {
     await contactService.updateContact(req.params.id, req.body);
-    res.json({ success: true });
+    const updated = await contactService.getContact(req.params.id);
+    res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

@@ -332,17 +332,21 @@ ${conversationText}
 
 Extract the following information if mentioned (explicitly or implicitly):
 
-1. **Preferred Times**: When customer prefers appointments (mornings, afternoons, specific days/times)
-2. **Preferred Staff**: Any staff member they mention positively or request
-3. **Preferred Services**: Services they're interested in or frequently book
-4. **Fears/Anxieties**: Dental anxiety, needle phobia, claustrophobia, nervousness, etc.
-5. **Allergies**: Latex, medications, materials, foods, etc.
-6. **Physical Limitations**: Wheelchair access, hearing issues, vision problems, mobility concerns
-7. **Special Requests**: Quiet environment, bring companion, child-friendly, cultural/religious needs
-8. **Behavioral Notes**: Punctuality patterns, communication style, personality traits
+1. **Email**: Customer's email address if provided
+2. **Birthday**: Customer's birthdate if mentioned (convert to YYYY-MM-DD format)
+3. **Preferred Times**: When customer prefers appointments (mornings, afternoons, specific days/times)
+4. **Preferred Staff**: Any staff member they mention positively or request
+5. **Preferred Services**: Services they're interested in or frequently book
+6. **Fears/Anxieties**: Dental anxiety, needle phobia, claustrophobia, nervousness, etc.
+7. **Allergies**: Latex, medications, materials, foods, etc.
+8. **Physical Limitations**: Wheelchair access, hearing issues, vision problems, mobility concerns
+9. **Special Requests**: Quiet environment, bring companion, child-friendly, cultural/religious needs
+10. **Behavioral Notes**: Punctuality patterns, communication style, personality traits
 
 IMPORTANT:
 - Only extract information that is clearly stated or strongly implied
+- For birthday, convert any date format to ISO format YYYY-MM-DD (e.g., "March 13, 1990" → "1990-03-13", "13.03.1990" → "1990-03-13")
+- For email, extract the full email address (e.g., "user@example.com")
 - Be conversational and natural in your extraction
 - If nothing is found in a category, leave it null
 - Combine similar information into coherent notes
@@ -350,6 +354,8 @@ IMPORTANT:
 Respond with JSON only:
 {
   "newInsights": {
+    "email": "string or null",
+    "birthdate": "YYYY-MM-DD or null",
     "preferredTimes": "string or null",
     "preferredStaff": "string or null",
     "preferredServices": "string or null",
@@ -452,6 +458,23 @@ Respond with JSON only:
         console.log(`   📝 Updating ${fieldName}: adding "${newValue}"`);
         return `${existingValue}\n• ${newValue}`;
       };
+
+      // Direct field updates (don't merge, replace if not set)
+      if (newInsights.email && !contact.email) {
+        updateData.email = newInsights.email;
+        console.log(`   ✨ Adding email: ${newInsights.email}`);
+      }
+
+      if (newInsights.birthdate && !contact.birthdate) {
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateRegex.test(newInsights.birthdate)) {
+          updateData.birthdate = newInsights.birthdate;
+          console.log(`   ✨ Adding birthdate: ${newInsights.birthdate}`);
+        } else {
+          console.log(`   ⚠️  Invalid birthdate format: ${newInsights.birthdate}, expected YYYY-MM-DD`);
+        }
+      }
 
       if (newInsights.preferredTimes) {
         updateData.preferred_times = mergeField(contact.preferred_times, newInsights.preferredTimes, 'preferred times');
