@@ -418,6 +418,7 @@ async function handleMessage(msg) {
             // Continue with normal flow if document check fails
         }
         let replyText = null;
+        let intentConfidence = 1.0; // Default high confidence for automated flows
         try {
             // PRIORITY 0: Check for explicit language change request
             const languageRequest = await AIService_1.default.detectLanguageChangeRequest(text);
@@ -455,6 +456,7 @@ async function handleMessage(msg) {
             // PRIORITY 3: Normal intent detection
             else {
                 const intent = await AIService_1.default.detectIntent(text);
+                intentConfidence = intent.confidence || 0;
                 console.log('🎯 Intent detected:', intent);
                 if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
                     // Start new booking conversation flow with payment restriction handling
@@ -500,9 +502,12 @@ async function handleMessage(msg) {
             // Conversation and message are already saved - just return without sending a reply
             return;
         }
-        // Check if human approval is required before sending
-        const requireApprovalSetting = await SettingsService_1.default.getSetting('require_human_approval');
-        const needsApproval = requireApprovalSetting === 'true';
+        // Check if human approval is required based on confidence threshold
+        const { BotConfigService } = await Promise.resolve().then(() => __importStar(require('../core/BotConfigService')));
+        const botConfigService = new BotConfigService();
+        const botConfig = await botConfigService.getConfig();
+        const needsApproval = botConfig.require_approval_low_confidence &&
+            intentConfidence < botConfig.confidence_threshold;
         const messageRecord = await MessageService_1.default.createMessage({
             conversationId: conversation.id,
             content: replyText,

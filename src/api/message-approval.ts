@@ -27,7 +27,7 @@ router.post('/:id/approve', async (req, res) => {
       return res.status(400).json({ error: 'Invalid message ID format' });
     }
     
-    const agentId = (req as any).user.id;
+    const agentId = (req as any).agent.id;
 
     // Get message to check current state
     let message = await messageApprovalService.getMessageById(messageId);
@@ -143,7 +143,7 @@ router.post('/:id/reject', async (req, res) => {
       return res.status(400).json({ error: 'Invalid message ID format' });
     }
     
-    const agentId = (req as any).user.id;
+    const agentId = (req as any).agent.id;
     const message = await messageApprovalService.rejectMessage(messageId, agentId);
     res.json(message);
   } catch (error: any) {

@@ -29,6 +29,21 @@ const Conversations = () => {
     },
   });
 
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ['pending-approvals'],
+    queryFn: async () => {
+      const res = await messageApprovalApi.getPending();
+      return res.data || [];
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+  });
+
+  // Count pending approvals per conversation
+  const getPendingCountForConversation = (convId: string) => {
+    if (!pendingApprovals) return 0;
+    return pendingApprovals.filter((msg: any) => msg.conversationId === convId).length;
+  };
+
   const { data: messages } = useQuery({
     queryKey: ['messages', selectedConv],
     queryFn: async () => {
@@ -143,18 +158,32 @@ const Conversations = () => {
             >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">
-                    {conv.contact?.name || conv.contact?.phone || 'Unknown'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900">
+                      {conv.contact?.name || conv.contact?.phone || 'Unknown'}
+                    </p>
+                    {getPendingCountForConversation(conv.id) > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full animate-pulse">
+                        {getPendingCountForConversation(conv.id)}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-0.5">
                     {conv.contact?.phone}
                   </p>
                 </div>
-                {conv.status === 'escalated' && (
-                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                    Escalated
-                  </span>
-                )}
+                <div className="flex flex-col gap-1 items-end">
+                  {conv.status === 'escalated' && (
+                    <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                      Escalated
+                    </span>
+                  )}
+                  {getPendingCountForConversation(conv.id) > 0 && (
+                    <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-200">
+                      Needs Approval
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="text-xs text-gray-400 mt-2">
                 {conv.lastMessageAt && formatDistanceToNow(new Date(conv.lastMessageAt), { addSuffix: true })}

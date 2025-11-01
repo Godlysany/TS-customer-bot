@@ -488,6 +488,7 @@ async function handleMessage(msg: WAMessage) {
     }
 
     let replyText: string | null = null;
+    let intentConfidence = 1.0; // Default high confidence for automated flows
 
     try {
       // PRIORITY 0: Check for explicit language change request
@@ -535,6 +536,7 @@ async function handleMessage(msg: WAMessage) {
       // PRIORITY 3: Normal intent detection
       else {
         const intent = await aiService.detectIntent(text);
+        intentConfidence = intent.confidence || 0;
         console.log('🎯 Intent detected:', intent);
 
         if (intent.intent === 'booking_request' || intent.intent === 'booking_modify' || intent.intent === 'booking_cancel') {
@@ -596,9 +598,12 @@ async function handleMessage(msg: WAMessage) {
       return;
     }
 
-    // Check if human approval is required before sending
-    const requireApprovalSetting = await settingsService.getSetting('require_human_approval');
-    const needsApproval = requireApprovalSetting === 'true';
+    // Check if human approval is required based on confidence threshold
+    const { BotConfigService } = await import('../core/BotConfigService');
+    const botConfigService = new BotConfigService();
+    const botConfig = await botConfigService.getConfig();
+    const needsApproval = botConfig.require_approval_low_confidence && 
+                          intentConfidence < botConfig.confidence_threshold;
 
     const messageRecord = await messageService.createMessage({
       conversationId: conversation.id,

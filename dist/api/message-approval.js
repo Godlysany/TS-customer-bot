@@ -60,7 +60,7 @@ router.post('/:id/approve', async (req, res) => {
         if (!(0, uuid_validator_1.isValidUUID)(messageId)) {
             return res.status(400).json({ error: 'Invalid message ID format' });
         }
-        const agentId = req.user.id;
+        const agentId = req.agent.id;
         // Get message to check current state
         let message = await MessageApprovalService_1.default.getMessageById(messageId);
         if (!message) {
@@ -166,7 +166,7 @@ router.post('/:id/reject', async (req, res) => {
         if (!(0, uuid_validator_1.isValidUUID)(messageId)) {
             return res.status(400).json({ error: 'Invalid message ID format' });
         }
-        const agentId = req.user.id;
+        const agentId = req.agent.id;
         const message = await MessageApprovalService_1.default.rejectMessage(messageId, agentId);
         res.json(message);
     }

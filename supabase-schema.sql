@@ -232,6 +232,20 @@ WHERE id NOT IN (
 ALTER TABLE services ADD CONSTRAINT services_name_unique UNIQUE (name);
 
 COMMENT ON CONSTRAINT services_name_unique ON services IS 'Prevents duplicate service names in the system';
+-- Create bot_config table for bot configuration settings
+-- Created: November 1, 2025
+-- Purpose: Store all bot behavior and configuration settings
+
+CREATE TABLE IF NOT EXISTS bot_config (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    setting_key VARCHAR(100) UNIQUE NOT NULL,
+    setting_value TEXT,
+    setting_type VARCHAR(50) DEFAULT 'string',
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Add TTS (Text-to-Speech) and voice handling settings
 -- Created: October 23, 2025
 -- Purpose: Enable voice message interpretation and TTS replies with per-customer overrides

@@ -1,0 +1,100 @@
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at /app/dist/api/message-approval.js:63:34
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/dist/api/message-approval.js:63:34
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at /app/dist/api/message-approval.js:63:34
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at /app/dist/api/message-approval.js:63:34
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/dist/api/message-approval.js:63:34
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at /app/dist/api/message-approval.js:63:34
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at /app/dist/api/message-approval.js:63:34
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+Error fetching TTS settings: {
+  code: 'PGRST205',
+  details: null,
+  hint: "Perhaps you meant the table 'public.bot_discount_analytics'",
+  message: "Could not find the table 'public.bot_config' in the schema cache"
+}
+Error fetching TTS settings: {
+  code: 'PGRST205',
+  details: null,
+  hint: "Perhaps you meant the table 'public.bot_discount_analytics'",
+  message: "Could not find the table 'public.bot_config' in the schema cache"
+}
+Error approving message: TypeError: Cannot read properties of undefined (reading 'id')
+    at /app/dist/api/message-approval.js:63:34
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/app/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/app/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/app/node_modules/express/lib/router/layer.js:95:5)
+    at /app/node_modules/express/lib/router/index.js:284:15
+    at param (/app/node_modules/express/lib/router/index.js:365:14)
+    at param (/app/node_modules/express/lib/router/index.js:376:14)
+    at Function.process_params (/app/node_modules/express/lib/router/index.js:421:3)
+    at next (/app/node_modules/express/lib/router/index.js:280:10)
