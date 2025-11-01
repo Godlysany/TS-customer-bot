@@ -261,12 +261,14 @@ export const nurturingApi = {
   getStats: (startDate?: string, endDate?: string) => 
     api.get('/nurturing/stats', { params: { startDate, endDate } }),
   getContactProfile: (contactId: string) => api.get(`/nurturing/contacts/${contactId}/profile`),
-  getContactActivities: (contactId: string, limit?: number) => 
-    api.get(`/nurturing/contacts/${contactId}/activities`, { params: { limit } }),
+  getContactActivities: (contactIdOrType: string, limit?: number) => 
+    api.get(`/nurturing/contacts/${contactIdOrType}/activities`, { params: { limit } }),
   updateContactBirthdate: (contactId: string, birthdate: string | null) => 
     api.put(`/nurturing/contacts/${contactId}/birthdate`, { birthdate }),
   updateContactPreferences: (contactId: string, preferences: any) => 
     api.put(`/nurturing/contacts/${contactId}/preferences`, preferences),
   getBirthdayContacts: () => api.get('/nurturing/birthday-contacts'),
   getReviewEligibleContacts: () => api.get('/nurturing/review-eligible-contacts'),
+  getPromotions: () => api.get('/promotions'),
+  getUpcomingDocuments: () => api.get('/documents/upcoming'),
 };
