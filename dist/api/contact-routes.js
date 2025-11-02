@@ -24,7 +24,8 @@ router.post('/contacts', auth_1.authMiddleware, async (req, res) => {
 router.put('/contacts/:id', auth_1.authMiddleware, async (req, res) => {
     try {
         await ContactService_1.default.updateContact(req.params.id, req.body);
-        res.json({ success: true });
+        const updated = await ContactService_1.default.getContact(req.params.id);
+        res.json(updated);
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -82,7 +83,7 @@ router.get('/contacts/stats/summary', auth_1.authMiddleware, async (req, res) =>
     }
 });
 // Bulk CSV upload (Master only)
-router.post('/contacts/bulk-upload', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), upload.single('file'), async (req, res) => {
+router.post('/contacts/bulk-upload', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -124,7 +125,7 @@ router.get('/contacts/batch/:batchId', auth_1.authMiddleware, async (req, res) =
     }
 });
 // Delete contact
-router.delete('/contacts/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/contacts/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         await ContactService_1.default.deleteContact(req.params.id);
         res.json({ success: true });

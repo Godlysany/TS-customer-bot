@@ -374,7 +374,7 @@ router.get('/api/settings', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator'), async (req, res) => {
     try {
         const { value, category, description } = req.body;
         await SettingsService_1.default.updateSetting(req.params.key, value, category, description);
@@ -384,7 +384,7 @@ router.put('/api/settings/:key', auth_1.authMiddleware, (0, auth_1.requireRole)(
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/settings/bot/toggle', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/api/settings/bot/toggle', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator'), async (req, res) => {
     try {
         // Get current state and toggle it
         const currentState = await SettingsService_1.default.getBotEnabled();
@@ -508,7 +508,7 @@ router.post('/api/marketing/filter', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, status, createdBy } = req.body;
         const campaign = await MarketingService_1.default.createCampaign(name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, // Pass as-is (string or Date), service handles it
@@ -520,7 +520,7 @@ router.post('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requir
         res.status(500).json({ error: error.message });
     }
 });
-router.get('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.get('/api/marketing/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const campaigns = await MarketingService_1.default.getCampaigns();
         res.json(campaigns);
@@ -557,7 +557,7 @@ router.post('/api/whatsapp/disconnect', auth_1.authMiddleware, async (req, res) 
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/api/whatsapp/reset', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/api/whatsapp/reset', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const fs = await Promise.resolve().then(() => __importStar(require('fs')));
         const path = await Promise.resolve().then(() => __importStar(require('path')));
@@ -740,7 +740,7 @@ router.get('/api/questionnaires', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -761,7 +761,7 @@ router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireR
         res.status(500).json({ error: error.message });
     }
 });
-router.delete('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {

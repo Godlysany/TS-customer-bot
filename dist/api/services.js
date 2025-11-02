@@ -47,7 +47,7 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch service' });
     }
 });
-router.post('/', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const serviceData = (0, mapper_1.toSnakeCase)(req.body);
         const { data: service, error } = await supabase_1.supabase
@@ -64,7 +64,7 @@ router.post('/', (0, auth_1.requireRole)('master'), async (req, res) => {
         res.status(500).json({ error: 'Failed to create service' });
     }
 });
-router.put('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/:id', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -86,7 +86,7 @@ router.put('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
         res.status(500).json({ error: 'Failed to update service' });
     }
 });
-router.delete('/:id', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/:id', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -124,7 +124,7 @@ router.get('/:id/booking-windows', async (req, res) => {
     }
 });
 // Create a booking window for a service
-router.post('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/:id/booking-windows', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -140,7 +140,7 @@ router.post('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (re
     }
 });
 // Bulk replace booking windows for a service
-router.put('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/:id/booking-windows', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -156,7 +156,7 @@ router.put('/:id/booking-windows', (0, auth_1.requireRole)('master'), async (req
     }
 });
 // Update a specific booking window
-router.patch('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.patch('/booking-windows/:windowId', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { windowId } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(windowId)) {
@@ -171,7 +171,7 @@ router.patch('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), as
     }
 });
 // Delete a booking window
-router.delete('/booking-windows/:windowId', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/booking-windows/:windowId', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { windowId } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(windowId)) {
@@ -204,7 +204,7 @@ router.get('/:id/blockers', async (req, res) => {
     }
 });
 // Create a blocker for a service
-router.post('/:id/blockers', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/:id/blockers', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(id)) {
@@ -220,7 +220,7 @@ router.post('/:id/blockers', (0, auth_1.requireRole)('master'), async (req, res)
     }
 });
 // Update a service blocker
-router.patch('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.patch('/blockers/:blockerId', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { blockerId } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(blockerId)) {
@@ -235,7 +235,7 @@ router.patch('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (r
     }
 });
 // Delete a service blocker
-router.delete('/blockers/:blockerId', (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/blockers/:blockerId', (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { blockerId } = req.params;
         if (!(0, uuid_validator_1.isValidUUID)(blockerId)) {

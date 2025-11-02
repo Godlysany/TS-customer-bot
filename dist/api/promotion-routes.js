@@ -8,7 +8,7 @@ const PromotionService_1 = __importDefault(require("../core/PromotionService"));
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 // Create promotion (Master only)
-router.post('/promotions', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/promotions', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const result = await PromotionService_1.default.createPromotion(req.body, req.agent.id);
         res.status(201).json(result);
@@ -18,7 +18,7 @@ router.post('/promotions', auth_1.authMiddleware, (0, auth_1.requireRole)('maste
     }
 });
 // Update promotion (Master only)
-router.put('/promotions/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/promotions/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         await PromotionService_1.default.updatePromotion(req.params.id, req.body);
         res.json({ success: true });
@@ -108,7 +108,7 @@ router.get('/promotions/contact/:contactId/history', auth_1.authMiddleware, asyn
     }
 });
 // Deactivate promotion (Master only)
-router.delete('/promotions/:id/deactivate', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/promotions/:id/deactivate', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         await PromotionService_1.default.deactivatePromotion(req.params.id);
         res.json({ success: true });

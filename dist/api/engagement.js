@@ -32,7 +32,7 @@ router.get('/campaigns/:id', auth_1.authMiddleware, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const campaign = await engagementService.createCampaign(req.body);
         if (!campaign) {
@@ -45,7 +45,7 @@ router.post('/campaigns', auth_1.authMiddleware, (0, auth_1.requireRole)('master
         res.status(500).json({ error: error.message });
     }
 });
-router.put('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.put('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const campaign = await engagementService.updateCampaign(req.params.id, req.body);
         if (!campaign) {
@@ -58,7 +58,7 @@ router.put('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('mas
         res.status(500).json({ error: error.message });
     }
 });
-router.delete('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.delete('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const success = await engagementService.deleteCampaign(req.params.id);
         if (!success) {
@@ -71,7 +71,7 @@ router.delete('/campaigns/:id', auth_1.authMiddleware, (0, auth_1.requireRole)('
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/campaigns/:id/run', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/campaigns/:id/run', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const campaign = await engagementService.getCampaignById(req.params.id);
         if (!campaign) {
@@ -89,7 +89,7 @@ router.post('/campaigns/:id/run', auth_1.authMiddleware, (0, auth_1.requireRole)
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/scheduler/run-now', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/scheduler/run-now', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const scheduler = (0, EngagementScheduler_1.getEngagementScheduler)();
         scheduler.runOnce();

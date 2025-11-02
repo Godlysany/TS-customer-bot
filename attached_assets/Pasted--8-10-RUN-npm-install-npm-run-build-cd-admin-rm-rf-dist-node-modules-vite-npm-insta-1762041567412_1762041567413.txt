@@ -1,0 +1,41 @@
+[ 8/10] RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+14s
+npm warn config production Use `--omit=dev` instead.
+up to date, audited 499 packages in 2s
+88 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (5 low, 1 high)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues, run:
+  npm audit fix --force
+Run `npm audit` for details.
+npm warn config production Use `--omit=dev` instead.
+> whatsapp-crm-bot@2.0.0 build
+> tsc
+src/core/AIService.ts(463,23): error TS2339: Property 'email' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(464,40): error TS2339: Property 'email' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(465,55): error TS2339: Property 'email' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(468,23): error TS2339: Property 'birthdate' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(471,40): error TS2339: Property 'birthdate' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(472,46): error TS2339: Property 'birthdate' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(473,61): error TS2339: Property 'birthdate' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+src/core/AIService.ts(475,71): error TS2339: Property 'birthdate' does not exist on type '{ preferredTimes?: string | undefined; preferredStaff?: string | undefined; preferredServices?: string | undefined; fearsAnxieties?: string | undefined; allergies?: string | undefined; physicalLimitations?: string | undefined; specialRequests?: string | undefined; behavioralNotes?: string | undefined; other?: string...'.
+
+Dockerfile:24
+-------------------
+22 |     # build phase
+23 |     COPY . /app/.
+24 | >>> RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+25 |
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build" did not complete successfully: exit code: 2
+Error: Docker build failed

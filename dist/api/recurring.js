@@ -130,7 +130,7 @@ router.post('/appointments/:id/cancel', auth_1.authMiddleware, async (req, res) 
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/scheduler/run-now', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/scheduler/run-now', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const scheduler = (0, RecurringAppointmentScheduler_1.getRecurringScheduler)();
         scheduler.runOnce();

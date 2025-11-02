@@ -32,7 +32,7 @@ router.post('/confirm/:paymentIntentId', auth_1.authMiddleware, async (req, res)
         res.status(500).json({ error: error.message });
     }
 });
-router.post('/refund/:paymentIntentId', auth_1.authMiddleware, (0, auth_1.requireRole)('master'), async (req, res) => {
+router.post('/refund/:paymentIntentId', auth_1.authMiddleware, (0, auth_1.requireRole)('master', 'operator', 'support'), async (req, res) => {
     try {
         const { paymentIntentId } = req.params;
         const { amount, reason } = req.body;

@@ -68,6 +68,8 @@ export interface ContactCRMData {
 export interface ExtractedConversationData {
   // What was learned in this conversation
   newInsights?: {
+    email?: string;
+    birthdate?: string;
     preferredTimes?: string;
     preferredStaff?: string;
     preferredServices?: string;
