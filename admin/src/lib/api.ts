@@ -76,6 +76,10 @@ export const bookingsApi = {
     api.post(`/bookings/${id}/cancel`, { reason }),
   updateStatus: (id: string, status: string) =>
     api.patch(`/bookings/${id}/status`, { status }),
+  update: (id: string, updates: any) =>
+    api.put(`/bookings/${id}`, updates),
+  createManual: (data: any) =>
+    api.post('/bookings/manual', data),
 };
 
 export const promptsApi = {

@@ -426,6 +426,7 @@ export class BookingService {
     event: CalendarEvent,
     options?: {
       serviceId?: string;
+      teamMemberId?: string;
       discountCode?: string;
       discountAmount?: number;
       promoVoucher?: string;

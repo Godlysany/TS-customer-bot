@@ -28,6 +28,90 @@ class BookingChatHandler {
         this.multiSessionLogic = MultiSessionBookingLogic_1.default;
     }
     /**
+     * Helper function to get day name from Date
+     */
+    getDayName(date) {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return days[date.getDay()];
+    }
+    /**
+     * Helper function to format time as HH:MM
+     */
+    formatTime(date) {
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    }
+    /**
+     * Select optimal team member based on availability, customer history, and load balancing
+     */
+    async selectOptimalTeamMember(serviceId, startTime, endTime, contactId) {
+        // Step 1: Get team members assigned to this service
+        const { data: teamMembers } = await supabase_1.supabase
+            .from('service_team_members')
+            .select('team_member_id, team_members(*)')
+            .eq('service_id', serviceId);
+        if (!teamMembers || teamMembers.length === 0) {
+            return null; // No team members configured for this service
+        }
+        // Step 2: Filter by availability schedule and conflicts
+        const available = [];
+        for (const assignment of teamMembers) {
+            const member = (0, mapper_1.toCamelCase)(assignment.team_members);
+            // Check availability schedule
+            const dayOfWeek = this.getDayName(startTime);
+            const schedule = member.availabilitySchedule?.[dayOfWeek];
+            if (!schedule || schedule.length === 0)
+                continue;
+            const startTimeStr = this.formatTime(startTime);
+            const endTimeStr = this.formatTime(endTime);
+            const isWithinSchedule = schedule.some((window) => startTimeStr >= window.start && endTimeStr <= window.end);
+            if (!isWithinSchedule)
+                continue;
+            // Check for conflicts
+            const { data: conflicts } = await supabase_1.supabase
+                .from('bookings')
+                .select('id')
+                .eq('team_member_id', member.id)
+                .in('status', ['confirmed', 'pending'])
+                .lt('actual_start_time', endTime.toISOString())
+                .gt('actual_end_time', startTime.toISOString());
+            if (conflicts && conflicts.length > 0)
+                continue;
+            available.push(member);
+        }
+        if (available.length === 0) {
+            throw new Error('No team members available at this time');
+        }
+        // Step 3: Check customer preference (previous bookings)
+        const { data: previousBookings } = await supabase_1.supabase
+            .from('bookings')
+            .select('team_member_id')
+            .eq('contact_id', contactId)
+            .not('team_member_id', 'is', null)
+            .order('start_time', { ascending: false })
+            .limit(3);
+        if (previousBookings && previousBookings.length > 0) {
+            const preferredId = previousBookings[0].team_member_id;
+            const preferred = available.find((tm) => tm.id === preferredId);
+            if (preferred)
+                return preferred.id;
+        }
+        // Step 4: Load balancing - count upcoming bookings per team member
+        const loadCounts = await Promise.all(available.map(async (tm) => {
+            const { count } = await supabase_1.supabase
+                .from('bookings')
+                .select('id', { count: 'exact', head: true })
+                .eq('team_member_id', tm.id)
+                .in('status', ['confirmed', 'pending'])
+                .gte('start_time', new Date().toISOString());
+            return { id: tm.id, count: count || 0 };
+        }));
+        // Select team member with lowest load
+        const leastBusy = loadCounts.sort((a, b) => a.count - b.count)[0];
+        return leastBusy.id;
+    }
+    /**
      * Check if a conversation has an active booking context
      */
     hasActiveContext(conversationId) {
@@ -628,6 +712,20 @@ class BookingChatHandler {
         if (emailCheckResult) {
             return emailCheckResult; // Return email collection prompt if needed
         }
+        // Step 4.6: Select optimal team member if not already selected
+        if (!context.selectedTeamMemberId) {
+            try {
+                const endTime = new Date(context.proposedDateTime.getTime() + durationMinutes * 60 * 1000);
+                const teamMemberId = await this.selectOptimalTeamMember(service.id, context.proposedDateTime, endTime, context.contactId);
+                context.selectedTeamMemberId = teamMemberId || undefined;
+                console.log(`✅ Team member selected for ${name}: ${teamMemberId || 'none (no team members configured)'}`);
+            }
+            catch (error) {
+                // If team member selection fails (e.g., no availability), inform user
+                this.clearContext(context.conversationId);
+                return error.message || 'No team members are available for this time slot. Please try a different time.';
+            }
+        }
         // Step 5: Check if payment is required BEFORE booking
         const paymentInfo = await this.requiresPayment(service.id);
         try {
@@ -644,6 +742,7 @@ class BookingChatHandler {
                 durationMinutes,
                 serviceName: name,
                 serviceCost: service.cost,
+                teamMemberId: context.selectedTeamMemberId,
             });
             // If payment required, create payment link and wait for confirmation
             if (paymentInfo.required && paymentInfo.amount > 0) {
@@ -683,7 +782,7 @@ class BookingChatHandler {
                 conversationId: context.conversationId,
                 phoneNumber: context.phoneNumber,
                 serviceId: service.id,
-                teamMemberId: undefined,
+                teamMemberId: context.selectedTeamMemberId,
                 sessionGroupId: (0, crypto_1.randomUUID)(),
                 bookings: bookings.map((b, idx) => ({
                     title: `${name} - Session ${idx + 1}/${totalSessionsRequired}`,
@@ -778,6 +877,20 @@ class BookingChatHandler {
         if (emailCheckResult) {
             return emailCheckResult; // Return email collection prompt if needed
         }
+        // Step 1.6: Select optimal team member if not already selected
+        if (!context.selectedTeamMemberId) {
+            try {
+                const endTime = new Date(context.proposedDateTime.getTime() + durationMinutes * 60 * 1000);
+                const teamMemberId = await this.selectOptimalTeamMember(service.id, context.proposedDateTime, endTime, context.contactId);
+                context.selectedTeamMemberId = teamMemberId || undefined;
+                console.log(`✅ Team member selected for ${name} (sequential): ${teamMemberId || 'none (no team members configured)'}`);
+            }
+            catch (error) {
+                // If team member selection fails (e.g., no availability), inform user
+                this.clearContext(context.conversationId);
+                return error.message || 'No team members are available for this time slot. Please try a different time.';
+            }
+        }
         // Step 2: Check if payment is required BEFORE booking
         const paymentInfo = await this.requiresPayment(service.id);
         try {
@@ -794,6 +907,7 @@ class BookingChatHandler {
                 durationMinutes,
                 serviceName: name,
                 serviceCost: service.cost,
+                teamMemberId: context.selectedTeamMemberId,
             });
             // If payment required, create payment link and wait for confirmation
             if (paymentInfo.required && paymentInfo.amount > 0) {
@@ -823,7 +937,7 @@ class BookingChatHandler {
                 conversationId: context.conversationId,
                 phoneNumber: context.phoneNumber,
                 serviceId: service.id,
-                teamMemberId: undefined,
+                teamMemberId: context.selectedTeamMemberId,
                 sessionGroupId: (0, crypto_1.randomUUID)(),
                 bookings: [{
                         title: `${name} - Session 1/${totalSessionsRequired}`,
@@ -977,6 +1091,22 @@ class BookingChatHandler {
         if (emailCheckResult) {
             return emailCheckResult; // Return email collection prompt if needed
         }
+        // Step 4.6: Select optimal team member if not already selected
+        // For flexible strategy, select ONCE for all sessions using first session time
+        if (!context.selectedTeamMemberId && context.collectedDates && context.collectedDates.length > 0) {
+            try {
+                const firstSessionStart = context.collectedDates[0];
+                const firstSessionEnd = new Date(firstSessionStart.getTime() + durationMinutes * 60 * 1000);
+                const teamMemberId = await this.selectOptimalTeamMember(service.id, firstSessionStart, firstSessionEnd, context.contactId);
+                context.selectedTeamMemberId = teamMemberId || undefined;
+                console.log(`✅ Team member selected for ${name} (flexible): ${teamMemberId || 'none (no team members configured)'}`);
+            }
+            catch (error) {
+                // If team member selection fails (e.g., no availability), inform user
+                this.clearContext(context.conversationId);
+                return error.message || 'No team members are available for the selected time slots. Please try different times.';
+            }
+        }
         // Step 5: Check if payment is required BEFORE booking
         const paymentInfo = await this.requiresPayment(service.id);
         try {
@@ -998,6 +1128,7 @@ class BookingChatHandler {
                     serviceName: name,
                     serviceCost: service.cost,
                     sessionsToBook: 1, // Book one at a time in the loop
+                    teamMemberId: context.selectedTeamMemberId,
                 });
                 bookings.push(...booking);
             }
@@ -1031,7 +1162,7 @@ class BookingChatHandler {
                 conversationId: context.conversationId,
                 phoneNumber: context.phoneNumber,
                 serviceId: service.id,
-                teamMemberId: undefined,
+                teamMemberId: context.selectedTeamMemberId,
                 sessionGroupId: (0, crypto_1.randomUUID)(),
                 bookings: bookings.map((b) => ({
                     title: `${name} - Session ${b.sessionNumber}/${totalSessionsRequired}`,

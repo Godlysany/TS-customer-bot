@@ -208,12 +208,17 @@ router.get('/api/bookings', async (req, res) => {
       .select(`
         *,
         contact:contacts(*),
-        conversation:conversations(*)
+        conversation:conversations(*),
+        services(name, color),
+        team_members(id, name, color)
       `)
       .order('start_time', { ascending: true });
 
     if (error) throw error;
-    res.json(data);
+    
+    // Map to camelCase for frontend compatibility
+    const { toCamelCaseArray } = await import('../infrastructure/mapper');
+    res.json(toCamelCaseArray(data || []));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -370,6 +375,126 @@ router.patch('/api/bookings/:id/status', authMiddleware, async (req, res) => {
     res.json({ success: true, booking });
   } catch (error: any) {
     console.error('Error updating booking status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update booking (full edit)
+router.put('/api/bookings/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid booking ID format' });
+    }
+
+    // Import mapper for snake_case conversion
+    const { toSnakeCase, toCamelCase } = await import('../infrastructure/mapper');
+    
+    // Get the current booking to check what's changing
+    const { data: currentBooking, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    if (!currentBooking) return res.status(404).json({ error: 'Booking not found' });
+
+    // Update booking
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({
+        ...toSnakeCase(updates),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('*, services(name, color), team_members(id, name, color), contact:contacts(*)')
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    const booking = toCamelCase(data);
+
+    // Note: Calendar event updates are handled by the calendar sync service
+    // which monitors booking changes and updates calendar events automatically
+
+    res.json({ booking });
+  } catch (error: any) {
+    console.error('Error updating booking:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual booking creation
+router.post('/api/bookings/manual', authMiddleware, async (req, res) => {
+  try {
+    const { contactId, serviceId, teamMemberId, startTime, endTime, notes } = req.body;
+
+    if (!contactId || !serviceId || !startTime || !endTime) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: contactId, serviceId, startTime, endTime' 
+      });
+    }
+
+    if (!isValidUUID(contactId) || !isValidUUID(serviceId)) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+
+    if (teamMemberId && !isValidUUID(teamMemberId)) {
+      return res.status(400).json({ error: 'Invalid team member ID format' });
+    }
+
+    // Get or create conversation for this contact
+    const { data: existingConv } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('contact_id', contactId)
+      .eq('status', 'active')
+      .single();
+
+    let conversationId = existingConv?.id;
+
+    if (!conversationId) {
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          contact_id: contactId,
+          status: 'active',
+          last_message_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (convError) throw convError;
+      conversationId = newConv.id;
+    }
+
+    // Get service details
+    const { data: service, error: serviceError } = await supabase
+      .from('services')
+      .select('name, duration_minutes')
+      .eq('id', serviceId)
+      .single();
+
+    if (serviceError) throw serviceError;
+
+    // Create the booking using BookingService
+    const event = {
+      title: service.name,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+    };
+
+    const booking = await bookingService.createBooking(contactId, conversationId, event, {
+      serviceId,
+      teamMemberId: teamMemberId || undefined,
+    });
+
+    res.json({ booking });
+  } catch (error: any) {
+    console.error('Error creating manual booking:', error);
     res.status(500).json({ error: error.message });
   }
 });
