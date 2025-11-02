@@ -1,7 +1,9 @@
 # WhatsApp CRM Bot
 
 ## Overview
-This project is a professional B2B customer service platform integrating WhatsApp for communication, Supabase for data management, and OpenAI GPT for intelligent replies. It provides a self-contained, scalable solution for customer service operations through comprehensive control over customer interactions, intelligent automation, and deep insights. Key capabilities include a robust CRM, calendar booking, advanced customer analytics, and marketing features, transforming customer service with intelligent automation and in-depth insights into customer interactions. The business vision is to empower B2B customer service with intelligent automation and deep insights, targeting a market ripe for advanced CRM solutions.
+This project is a production-ready professional B2B customer service platform integrating WhatsApp for communication, Supabase for data management, and OpenAI GPT for intelligent replies. It provides a self-contained, scalable solution for customer service operations through comprehensive control over customer interactions, intelligent automation, and deep insights. Key capabilities include a robust CRM, multi-team member calendar booking with intelligent assignment, advanced customer analytics, and marketing features, transforming customer service with intelligent automation and in-depth insights into customer interactions. The business vision is to empower B2B customer service with intelligent automation and deep insights, targeting a market ripe for advanced CRM solutions.
+
+**LATEST UPDATE (Nov 2, 2025):** Complete multi-team booking system implemented with intelligent team member selection, buffered conflict detection, comprehensive frontend booking management, and production-ready validations. System ready for Swiss market deployment on Railways with Supabase.
 
 ## User Preferences
 - **Authentication**: Role-based access (Master/Support) with secure JWT sessions
@@ -18,7 +20,14 @@ This project is a professional B2B customer service platform integrating WhatsAp
   - **Support**: Limited to conversations, bookings, analytics, and dashboard
 
 ## System Architecture
-The system utilizes a modular TypeScript architecture based on Node.js (v20+), separating concerns into `adapters`, `api`, `core`, and `infrastructure`. The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with main navigation pages: conversations, settings, customer analytics, marketing campaigns, bookings, and nurturing. A TypeScript API client with React Query hooks ensures type-safe interactions.
+The system utilizes a modular TypeScript architecture based on Node.js (v20+), separating concerns into `adapters`, `api`, `core`, and `infrastructure`. The Admin CRM Frontend is developed using React, Vite, TypeScript, and Tailwind CSS v4, featuring a professional dashboard with main navigation pages: conversations, settings, customer analytics, marketing campaigns, bookings (with full edit/create capabilities), and nurturing. A TypeScript API client with React Query hooks ensures type-safe interactions.
+
+**Multi-Team Booking Architecture:**
+- **Team Members Infrastructure**: PostgreSQL tables (`team_members`, `service_team_members` junction table) with JSONB availability schedules
+- **BookingService Primitives**: Modular primitives pattern (validateAndPrepare → persistBooking → finalizeSideEffects → rollbackBooking)
+- **Intelligent Team Selection**: Availability-based auto-assignment with customer preference and load balancing
+- **Buffered Conflict Detection**: Uses `actual_start_time`/`actual_end_time` columns for precise double-booking prevention
+- **Calendar Integration**: Team member-specific calendars via `calendar_id` with single-provider-per-instance architecture
 
 **Admin UI Structure**:
 - **Nurturing Page** (6 tabs): Questionnaires with 3 subtabs (Management, Customer Responses, Settings), Campaigns, Promotions, Birthday Wishes, Testimonials, Service Documents
