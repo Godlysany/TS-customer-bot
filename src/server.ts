@@ -19,6 +19,7 @@ import messageApprovalRoutes from './api/message-approval';
 import escalationRoutes from './api/escalation-routes';
 import nurturingRoutes from './api/nurturing';
 import uploadsRoutes from './api/uploads';
+import teamMemberRoutes from './api/team-member-routes';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
@@ -86,6 +87,7 @@ app.use('/api/message-approval', messageApprovalRoutes);
 app.use('/api', escalationRoutes);
 app.use('/api', nurturingRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api', teamMemberRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');

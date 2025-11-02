@@ -57,6 +57,7 @@ const message_approval_1 = __importDefault(require("./api/message-approval"));
 const escalation_routes_1 = __importDefault(require("./api/escalation-routes"));
 const nurturing_1 = __importDefault(require("./api/nurturing"));
 const uploads_1 = __importDefault(require("./api/uploads"));
+const team_member_routes_1 = __importDefault(require("./api/team-member-routes"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
@@ -113,6 +114,7 @@ app.use('/api/message-approval', message_approval_1.default);
 app.use('/api', escalation_routes_1.default);
 app.use('/api', nurturing_1.default);
 app.use('/api/uploads', uploads_1.default);
+app.use('/api', team_member_routes_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching

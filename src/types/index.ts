@@ -67,10 +67,10 @@ export interface Booking {
 }
 
 export interface CalendarProvider {
-  createEvent(event: CalendarEvent): Promise<string>;
-  updateEvent(eventId: string, event: Partial<CalendarEvent>): Promise<void>;
-  deleteEvent(eventId: string): Promise<void>;
-  getAvailability(startDate: Date, endDate: Date): Promise<TimeSlot[]>;
+  createEvent(event: CalendarEvent, calendarId?: string): Promise<string>;
+  updateEvent(eventId: string, event: Partial<CalendarEvent>, calendarId?: string): Promise<void>;
+  deleteEvent(eventId: string, calendarId?: string): Promise<void>;
+  getAvailability(startDate: Date, endDate: Date, calendarId?: string): Promise<TimeSlot[]>;
 }
 
 export interface CalendarEvent {
@@ -79,6 +79,7 @@ export interface CalendarEvent {
   startTime: Date;
   endTime: Date;
   attendees?: string[];
+  teamMemberId?: string; // Reference to team member for this booking
 }
 
 export interface TimeSlot {

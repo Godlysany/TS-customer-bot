@@ -272,3 +272,11 @@ export const nurturingApi = {
   getPromotions: () => api.get('/promotions'),
   getUpcomingDocuments: () => api.get('/documents/upcoming'),
 };
+
+export const teamMembersApi = {
+  getAll: () => api.get('/team-members'),
+  getById: (id: string) => api.get(`/team-members/${id}`),
+  create: (data: any) => api.post('/team-members', data),
+  update: (id: string, data: any) => api.put(`/team-members/${id}`, data),
+  delete: (id: string) => api.delete(`/team-members/${id}`),
+};

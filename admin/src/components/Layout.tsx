@@ -16,10 +16,11 @@ const Layout = () => {
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'operator', 'support'] },
     { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'operator', 'support'] },
     { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'operator', 'support'] },
+    { path: '/team-members', label: 'Team Members', icon: Users, roles: ['master', 'operator'] },
     { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master'] },
     { path: '/business-settings', label: 'Business Settings', icon: Briefcase, roles: ['master', 'operator'] },
     { path: '/bot-config', label: 'Bot Configuration', icon: Bot, roles: ['master'] },
-    { path: '/admin', label: 'Admin Management', icon: Users, roles: ['master'] },
+    { path: '/admin', label: 'Admin Management', icon: Shield, roles: ['master'] },
     { path: '/settings', label: 'System Settings', icon: Settings, roles: ['master', 'operator'] },
   ];
 

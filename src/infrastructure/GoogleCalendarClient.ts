@@ -58,10 +58,10 @@ export class GoogleCalendarClient implements CalendarProvider {
     }
   }
 
-  async createEvent(event: CalendarEvent): Promise<string> {
+  async createEvent(event: CalendarEvent, calendarId: string = 'primary'): Promise<string> {
     try {
       const response = await this.calendar.events.insert({
-        calendarId: 'primary',
+        calendarId: calendarId,
         requestBody: {
           summary: event.title,
           description: event.description || '',
@@ -84,7 +84,7 @@ export class GoogleCalendarClient implements CalendarProvider {
         },
       });
 
-      console.log(`✅ Calendar event created: ${response.data.id}`);
+      console.log(`✅ Calendar event created: ${response.data.id} (calendar: ${calendarId})`);
       return response.data.id!;
     } catch (error: any) {
       console.error('❌ Failed to create calendar event:', error.message);
@@ -92,7 +92,7 @@ export class GoogleCalendarClient implements CalendarProvider {
     }
   }
 
-  async updateEvent(eventId: string, event: Partial<CalendarEvent>): Promise<void> {
+  async updateEvent(eventId: string, event: Partial<CalendarEvent>, calendarId: string = 'primary'): Promise<void> {
     try {
       const updateData: any = {};
 
@@ -115,44 +115,44 @@ export class GoogleCalendarClient implements CalendarProvider {
       }
 
       await this.calendar.events.patch({
-        calendarId: 'primary',
+        calendarId: calendarId,
         eventId,
         requestBody: updateData,
       });
 
-      console.log(`✅ Calendar event updated: ${eventId}`);
+      console.log(`✅ Calendar event updated: ${eventId} (calendar: ${calendarId})`);
     } catch (error: any) {
       console.error('❌ Failed to update calendar event:', error.message);
       throw new Error(`Failed to update calendar event: ${error.message}`);
     }
   }
 
-  async deleteEvent(eventId: string): Promise<void> {
+  async deleteEvent(eventId: string, calendarId: string = 'primary'): Promise<void> {
     try {
       await this.calendar.events.delete({
-        calendarId: 'primary',
+        calendarId: calendarId,
         eventId,
       });
 
-      console.log(`✅ Calendar event deleted: ${eventId}`);
+      console.log(`✅ Calendar event deleted: ${eventId} (calendar: ${calendarId})`);
     } catch (error: any) {
       console.error('❌ Failed to delete calendar event:', error.message);
       throw new Error(`Failed to delete calendar event: ${error.message}`);
     }
   }
 
-  async getAvailability(startDate: Date, endDate: Date): Promise<TimeSlot[]> {
+  async getAvailability(startDate: Date, endDate: Date, calendarId: string = 'primary'): Promise<TimeSlot[]> {
     try {
       const response = await this.calendar.freebusy.query({
         requestBody: {
           timeMin: startDate.toISOString(),
           timeMax: endDate.toISOString(),
-          items: [{ id: 'primary' }],
+          items: [{ id: calendarId }],
           timeZone: 'Europe/Zurich',
         },
       });
 
-      const busySlots = response.data.calendars?.primary?.busy || [];
+      const busySlots = response.data.calendars?.[calendarId]?.busy || [];
       const allSlots: TimeSlot[] = [];
 
       // Generate all possible 30-minute slots

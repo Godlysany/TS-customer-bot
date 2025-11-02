@@ -16,6 +16,7 @@ import CustomersManagement from './pages/CustomersManagement';
 import Escalations from './pages/Escalations';
 import NurturingWrapper from './pages/NurturingWrapper';
 import BusinessSettings from './pages/BusinessSettings';
+import TeamMembers from './pages/TeamMembers';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,14 @@ function App() {
               <Route path="customers" element={<Customers />} />
               <Route path="customers/:id" element={<CustomerDetail />} />
               <Route path="customers-management" element={<CustomersManagement />} />
+              <Route
+                path="team-members"
+                element={
+                  <ProtectedRoute requireMasterOrOperator>
+                    <TeamMembers />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="nurturing"
                 element={

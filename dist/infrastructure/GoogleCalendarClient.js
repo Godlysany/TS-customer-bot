@@ -53,10 +53,10 @@ class GoogleCalendarClient {
             return false;
         }
     }
-    async createEvent(event) {
+    async createEvent(event, calendarId = 'primary') {
         try {
             const response = await this.calendar.events.insert({
-                calendarId: 'primary',
+                calendarId: calendarId,
                 requestBody: {
                     summary: event.title,
                     description: event.description || '',
@@ -78,7 +78,7 @@ class GoogleCalendarClient {
                     },
                 },
             });
-            console.log(`✅ Calendar event created: ${response.data.id}`);
+            console.log(`✅ Calendar event created: ${response.data.id} (calendar: ${calendarId})`);
             return response.data.id;
         }
         catch (error) {
@@ -86,7 +86,7 @@ class GoogleCalendarClient {
             throw new Error(`Failed to create calendar event: ${error.message}`);
         }
     }
-    async updateEvent(eventId, event) {
+    async updateEvent(eventId, event, calendarId = 'primary') {
         try {
             const updateData = {};
             if (event.title)
@@ -109,41 +109,41 @@ class GoogleCalendarClient {
                 updateData.attendees = event.attendees.map(email => ({ email }));
             }
             await this.calendar.events.patch({
-                calendarId: 'primary',
+                calendarId: calendarId,
                 eventId,
                 requestBody: updateData,
             });
-            console.log(`✅ Calendar event updated: ${eventId}`);
+            console.log(`✅ Calendar event updated: ${eventId} (calendar: ${calendarId})`);
         }
         catch (error) {
             console.error('❌ Failed to update calendar event:', error.message);
             throw new Error(`Failed to update calendar event: ${error.message}`);
         }
     }
-    async deleteEvent(eventId) {
+    async deleteEvent(eventId, calendarId = 'primary') {
         try {
             await this.calendar.events.delete({
-                calendarId: 'primary',
+                calendarId: calendarId,
                 eventId,
             });
-            console.log(`✅ Calendar event deleted: ${eventId}`);
+            console.log(`✅ Calendar event deleted: ${eventId} (calendar: ${calendarId})`);
         }
         catch (error) {
             console.error('❌ Failed to delete calendar event:', error.message);
             throw new Error(`Failed to delete calendar event: ${error.message}`);
         }
     }
-    async getAvailability(startDate, endDate) {
+    async getAvailability(startDate, endDate, calendarId = 'primary') {
         try {
             const response = await this.calendar.freebusy.query({
                 requestBody: {
                     timeMin: startDate.toISOString(),
                     timeMax: endDate.toISOString(),
-                    items: [{ id: 'primary' }],
+                    items: [{ id: calendarId }],
                     timeZone: 'Europe/Zurich',
                 },
             });
-            const busySlots = response.data.calendars?.primary?.busy || [];
+            const busySlots = response.data.calendars?.[calendarId]?.busy || [];
             const allSlots = [];
             // Generate all possible 30-minute slots
             const current = new Date(startDate);
