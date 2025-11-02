@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { servicesApi, teamMembersApi } from '../lib/api';
+import { servicesApi, teamMembersApi, settingsApi } from '../lib/api';
 import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X, FileText, Users } from 'lucide-react';
 import DocumentUpload from '../components/shared/DocumentUpload';
 import toast from 'react-hot-toast';
@@ -42,7 +42,25 @@ const Services = () => {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState<Partial<Service>>({});
   const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState<string[]>([]);
+  const [isStripeConfigured, setIsStripeConfigured] = useState(false);
   const queryClient = useQueryClient();
+
+  // Check if Stripe is configured
+  useEffect(() => {
+    const checkStripeConfig = async () => {
+      try {
+        const [paymentsEnabled, stripeKey] = await Promise.all([
+          settingsApi.getSetting('payments_enabled'),
+          settingsApi.getSetting('stripe_api_key')
+        ]);
+        const isConfigured = paymentsEnabled === 'true' && !!stripeKey && stripeKey.trim() !== '';
+        setIsStripeConfigured(isConfigured);
+      } catch (error) {
+        setIsStripeConfigured(false);
+      }
+    };
+    checkStripeConfig();
+  }, []);
 
   const { data: services, isLoading } = useQuery({
     queryKey: ['services'],
@@ -391,13 +409,22 @@ const Services = () => {
                     <input
                       type="checkbox"
                       checked={formData.requiresPayment || false}
-                      onChange={(e) =>
-                        setFormData({ ...formData, requiresPayment: e.target.checked })
-                      }
-                      className="w-4 h-4 text-blue-600"
+                      onChange={(e) => {
+                        if (e.target.checked && !isStripeConfigured) {
+                          toast.error('Payment enforcement requires Stripe configuration. Please configure Stripe in Settings first.');
+                          return;
+                        }
+                        setFormData({ ...formData, requiresPayment: e.target.checked });
+                      }}
+                      disabled={!isStripeConfigured && !formData.requiresPayment}
+                      className={`w-4 h-4 ${isStripeConfigured || formData.requiresPayment ? 'text-blue-600' : 'text-gray-400 cursor-not-allowed'}`}
+                      title={!isStripeConfigured ? 'Stripe must be configured to enable payment enforcement' : ''}
                     />
-                    <label className="text-sm font-medium text-gray-700">
+                    <label className={`text-sm font-medium ${isStripeConfigured || formData.requiresPayment ? 'text-gray-700' : 'text-gray-400'}`}>
                       Require Payment Before Booking
+                      {!isStripeConfigured && (
+                        <span className="ml-2 text-xs text-amber-600">(Stripe not configured)</span>
+                      )}
                     </label>
                   </div>
                 </div>

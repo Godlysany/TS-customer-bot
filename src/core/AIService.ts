@@ -29,8 +29,8 @@ export class AIService {
         console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
       }
 
-      // Build dynamic system prompt with business details, fine-tuning, AND language context
-      const systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage);
+      // Build dynamic system prompt with business details, fine-tuning, language context, AND customer analytics
+      const systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage, contactId);
 
       const messages = [
         {

@@ -38,6 +38,11 @@ export const conversationsApi = {
 export const settingsApi = {
   getAll: (category?: string) => 
     api.get('/settings', { params: { category } }),
+  getSetting: async (key: string): Promise<string> => {
+    const res = await api.get('/settings');
+    const setting = res.data.find((s: any) => s.key === key);
+    return setting?.value || '';
+  },
   update: (key: string, value: string, isSecret = false, category = 'bot_config') => 
     api.put(`/settings/${key}`, { value, isSecret, category }),
   toggleBot: () => 
