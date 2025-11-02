@@ -8,6 +8,7 @@ import botConfigService from './BotConfigService';
 import paymentLinkService from './PaymentLinkService';
 import settingsService from './SettingsService';
 import { sendProactiveMessage } from '../adapters/whatsapp';
+import aiService from './AIService';
 
 interface BookingContext {
   conversationId: string;
@@ -360,12 +361,6 @@ export class BookingChatHandler {
     message: string,
     messageHistory: any[]
   ): Promise<string> {
-    // Check email collection before allowing booking to complete
-    const emailCheckResult = await this.checkEmailCollection(context, message);
-    if (emailCheckResult) {
-      return emailCheckResult; // Return email collection prompt if needed
-    }
-
     // Query services with multi-session fields
     const { data: services } = await supabase
       .from('services')
@@ -785,6 +780,12 @@ export class BookingChatHandler {
       return `Please confirm by replying "yes" to book all ${totalSessionsRequired} sessions, or "no" to cancel.`;
     }
 
+    // Step 4.5: Check email collection AFTER confirmation, BEFORE booking
+    const emailCheckResult = await this.checkEmailCollection(context, message);
+    if (emailCheckResult) {
+      return emailCheckResult; // Return email collection prompt if needed
+    }
+
     // Step 5: Check if payment is required BEFORE booking
     const paymentInfo = await this.requiresPayment(service.id);
     
@@ -938,6 +939,12 @@ export class BookingChatHandler {
       } catch (e) {
         return "I couldn't understand the date and time. Please try again (e.g., 'March 15 at 2pm').";
       }
+    }
+
+    // Step 1.5: Check email collection AFTER date/time, BEFORE booking
+    const emailCheckResult = await this.checkEmailCollection(context, message);
+    if (emailCheckResult) {
+      return emailCheckResult; // Return email collection prompt if needed
     }
 
     // Step 2: Check if payment is required BEFORE booking
@@ -1152,6 +1159,12 @@ export class BookingChatHandler {
       return `Please confirm by replying "yes" to book these sessions, or "no" to cancel.`;
     }
 
+    // Step 4.5: Check email collection AFTER confirmation, BEFORE booking
+    const emailCheckResult = await this.checkEmailCollection(context, message);
+    if (emailCheckResult) {
+      return emailCheckResult; // Return email collection prompt if needed
+    }
+
     // Step 5: Check if payment is required BEFORE booking
     const paymentInfo = await this.requiresPayment(service.id);
     
@@ -1264,15 +1277,20 @@ export class BookingChatHandler {
       return null;
     }
 
-    // Get current contact email from database
+    // Get current contact email and name from database
     if (!context.contactEmail) {
       const { data: contact } = await supabase
         .from('contacts')
-        .select('email')
+        .select('email, name')
         .eq('id', context.contactId)
         .single();
       
       context.contactEmail = contact?.email || undefined;
+      
+      // Store contact name for personalization
+      if (!context.contactEmail && contact?.name) {
+        (context as any).contactName = contact.name;
+      }
     }
 
     // If contact already has email, no need to ask
@@ -1303,12 +1321,31 @@ export class BookingChatHandler {
     if (!context.emailCollectionAsked) {
       context.emailCollectionAsked = true;
 
+      // Build conversation context for personalization
+      const conversationContext = context.multiSessionService 
+        ? `Customer is booking ${context.multiSessionService.name}`
+        : 'Customer is booking an appointment';
+
       if (config.email_collection_mode === 'mandatory') {
-        // Mandatory mode - require email before proceeding
-        return config.email_collection_prompt_mandatory;
+        // Mandatory mode - use personalized prompt through GPT
+        const personalizedPrompt = await aiService.personalizeMessage({
+          templateMessage: config.email_collection_prompt_mandatory,
+          contactId: context.contactId,
+          contactName: (context as any).contactName,
+          conversationContext,
+          messageType: 'email_request',
+        });
+        return personalizedPrompt;
       } else if (config.email_collection_mode === 'gentle') {
-        // Gentle mode - ask politely but allow skip
-        return config.email_collection_prompt_gentle;
+        // Gentle mode - use personalized prompt through GPT
+        const personalizedPrompt = await aiService.personalizeMessage({
+          templateMessage: config.email_collection_prompt_gentle,
+          contactId: context.contactId,
+          contactName: (context as any).contactName,
+          conversationContext,
+          messageType: 'email_request',
+        });
+        return personalizedPrompt;
       }
     }
 
@@ -1317,9 +1354,20 @@ export class BookingChatHandler {
       return null;
     }
 
-    // Mandatory mode and still no email - keep asking
+    // Mandatory mode and still no email - keep asking with personalized message
     if (config.email_collection_mode === 'mandatory') {
-      return "I still need your email address to complete the booking. Could you please provide it? (e.g., yourname@example.com)";
+      const conversationContext = context.multiSessionService 
+        ? `Customer is booking ${context.multiSessionService.name}`
+        : 'Customer is booking an appointment';
+      
+      const personalizedPrompt = await aiService.personalizeMessage({
+        templateMessage: "I still need your email address to complete the booking. Could you please provide it? (e.g., yourname@example.com)",
+        contactId: context.contactId,
+        contactName: (context as any).contactName,
+        conversationContext,
+        messageType: 'email_request',
+      });
+      return personalizedPrompt;
     }
 
     return null;

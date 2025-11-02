@@ -462,6 +462,78 @@ Respond with JSON only:
             console.error('❌ Error updating contact with insights:', error.message);
         }
     }
+    /**
+     * Personalize a template message through GPT with proper language and context
+     * This ensures ALL outbound messages (email prompts, confirmations, nurturing, etc.)
+     * are natural, language-appropriate, and conversation-aware
+     */
+    async personalizeMessage(params) {
+        try {
+            const openai = await (0, openai_1.default)();
+            const config = await BotConfigService_1.default.getConfig();
+            // Get contact's preferred language
+            let contactLanguage = null;
+            if (params.contactId) {
+                const { data: contact } = await supabase_1.supabase
+                    .from('contacts')
+                    .select('preferred_language')
+                    .eq('id', params.contactId)
+                    .single();
+                contactLanguage = contact?.preferred_language || null;
+            }
+            const activeLanguage = contactLanguage || config.default_bot_language || 'de';
+            const languageMap = {
+                'de': 'German',
+                'en': 'English',
+                'fr': 'French',
+                'it': 'Italian',
+                'es': 'Spanish',
+                'pt': 'Portuguese'
+            };
+            const languageName = languageMap[activeLanguage] || 'German';
+            const personalizationPrompt = `You are personalizing a message for ${config.business_name}.
+
+**Task**: Rewrite the following template message to be natural, friendly, and contextually appropriate.
+
+**CRITICAL**: You MUST respond in ${languageName} language.
+
+**Template Message**: ${params.templateMessage}
+
+**Customer Name**: ${params.contactName || 'the customer'}
+**Message Type**: ${params.messageType || 'general'}
+${params.conversationContext ? `**Conversation Context**: ${params.conversationContext}` : ''}
+
+**Instructions**:
+1. Keep the same intent and purpose as the template
+2. Make it sound natural and conversational
+3. Use the customer's name if appropriate
+4. Match the ${languageName} language and cultural tone
+5. Keep it concise but friendly
+6. For booking/email requests, explain WHY (e.g., "for appointment confirmations")
+7. Maintain ${config.tone_of_voice} tone
+
+**CRITICAL**: Output ONLY the personalized message text in ${languageName}, nothing else.`;
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: personalizationPrompt,
+                    },
+                ],
+                temperature: 0.7,
+                max_tokens: 200,
+            });
+            const personalizedMessage = response.choices[0]?.message?.content?.trim() || params.templateMessage;
+            console.log(`✨ Personalized ${params.messageType} message (${activeLanguage}): ${personalizedMessage.substring(0, 80)}...`);
+            return personalizedMessage;
+        }
+        catch (error) {
+            console.error('❌ Message personalization error:', error.message);
+            // Fallback to template if personalization fails
+            return params.templateMessage;
+        }
+    }
 }
 exports.AIService = AIService;
 exports.default = new AIService();
