@@ -139,7 +139,7 @@ const QuestionnairesTab = () => {
     onError: () => toast.error('Failed to update status'),
   });
 
-  const selectedQForSettings = questionnaires.find(q => q.id === selectedQuestionnaireForSettings);
+  const selectedQForSettings = questionnaires.find((q: Questionnaire) => q.id === selectedQuestionnaireForSettings);
 
   useEffect(() => {
     if (selectedQForSettings) {

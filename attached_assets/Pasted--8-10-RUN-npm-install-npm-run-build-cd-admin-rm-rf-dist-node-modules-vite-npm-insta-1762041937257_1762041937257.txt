@@ -1,0 +1,47 @@
+[ 8/10] RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+47s
+npm warn config production Use `--omit=dev` instead.
+up to date, audited 499 packages in 3s
+88 packages are looking for funding
+  run `npm fund` for details
+6 vulnerabilities (5 low, 1 high)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues, run:
+  npm audit fix --force
+Run `npm audit` for details.
+npm warn config production Use `--omit=dev` instead.
+> whatsapp-crm-bot@2.0.0 build
+> tsc
+npm warn config production Use `--omit=dev` instead.
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'vite@7.1.12',
+npm warn EBADENGINE   required: { node: '^20.19.0 || >=22.12.0' },
+npm warn EBADENGINE   current: { node: 'v22.11.0', npm: '10.9.0' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@vitejs/plugin-react@5.1.0',
+npm warn EBADENGINE   required: { node: '^20.19.0 || >=22.12.0' },
+npm warn EBADENGINE   current: { node: 'v22.11.0', npm: '10.9.0' }
+npm warn EBADENGINE }
+added 242 packages, and audited 243 packages in 22s
+62 packages are looking for funding
+  run `npm fund` for details
+found 0 vulnerabilities
+npm warn config production Use `--omit=dev` instead.
+> admin@0.0.0 build
+> tsc -b && vite build
+src/components/nurturing/QuestionnairesTab.tsx(142,52): error TS7006: Parameter 'q' implicitly has an 'any' type.
+
+src/components/nurturing/TestimonialsTab.tsx(1,1): error TS6133: 'useState' is declared but its value is never read.
+
+Dockerfile:24
+-------------------
+22 |     # build phase
+23 |     COPY . /app/.
+24 | >>> RUN  npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build
+25 |
+26 |
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm install && npm run build && cd admin && rm -rf dist node_modules/.vite && npm install && npm run build" did not complete successfully: exit code: 2
+Error: Docker build failed
