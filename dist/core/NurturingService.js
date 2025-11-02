@@ -42,20 +42,22 @@ class NurturingService {
         }
     }
     /**
-     * Update a nurturing setting
+     * Update a nurturing setting (creates if doesn't exist)
      */
     async updateSetting(key, value) {
         try {
             const { error } = await supabase_1.supabase
                 .from('nurturing_settings')
-                .update({
+                .upsert({
+                setting_key: key,
                 setting_value: value,
                 updated_at: new Date().toISOString()
-            })
-                .eq('setting_key', key);
+            }, {
+                onConflict: 'setting_key'
+            });
             if (error)
                 throw error;
-            console.log(`✅ Updated nurturing setting: ${key}`);
+            console.log(`✅ Updated nurturing setting: ${key} = ${value}`);
         }
         catch (error) {
             console.error(`❌ Error updating setting ${key}:`, error);

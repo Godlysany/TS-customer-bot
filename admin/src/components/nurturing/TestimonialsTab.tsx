@@ -43,7 +43,7 @@ const TestimonialsTab = () => {
     return setting?.settingValue || '';
   };
 
-  const enableReviews = getSetting('enable_review_requests') === 'true';
+  const enableReviews = getSetting('review_request_enabled') === 'true';
   const enableGoogleReview = getSetting('enable_google_review_followup') === 'true';
 
   return (
@@ -64,7 +64,7 @@ const TestimonialsTab = () => {
               <p className="text-xs text-gray-500 mt-1">Send automated review requests after appointments</p>
             </div>
             <button
-              onClick={() => handleSettingChange('enable_review_requests', (!enableReviews).toString())}
+              onClick={() => handleSettingChange('review_request_enabled', (!enableReviews).toString())}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 enableReviews ? 'bg-blue-600' : 'bg-gray-300'
               }`}

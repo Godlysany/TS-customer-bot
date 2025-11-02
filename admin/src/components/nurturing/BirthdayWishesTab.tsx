@@ -35,6 +35,7 @@ const BirthdayWishesTab = () => {
     return setting?.settingValue || '';
   };
 
+  const enableBirthday = getSetting('birthday_wish_enabled') === 'true';
   const enablePromotion = getSetting('birthday_enable_promotion') === 'true';
 
   const { data: promotions } = useQuery({
@@ -62,8 +63,6 @@ const BirthdayWishesTab = () => {
     updateSettingMutation.mutate({ key, value });
   };
 
-  const enableBirthday = getSetting('enable_birthday_wishes') === 'true';
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -82,7 +81,7 @@ const BirthdayWishesTab = () => {
               <p className="text-xs text-gray-500 mt-1">Send automated birthday messages to customers</p>
             </div>
             <button
-              onClick={() => handleSettingChange('enable_birthday_wishes', (!enableBirthday).toString())}
+              onClick={() => handleSettingChange('birthday_wish_enabled', (!enableBirthday).toString())}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 enableBirthday ? 'bg-blue-600' : 'bg-gray-300'
               }`}
@@ -103,8 +102,8 @@ const BirthdayWishesTab = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={4}
                   placeholder="Happy Birthday {name}! 🎉 Wishing you a wonderful day filled with joy..."
-                  value={getSetting('birthday_message_template')}
-                  onChange={(e) => handleSettingChange('birthday_message_template', e.target.value)}
+                  value={getSetting('birthday_wish_template')}
+                  onChange={(e) => handleSettingChange('birthday_wish_template', e.target.value)}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Available placeholders: {'{name}'}, {'{age}'}
