@@ -113,36 +113,89 @@ class TeamMemberService {
         console.log(`✅ Team member permanently deleted: ${id}`);
     }
     /**
-     * Get team members who can provide a specific service
+     * Get team members who can provide a specific service (via service_team_members junction table)
      */
     async getAvailableForService(serviceId) {
-        // Get service to check allowed_team_member_ids
-        const { data: service } = await supabase_1.supabase
-            .from('services')
-            .select('allowed_team_member_ids')
-            .eq('id', serviceId)
-            .single();
-        if (!service) {
-            throw new Error(`Service ${serviceId} not found`);
-        }
-        const allowedIds = service.allowed_team_member_ids || [];
-        // If no restrictions, return all active team members
-        if (allowedIds.length === 0) {
-            return this.getAll(true);
-        }
-        // Return only allowed team members
         const { data, error } = await supabase_1.supabase
-            .from('team_members')
-            .select('*')
-            .in('id', allowedIds)
-            .eq('is_active', true)
-            .order('display_order', { ascending: true })
-            .order('name', { ascending: true });
+            .from('service_team_members')
+            .select('team_member:team_members(*)')
+            .eq('service_id', serviceId);
         if (error) {
-            console.error('Failed to fetch available team members:', error);
-            throw new Error(`Failed to fetch available team members: ${error.message}`);
+            console.error('Failed to fetch team members for service:', error);
+            throw new Error(`Failed to fetch team members for service: ${error.message}`);
         }
-        return (data || []).map(mapper_1.toCamelCase);
+        // If no mappings exist, return empty array (no team members assigned to this service)
+        if (!data || data.length === 0) {
+            return [];
+        }
+        // Extract team members from junction table results and filter active only
+        const teamMembers = data
+            .map((mapping) => mapping.team_member)
+            .filter((tm) => tm && tm.is_active)
+            .map(mapper_1.toCamelCase);
+        return teamMembers;
+    }
+    /**
+     * Assign a team member to a service
+     */
+    async assignToService(teamMemberId, serviceId, isPrimary = false) {
+        const { error } = await supabase_1.supabase
+            .from('service_team_members')
+            .insert((0, mapper_1.toSnakeCase)({
+            teamMemberId,
+            serviceId,
+            isPrimaryProvider: isPrimary,
+        }));
+        if (error) {
+            // Ignore unique constraint violations (already assigned)
+            if (error.code === '23505') {
+                console.log(`Team member ${teamMemberId} already assigned to service ${serviceId}`);
+                return;
+            }
+            console.error('Failed to assign team member to service:', error);
+            throw new Error(`Failed to assign team member to service: ${error.message}`);
+        }
+        console.log(`✅ Team member ${teamMemberId} assigned to service ${serviceId}`);
+    }
+    /**
+     * Remove a team member from a service
+     */
+    async removeFromService(teamMemberId, serviceId) {
+        const { error } = await supabase_1.supabase
+            .from('service_team_members')
+            .delete()
+            .eq('team_member_id', teamMemberId)
+            .eq('service_id', serviceId);
+        if (error) {
+            console.error('Failed to remove team member from service:', error);
+            throw new Error(`Failed to remove team member from service: ${error.message}`);
+        }
+        console.log(`✅ Team member ${teamMemberId} removed from service ${serviceId}`);
+    }
+    /**
+     * Update service team member mappings (bulk update)
+     */
+    async updateServiceTeamMembers(serviceId, teamMemberIds) {
+        // Delete existing mappings
+        await supabase_1.supabase
+            .from('service_team_members')
+            .delete()
+            .eq('service_id', serviceId);
+        // Insert new mappings
+        if (teamMemberIds.length > 0) {
+            const { error } = await supabase_1.supabase
+                .from('service_team_members')
+                .insert(teamMemberIds.map(teamMemberId => (0, mapper_1.toSnakeCase)({
+                serviceId,
+                teamMemberId,
+                isPrimaryProvider: false,
+            })));
+            if (error) {
+                console.error('Failed to update service team members:', error);
+                throw new Error(`Failed to update service team members: ${error.message}`);
+            }
+        }
+        console.log(`✅ Service ${serviceId} team members updated (${teamMemberIds.length} members)`);
     }
     /**
      * Check if team member is available at a specific date/time

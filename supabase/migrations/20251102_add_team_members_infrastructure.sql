@@ -64,14 +64,35 @@ CREATE INDEX IF NOT EXISTS idx_bookings_team_member_confirmed ON bookings(team_m
 COMMENT ON COLUMN bookings.team_member_id IS 'Reference to team member who will provide the service';
 
 -- =====================================================
--- UPDATE SERVICES TABLE
+-- SERVICE-TEAM MEMBER MAPPING (Many-to-Many)
 -- =====================================================
--- Add team member restrictions to services (optional: some services may be restricted to specific team members)
+-- Junction table for service-to-team-member mapping
+-- Multiple team members can provide the same service
 
-ALTER TABLE services 
-  ADD COLUMN IF NOT EXISTS allowed_team_member_ids UUID[] DEFAULT '{}';
+CREATE TABLE IF NOT EXISTS service_team_members (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  team_member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+  
+  -- Optional: Service-specific settings per team member
+  custom_buffer_before INTEGER, -- Override default buffer for this service
+  custom_buffer_after INTEGER,
+  is_primary_provider BOOLEAN DEFAULT false, -- Mark primary/preferred provider for this service
+  
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure unique service-team member combinations
+  UNIQUE(service_id, team_member_id)
+);
 
-COMMENT ON COLUMN services.allowed_team_member_ids IS 'Array of team member IDs who can provide this service (empty = all team members can provide)';
+-- Indexes for efficient lookups
+CREATE INDEX IF NOT EXISTS idx_service_team_members_service ON service_team_members(service_id);
+CREATE INDEX IF NOT EXISTS idx_service_team_members_team_member ON service_team_members(team_member_id);
+CREATE INDEX IF NOT EXISTS idx_service_team_members_primary ON service_team_members(service_id, is_primary_provider) 
+  WHERE is_primary_provider = true;
+
+COMMENT ON TABLE service_team_members IS 'Many-to-many mapping between services and team members (multiple team members can provide same service)';
+COMMENT ON COLUMN service_team_members.is_primary_provider IS 'Marks the primary/preferred team member for this service (for smart auto-assignment)';
 
 -- =====================================================
 -- UPDATE CONTACTS TABLE

@@ -297,4 +297,87 @@ router.post('/:id/validate-time', async (req, res) => {
   }
 });
 
+// ========================================
+// SERVICE TEAM MEMBERS ENDPOINTS
+// ========================================
+
+// Get team members assigned to a service
+router.get('/:id/team-members', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+    
+    const { data, error } = await supabase
+      .from('service_team_members')
+      .select('team_member:team_members(*)')
+      .eq('service_id', id);
+
+    if (error) throw error;
+
+    const teamMembers = (data || [])
+      .map((mapping: any) => mapping.team_member)
+      .filter((tm: any) => tm && tm.is_active)
+      .map(toCamelCase);
+
+    res.json(teamMembers);
+  } catch (error: any) {
+    console.error('Error fetching team members for service:', error);
+    res.status(500).json({ error: 'Failed to fetch team members for service' });
+  }
+});
+
+// Update team members assigned to a service
+router.post('/:id/team-members', requireRole('master', 'operator', 'support'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { teamMemberIds } = req.body;
+    
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid service ID format' });
+    }
+
+    if (!Array.isArray(teamMemberIds)) {
+      return res.status(400).json({ error: 'teamMemberIds must be an array' });
+    }
+
+    // Validate all team member IDs
+    for (const tmId of teamMemberIds) {
+      if (!isValidUUID(tmId)) {
+        return res.status(400).json({ error: `Invalid team member ID format: ${tmId}` });
+      }
+    }
+
+    // Delete existing assignments
+    const { error: deleteError } = await supabase
+      .from('service_team_members')
+      .delete()
+      .eq('service_id', id);
+
+    if (deleteError) throw deleteError;
+
+    // Insert new assignments if any
+    if (teamMemberIds.length > 0) {
+      const assignments = teamMemberIds.map((teamMemberId: string) => ({
+        service_id: id,
+        team_member_id: teamMemberId,
+        is_primary_provider: false,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('service_team_members')
+        .insert(assignments);
+
+      if (insertError) throw insertError;
+    }
+
+    res.json({ success: true, teamMemberIds });
+  } catch (error: any) {
+    console.error('Error updating service team members:', error);
+    res.status(500).json({ error: 'Failed to update service team members' });
+  }
+});
+
 export default router;

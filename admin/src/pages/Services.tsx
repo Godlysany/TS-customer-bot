@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { servicesApi } from '../lib/api';
-import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X, FileText } from 'lucide-react';
+import { servicesApi, teamMembersApi } from '../lib/api';
+import { Plus, Edit, Trash2, Clock, DollarSign, Calendar, Save, X, FileText, Users } from 'lucide-react';
 import DocumentUpload from '../components/shared/DocumentUpload';
+import toast from 'react-hot-toast';
 
 interface Service {
   id: string;
@@ -40,6 +41,7 @@ const Services = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState<Partial<Service>>({});
+  const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   const { data: services, isLoading } = useQuery({
@@ -50,20 +52,43 @@ const Services = () => {
     },
   });
 
+  const { data: allTeamMembers } = useQuery({
+    queryKey: ['team-members-active'],
+    queryFn: async () => {
+      const res = await teamMembersApi.getAll();
+      return res.data.filter((tm: any) => tm.isActive);
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: Partial<Service>) => servicesApi.create(data),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const newServiceId = response.data.id;
+      if (selectedTeamMemberIds.length > 0) {
+        await servicesApi.updateServiceTeamMembers(newServiceId, selectedTeamMemberIds);
+      }
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-team-members'] });
+      toast.success('Service created successfully');
       closeModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to create service');
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Service> }) =>
       servicesApi.update(id, data),
-    onSuccess: () => {
+    onSuccess: async (_response, variables) => {
+      await servicesApi.updateServiceTeamMembers(variables.id, selectedTeamMemberIds);
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['service-team-members'] });
+      toast.success('Service updated successfully');
       closeModal();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || 'Failed to update service');
     },
   });
 
@@ -74,12 +99,15 @@ const Services = () => {
     },
   });
 
-  const openModal = (service?: Service) => {
+  const openModal = async (service?: Service) => {
     if (service) {
       setEditingService(service);
       setFormData(service);
+      const res = await servicesApi.getTeamMembersForService(service.id);
+      setSelectedTeamMemberIds(res.data.map((tm: any) => tm.id));
     } else {
       setEditingService(null);
+      setSelectedTeamMemberIds([]);
       setFormData({
         name: '',
         description: '',
@@ -112,6 +140,7 @@ const Services = () => {
     setIsModalOpen(false);
     setEditingService(null);
     setFormData({});
+    setSelectedTeamMemberIds([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -440,6 +469,111 @@ const Services = () => {
                       Service is Active (available for booking)
                     </label>
                   </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Team Members
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Select team members who can provide this service
+                </p>
+
+                <div className="space-y-4">
+                  {allTeamMembers && allTeamMembers.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {allTeamMembers.map((member: any) => (
+                          <label
+                            key={member.id}
+                            className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedTeamMemberIds.includes(member.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedTeamMemberIds([...selectedTeamMemberIds, member.id]);
+                                } else {
+                                  setSelectedTeamMemberIds(
+                                    selectedTeamMemberIds.filter((id) => id !== member.id)
+                                  );
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: member.color || '#3B82F6' }}
+                                />
+                                <span className="text-sm font-medium text-gray-900 truncate">
+                                  {member.name}
+                                </span>
+                              </div>
+                              {member.role && (
+                                <span className="text-xs text-gray-500">{member.role}</span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      {selectedTeamMemberIds.length > 0 && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-sm font-medium text-blue-900 mb-2">
+                            Selected Team Members ({selectedTeamMemberIds.length}):
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedTeamMemberIds.map((id) => {
+                              const member = allTeamMembers.find((tm: any) => tm.id === id);
+                              if (!member) return null;
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-blue-200 rounded-full text-sm text-blue-900"
+                                >
+                                  <div
+                                    className="w-2 h-2 rounded-full"
+                                    style={{ backgroundColor: member.color || '#3B82F6' }}
+                                  />
+                                  {member.name}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedTeamMemberIds(
+                                        selectedTeamMemberIds.filter((tmId) => tmId !== id)
+                                      )
+                                    }
+                                    className="ml-1 text-blue-600 hover:text-blue-800"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedTeamMemberIds.length === 0 && (
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            ⚠️ No team members selected. This service will be available to all team members.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        No team members available. Add team members in Business Settings → Team Members tab.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -229,6 +229,11 @@ export const servicesApi = {
   // Validation
   validateBookingTime: (serviceId: string, dateTime: string) =>
     api.post(`/services/${serviceId}/validate-time`, { dateTime }),
+  
+  // Team Members
+  getTeamMembersForService: (serviceId: string) => api.get(`/services/${serviceId}/team-members`),
+  updateServiceTeamMembers: (serviceId: string, teamMemberIds: string[]) => 
+    api.post(`/services/${serviceId}/team-members`, { teamMemberIds }),
 };
 
 export const escalationsApi = {

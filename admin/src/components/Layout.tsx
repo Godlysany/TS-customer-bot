@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Settings, Calendar, Users, LogOut, Shield, User, UserCog, AlertCircle, Heart, Bot, Briefcase } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, Calendar, LogOut, Shield, User, UserCog, AlertCircle, Heart, Bot, Briefcase } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import WhatsAppBanner from './WhatsAppBanner';
 
@@ -16,7 +16,6 @@ const Layout = () => {
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'operator', 'support'] },
     { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'operator', 'support'] },
     { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'operator', 'support'] },
-    { path: '/team-members', label: 'Team Members', icon: Users, roles: ['master', 'operator'] },
     { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master'] },
     { path: '/business-settings', label: 'Business Settings', icon: Briefcase, roles: ['master', 'operator'] },
     { path: '/bot-config', label: 'Bot Configuration', icon: Bot, roles: ['master'] },

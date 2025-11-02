@@ -11,6 +11,44 @@ import NoShowService from './NoShowService';
 import PaymentService from './PaymentService';
 import botConfigService from './BotConfigService';
 
+/**
+ * BookingWorkflowContext
+ * 
+ * Contains all validated data and metadata needed to create a booking.
+ * Used by primitive methods to pass state between validation, persistence, and side effects.
+ */
+export interface BookingWorkflowContext {
+  // Input data
+  contactId: string;
+  conversationId: string;
+  event: CalendarEvent;
+  serviceId?: string;
+  teamMemberId?: string;
+  
+  // Validation results
+  bufferTimeBefore: number;
+  bufferTimeAfter: number;
+  actualStartTime: Date;
+  actualEndTime: Date;
+  
+  // Payment info
+  discountCode?: string;
+  discountAmount?: number;
+  promoVoucher?: string;
+  
+  // Session metadata (for multi-session bookings)
+  sessionGroupId?: string;
+  sessionNumber?: number;
+  totalSessions?: number;
+  
+  // Contact data (cached from validation)
+  contactEmail?: string;
+  contactName?: string;
+  
+  // Team member data (cached from validation)
+  teamMemberCalendarId?: string;
+}
+
 export class BookingService {
   private calendarProvider: CalendarProvider | null = null;
   private emailService: EmailService;
@@ -35,21 +73,36 @@ export class BookingService {
     this.calendarProvider = provider;
   }
 
-  async createBooking(
-    contactId: string, 
-    conversationId: string, 
+  /**
+   * Primitive 1: validateAndPrepare()
+   * 
+   * Validates all booking requirements and prepares context with all necessary data.
+   * This includes checking suspensions, payment blocks, service buffers, conflicts, 
+   * configuration restrictions, and fetching team member calendar IDs.
+   * 
+   * @returns BookingWorkflowContext with all validated data
+   * @throws Error if validation fails
+   */
+  async validateAndPrepare(
+    contactId: string,
+    conversationId: string,
     event: CalendarEvent,
     options?: {
       serviceId?: string;
+      teamMemberId?: string;
       discountCode?: string;
       discountAmount?: number;
       promoVoucher?: string;
+      sessionGroupId?: string;
+      sessionNumber?: number;
+      totalSessions?: number;
     }
-  ): Promise<Booking> {
+  ): Promise<BookingWorkflowContext> {
     if (!this.calendarProvider) {
       throw new Error('Calendar provider not initialized');
     }
 
+    // Check contact suspension
     const suspension = await this.noShowService.isContactSuspended(contactId);
     if (suspension.suspended && suspension.until) {
       throw new Error(`Booking privileges suspended until ${suspension.until.toLocaleDateString()}. Please contact us for assistance.`);
@@ -58,12 +111,19 @@ export class BookingService {
     // PAYMENT ENFORCEMENT: Check for outstanding balance before allowing booking
     const { data: contactData } = await supabase
       .from('contacts')
-      .select('outstanding_balance_chf, has_overdue_payments, payment_allowance_granted, payment_restriction_reason')
+      .select('outstanding_balance_chf, has_overdue_payments, payment_allowance_granted, payment_restriction_reason, email, name')
       .eq('id', contactId)
       .single();
 
+    let contactEmail: string | undefined;
+    let contactName: string | undefined;
+
     if (contactData) {
       const contact = toCamelCase(contactData);
+      
+      // Cache contact data for later use
+      contactEmail = contact.email;
+      contactName = contact.name;
       
       // Block booking if customer has outstanding balance (unless admin granted allowance)
       if (contact.outstandingBalanceChf > 0 && !contact.paymentAllowanceGranted) {
@@ -80,6 +140,7 @@ export class BookingService {
       }
     }
 
+    // Fetch service buffers if service provided
     let bufferTimeBefore = 0;
     let bufferTimeAfter = 0;
 
@@ -96,41 +157,166 @@ export class BookingService {
       }
     }
 
+    // Calculate actual start/end times with buffers
     const actualStartTime = new Date(event.startTime);
     actualStartTime.setMinutes(actualStartTime.getMinutes() - bufferTimeBefore);
 
     const actualEndTime = new Date(event.endTime);
     actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferTimeAfter);
 
-    // Check dynamic bot configuration before booking
+    // Check configuration restrictions (opening hours, emergency blockers, service restrictions)
     await this.checkConfigurationRestrictions(event, options?.serviceId);
 
+    // Check buffered conflicts
     await this.checkBufferedConflicts(
       actualStartTime,
       actualEndTime,
       options?.serviceId
     );
 
-    const calendarEventId = await this.calendarProvider.createEvent(event);
+    // Fetch and validate team member if provided
+    let teamMemberCalendarId: string | undefined;
+    if (options?.teamMemberId) {
+      const { data: teamMember } = await supabase
+        .from('team_members')
+        .select('calendar_id, is_active, availability_schedule')
+        .eq('id', options.teamMemberId)
+        .single();
 
+      if (!teamMember || !teamMember.is_active) {
+        throw new Error('Team member not found or inactive');
+      }
+
+      // CRITICAL: Verify team member is assigned to this service
+      if (options.serviceId) {
+        const { data: assignment } = await supabase
+          .from('service_team_members')
+          .select('id')
+          .eq('service_id', options.serviceId)
+          .eq('team_member_id', options.teamMemberId)
+          .single();
+
+        if (!assignment) {
+          throw new Error('Team member is not assigned to this service');
+        }
+      }
+
+      // CRITICAL: Check team member's availability schedule (using buffered times)
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayOfWeek = dayNames[actualStartTime.getDay()];
+      
+      const schedule = (teamMember.availability_schedule as any)?.[dayOfWeek] || [];
+      
+      if (schedule.length === 0) {
+        throw new Error(`Team member is not available on ${dayOfWeek}s`);
+      }
+
+      // Convert buffered start and end times to HH:MM format
+      const startHours = String(actualStartTime.getHours()).padStart(2, '0');
+      const startMinutes = String(actualStartTime.getMinutes()).padStart(2, '0');
+      const startTimeStr = `${startHours}:${startMinutes}`;
+      
+      const endHours = String(actualEndTime.getHours()).padStart(2, '0');
+      const endMinutes = String(actualEndTime.getMinutes()).padStart(2, '0');
+      const endTimeStr = `${endHours}:${endMinutes}`;
+
+      // Verify ENTIRE booking (start to end) falls within at least one availability window
+      const isWithinSchedule = schedule.some((window: any) => {
+        return startTimeStr >= window.start && endTimeStr <= window.end;
+      });
+
+      if (!isWithinSchedule) {
+        throw new Error(`Team member is not available from ${startTimeStr} to ${endTimeStr} on ${dayOfWeek}s`);
+      }
+
+      // CRITICAL: Check for team member conflicts (their existing bookings with buffers)
+      // Overlap condition: actual_start_time < actualEndTime AND actual_end_time > actualStartTime
+      // MUST use buffered columns (actual_start_time/actual_end_time) not base times
+      const { data: teamMemberConflicts } = await supabase
+        .from('bookings')
+        .select('id, title, actual_start_time, actual_end_time')
+        .eq('team_member_id', options.teamMemberId)
+        .in('status', ['confirmed', 'pending'])
+        .lt('actual_start_time', actualEndTime.toISOString())
+        .gt('actual_end_time', actualStartTime.toISOString());
+
+      if (teamMemberConflicts && teamMemberConflicts.length > 0) {
+        const conflictTitles = teamMemberConflicts.map(c => c.title).join(', ');
+        throw new Error(`Team member is already booked at this time. Conflicts with: ${conflictTitles}`);
+      }
+
+      teamMemberCalendarId = teamMember.calendar_id;
+    }
+
+    // Build and return context
+    return {
+      contactId,
+      conversationId,
+      event,
+      serviceId: options?.serviceId,
+      teamMemberId: options?.teamMemberId,
+      bufferTimeBefore,
+      bufferTimeAfter,
+      actualStartTime,
+      actualEndTime,
+      discountCode: options?.discountCode,
+      discountAmount: options?.discountAmount,
+      promoVoucher: options?.promoVoucher,
+      sessionGroupId: options?.sessionGroupId,
+      sessionNumber: options?.sessionNumber,
+      totalSessions: options?.totalSessions,
+      contactEmail,
+      contactName,
+      teamMemberCalendarId,
+    };
+  }
+
+  /**
+   * Primitive 2: persistBooking()
+   * 
+   * Persists the booking to both calendar and database.
+   * Creates calendar event (using team member's calendar if specified) and 
+   * inserts booking record with all metadata.
+   * 
+   * @returns Created booking record
+   * @throws Error if persistence fails
+   */
+  async persistBooking(context: BookingWorkflowContext): Promise<Booking> {
+    if (!this.calendarProvider) {
+      throw new Error('Calendar provider not initialized');
+    }
+
+    // Create calendar event (with team member's calendar ID if specified)
+    const calendarEvent = {
+      ...context.event,
+      calendarId: context.teamMemberCalendarId,
+    };
+    
+    const calendarEventId = await this.calendarProvider.createEvent(calendarEvent);
+
+    // Insert booking into database with all metadata
     const { data, error } = await supabase
       .from('bookings')
       .insert(toSnakeCase({
-        contactId,
-        conversationId,
+        contactId: context.contactId,
+        conversationId: context.conversationId,
         calendarEventId,
-        title: event.title,
-        startTime: event.startTime,
-        endTime: event.endTime,
-        serviceId: options?.serviceId,
-        actualStartTime,
-        actualEndTime,
-        bufferTimeBefore,
-        bufferTimeAfter,
+        title: context.event.title,
+        startTime: context.event.startTime,
+        endTime: context.event.endTime,
+        serviceId: context.serviceId,
+        teamMemberId: context.teamMemberId,
+        actualStartTime: context.actualStartTime,
+        actualEndTime: context.actualEndTime,
+        bufferTimeBefore: context.bufferTimeBefore,
+        bufferTimeAfter: context.bufferTimeAfter,
         status: 'confirmed',
-        discountCode: options?.discountCode,
-        discountAmount: options?.discountAmount || 0,
-        promoVoucher: options?.promoVoucher,
+        discountCode: context.discountCode,
+        discountAmount: context.discountAmount || 0,
+        promoVoucher: context.promoVoucher,
+        sessionGroupId: context.sessionGroupId,
+        sessionNumber: context.sessionNumber,
+        totalSessions: context.totalSessions,
         emailSent: false,
         reminderSent: false,
       }))
@@ -139,18 +325,24 @@ export class BookingService {
 
     if (error) throw error;
     
-    const booking = toCamelCase(data) as Booking;
+    return toCamelCase(data) as Booking;
+  }
 
-    const { data: contact } = await supabase
-      .from('contacts')
-      .select('name, email')
-      .eq('id', contactId)
-      .single();
-
-    if (contact?.email) {
-      await this.emailService.sendBookingConfirmation(booking.id, contact.email, {
+  /**
+   * Primitive 3: finalizeSideEffects()
+   * 
+   * Executes all side effects after successful booking persistence.
+   * Sends emails, schedules reminders, notifies secretary, and schedules document delivery.
+   * 
+   * @param booking Created booking record
+   * @param context Booking workflow context
+   */
+  async finalizeSideEffects(booking: Booking, context: BookingWorkflowContext): Promise<void> {
+    // Send email confirmation if contact has email
+    if (context.contactEmail) {
+      await this.emailService.sendBookingConfirmation(booking.id, context.contactEmail, {
         ...booking,
-        contactName: contact.name,
+        contactName: context.contactName,
       });
 
       await supabase
@@ -159,15 +351,109 @@ export class BookingService {
         .eq('id', booking.id);
     }
 
-    await this.reminderService.scheduleAppointmentReminder(booking.id, contactId, event.startTime);
-    await this.reviewService.scheduleReviewRequest(booking.id, contactId);
-    await this.secretaryService.notifyBookingCreated(data);
+    // Schedule reminders
+    await this.reminderService.scheduleAppointmentReminder(
+      booking.id, 
+      context.contactId, 
+      context.event.startTime
+    );
 
-    if (options?.serviceId) {
+    // Schedule review request
+    await this.reviewService.scheduleReviewRequest(booking.id, context.contactId);
+
+    // Notify secretary
+    await this.secretaryService.notifyBookingCreated(toSnakeCase(booking));
+
+    // Schedule document delivery if service provided
+    if (context.serviceId) {
       await this.documentService.scheduleDocumentDelivery(booking.id);
     }
+  }
 
-    return booking;
+  /**
+   * Primitive 4: rollbackBooking()
+   * 
+   * Rolls back a booking by deleting it from database and calendar.
+   * Used when side effects fail after successful persistence.
+   * 
+   * @param bookingId Booking ID to rollback
+   * @param calendarEventId Calendar event ID to delete
+   */
+  async rollbackBooking(bookingId: string, calendarEventId: string): Promise<void> {
+    console.error(`🔄 Rolling back booking ${bookingId}`);
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', bookingId);
+
+    if (dbError) {
+      console.error(`❌ Failed to delete booking from database: ${dbError.message}`);
+    }
+
+    // Delete from calendar
+    if (this.calendarProvider) {
+      try {
+        await this.calendarProvider.deleteEvent(calendarEventId);
+      } catch (calError) {
+        console.error(`❌ Failed to delete calendar event: ${calError}`);
+      }
+    }
+
+    console.log(`✅ Booking ${bookingId} rolled back`);
+  }
+
+  /**
+   * Create a single booking with full validation and side effects.
+   * 
+   * This method orchestrates the four primitive methods to create a booking:
+   * 1. validateAndPrepare() - Validates all requirements and prepares context
+   * 2. persistBooking() - Creates calendar event and database record
+   * 3. finalizeSideEffects() - Sends emails, schedules reminders, etc.
+   * 4. rollbackBooking() - Rolls back if side effects fail (optional)
+   * 
+   * @param contactId Contact ID
+   * @param conversationId Conversation ID
+   * @param event Calendar event details
+   * @param options Optional booking parameters (service, discounts, etc.)
+   * @returns Created booking record
+   * @throws Error if validation or persistence fails
+   */
+  async createBooking(
+    contactId: string, 
+    conversationId: string, 
+    event: CalendarEvent,
+    options?: {
+      serviceId?: string;
+      discountCode?: string;
+      discountAmount?: number;
+      promoVoucher?: string;
+    }
+  ): Promise<Booking> {
+    let booking: Booking | null = null;
+    let calendarEventId: string | null = null;
+
+    try {
+      // Step 1: Validate and prepare context
+      const context = await this.validateAndPrepare(contactId, conversationId, event, options);
+
+      // Step 2: Persist booking to calendar and database
+      booking = await this.persistBooking(context);
+      calendarEventId = booking.calendarEventId;
+
+      // Step 3: Finalize side effects (emails, reminders, etc.)
+      await this.finalizeSideEffects(booking, context);
+
+      return booking;
+    } catch (error) {
+      // If persistence succeeded but side effects failed, rollback
+      if (booking && calendarEventId) {
+        console.error('⚠️ Side effects failed after successful booking creation, rolling back...');
+        await this.rollbackBooking(booking.id, calendarEventId);
+      }
+      throw error;
+    }
   }
 
   async updateBooking(bookingId: string, updates: Partial<CalendarEvent>): Promise<void> {
