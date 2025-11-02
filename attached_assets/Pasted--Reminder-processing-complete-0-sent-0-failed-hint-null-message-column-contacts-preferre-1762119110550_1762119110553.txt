@@ -1,0 +1,63 @@
+📨 Reminder processing complete: 0 sent, 0 failed
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+❌ Error fetching birthday contacts: {
+  code: '42883',
+  details: null,
+  hint: 'No operator matches the given name and argument types. You might need to add explicit type casts.',
+  message: 'operator does not exist: date ~~ unknown'
+}
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "birthday_wish"'
+}
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "review_request"'
+}
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "document_sent"'
+}
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+🎯 Intent detected: {
+  intent: 'booking_request',
+  confidence: 0.9,
+  entities: { service: 'Termin buchen' }
+}
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+⚠️ Failed to fetch TTS settings, using defaults: Cannot coerce the result to a single JSON object
+✅ Text sent: By the way, could I have your email address? This helps us send you appointment confirmations and reminders. (It's okay if you'd prefer not to share it)
+🔍 Extracting CRM data from conversation d12827ea-400a-46a3-a1df-501825aad9e8 (6 messages)
+✅ Extracted 1 customer insights (confidence: 0.8)
+   Insights: {
+  "email": null,
+  "birthdate": null,
+  "preferredTimes": null,
+  "preferredStaff": null,
+  "preferredServices": null,
+  "fearsAnxieties": null,
+  "allergies": null,
+  "physicalLimitations": null,
+  "specialRequests": null,
+  "behavioralNotes": "The customer communicates in German and seems to be polite and direct.",
+  "other": null
+}
+   ✨ Adding behavioral notes: The customer communicates in German and seems to be polite and direct.
+✅ Updated contact 692aa3ae-d9fb-4006-b0fd-58fd047bfa7c with CRM insights (1 fields)
