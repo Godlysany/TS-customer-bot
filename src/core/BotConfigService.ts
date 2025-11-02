@@ -313,6 +313,7 @@ export class BotConfigService {
       }
 
       let context = '';
+      const MAX_CONTEXT_LENGTH = 800; // Prevent token overflow in GPT prompts
 
       if (analytics) {
         context += `**Customer Sentiment**: ${analytics.sentiment_score >= 0.3 ? 'Positive 😊' : analytics.sentiment_score >= -0.3 ? 'Neutral 😐' : 'Negative 😞'} (Score: ${analytics.sentiment_score?.toFixed(2) || 'N/A'})\n`;
@@ -343,14 +344,21 @@ export class BotConfigService {
 
       if (bookings && bookings.length > 0) {
         context += `\n**Recent Bookings**:\n`;
-        bookings.forEach((booking: any) => {
+        // Limit to 3 most recent to avoid token overflow
+        bookings.slice(0, 3).forEach((booking: any) => {
           const date = new Date(booking.start_time).toLocaleDateString();
           const service = booking.services?.name || 'Unknown Service';
           context += `- ${service} on ${date} (${booking.status})\n`;
         });
       }
 
-      return context.trim();
+      // Safety: Trim if exceeds max length
+      const trimmedContext = context.trim();
+      if (trimmedContext.length > MAX_CONTEXT_LENGTH) {
+        return trimmedContext.substring(0, MAX_CONTEXT_LENGTH) + '...\n(context trimmed for length)';
+      }
+
+      return trimmedContext;
     } catch (error) {
       console.error('Error fetching customer context:', error);
       return null;

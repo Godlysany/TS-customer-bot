@@ -104,7 +104,7 @@ ALTER TABLE contacts
 
 CREATE INDEX IF NOT EXISTS idx_contacts_preferred_team_member ON contacts(preferred_team_member_id);
 
-COMMENT ON COLUMN contacts.preferred_team_member_id IS 'Customer's preferred team member for bookings (optional)';
+COMMENT ON COLUMN contacts.preferred_team_member_id IS 'Customer''s preferred team member for bookings (optional)';
 
 -- =====================================================
 -- UPDATE BOT_CONFIG SETTINGS
