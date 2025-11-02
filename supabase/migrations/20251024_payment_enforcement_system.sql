@@ -222,3 +222,4 @@ COMMENT ON COLUMN bookings.payment_required IS 'TRUE if upfront payment required
 COMMENT ON COLUMN bookings.calendar_highlight_unpaid IS 'TRUE to highlight in admin calendar as unpaid';
 
 COMMENT ON TABLE payment_escalations IS 'Tracks overdue payment escalations with admin resolution workflow';
+-- Migration deployment trigger

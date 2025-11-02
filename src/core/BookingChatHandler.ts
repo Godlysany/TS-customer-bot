@@ -9,6 +9,8 @@ import paymentLinkService from './PaymentLinkService';
 import settingsService from './SettingsService';
 import { sendProactiveMessage } from '../adapters/whatsapp';
 import aiService from './AIService';
+import batchBookingService, { BatchBookingRequest } from './BatchBookingService';
+import { randomUUID } from 'crypto';
 
 interface BookingContext {
   conversationId: string;
@@ -845,10 +847,35 @@ export class BookingChatHandler {
       }
 
       // No payment required OR payment system failed with non-strict enforcement - confirm immediately
-      // Generate confirmation message
+      // CRITICAL: Create actual bookings in database BEFORE sending confirmation
+      const batchRequest: BatchBookingRequest = {
+        contactId: context.contactId,
+        conversationId: context.conversationId,
+        phoneNumber: context.phoneNumber,
+        serviceId: service.id,
+        teamMemberId: undefined,
+        sessionGroupId: randomUUID(),
+        bookings: bookings.map((b: any, idx: number) => ({
+          title: `${name} - Session ${idx + 1}/${totalSessionsRequired}`,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          description: service.description || '',
+          sessionNumber: idx + 1,
+          totalSessions: totalSessionsRequired
+        }))
+      };
+
+      const result = await batchBookingService.createBatchBooking(batchRequest);
+
+      if (!result.success) {
+        this.clearContext(context.conversationId);
+        return `I'm sorry, there was an error creating your bookings: ${result.errors?.join(', ') || 'Unknown error'}`;
+      }
+
+      // Generate confirmation message with actual created bookings
       let confirmationMsg = `✅ Perfect! All ${totalSessionsRequired} ${name} sessions are now confirmed:\n\n`;
       
-      bookings.forEach((booking, idx) => {
+      result.bookings.forEach((booking: any, idx: number) => {
         const bookingDate = new Date(booking.startTime);
         const dateStr = bookingDate.toLocaleDateString('en-US', {
           weekday: 'short',
@@ -996,7 +1023,34 @@ export class BookingChatHandler {
       }
 
       // No payment required OR payment system failed - confirm immediately
-      const bookingDate = new Date(booking.startTime);
+      // CRITICAL: Create actual booking in database BEFORE sending confirmation
+      const batchRequest: BatchBookingRequest = {
+        contactId: context.contactId,
+        conversationId: context.conversationId,
+        phoneNumber: context.phoneNumber,
+        serviceId: service.id,
+        teamMemberId: undefined,
+        sessionGroupId: randomUUID(),
+        bookings: [{
+          title: `${name} - Session 1/${totalSessionsRequired}`,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          description: service.description || '',
+          sessionNumber: 1,
+          totalSessions: totalSessionsRequired
+        }]
+      };
+
+      const result = await batchBookingService.createBatchBooking(batchRequest);
+
+      if (!result.success) {
+        this.clearContext(context.conversationId);
+        return `I'm sorry, there was an error creating your booking: ${result.errors?.join(', ') || 'Unknown error'}`;
+      }
+
+      // Generate confirmation message with actual created booking
+      const createdBooking = result.bookings[0];
+      const bookingDate = new Date(createdBooking.startTime);
       const dateStr = bookingDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
@@ -1226,7 +1280,32 @@ export class BookingChatHandler {
       }
 
       // No payment required OR payment system failed - confirm immediately
-      // Generate confirmation with progress
+      // CRITICAL: Create actual bookings in database BEFORE sending confirmation
+      const batchRequest: BatchBookingRequest = {
+        contactId: context.contactId,
+        conversationId: context.conversationId,
+        phoneNumber: context.phoneNumber,
+        serviceId: service.id,
+        teamMemberId: undefined,
+        sessionGroupId: randomUUID(),
+        bookings: bookings.map((b: any) => ({
+          title: `${name} - Session ${b.sessionNumber}/${totalSessionsRequired}`,
+          startTime: b.startTime,
+          endTime: b.endTime,
+          description: service.description || '',
+          sessionNumber: b.sessionNumber,
+          totalSessions: totalSessionsRequired
+        }))
+      };
+
+      const result = await batchBookingService.createBatchBooking(batchRequest);
+
+      if (!result.success) {
+        this.clearContext(context.conversationId);
+        return `I'm sorry, there was an error creating your bookings: ${result.errors?.join(', ') || 'Unknown error'}`;
+      }
+
+      // Generate confirmation with progress using actual created bookings
       const newProgress = await this.multiSessionLogic.getMultiSessionProgress(
         context.contactId,
         service.id
@@ -1234,7 +1313,7 @@ export class BookingChatHandler {
 
       let confirmationMsg = `✅ Sessions confirmed!\n\n`;
       
-      bookings.forEach((booking) => {
+      result.bookings.forEach((booking: any) => {
         const bookingDate = new Date(booking.startTime);
         const dateStr = bookingDate.toLocaleDateString('en-US', {
           weekday: 'short',
