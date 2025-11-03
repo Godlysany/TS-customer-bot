@@ -644,6 +644,7 @@ CREATE TABLE IF NOT EXISTS team_members (
   phone VARCHAR(50),
   role VARCHAR(100),
   calendar_id VARCHAR(255) NOT NULL,
+  booking_link VARCHAR(500),
   availability_schedule JSONB DEFAULT '{}'::jsonb,
   default_buffer_before_minutes INTEGER DEFAULT 0,
   default_buffer_after_minutes INTEGER DEFAULT 0,
@@ -657,9 +658,11 @@ CREATE TABLE IF NOT EXISTS team_members (
 
 CREATE INDEX idx_team_members_active ON team_members(is_active) WHERE is_active = true;
 CREATE INDEX idx_team_members_calendar_id ON team_members(calendar_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_booking_link ON team_members(booking_link) WHERE booking_link IS NOT NULL;
 
 COMMENT ON TABLE team_members IS 'Team members with individual calendars within the configured calendar provider';
 COMMENT ON COLUMN team_members.calendar_id IS 'Provider-specific calendar identifier (Google: primary or calendar ID, O365: calendar ID, Custom API: member ID)';
+COMMENT ON COLUMN team_members.booking_link IS 'Optional Calendly-style booking link as fallback when calendar integration is unavailable. Used for KPI tracking without conversion attribution.';
 COMMENT ON COLUMN team_members.availability_schedule IS 'Weekly availability in JSONB: {"monday": [{"start": "HH:MM", "end": "HH:MM"}], ...}';
 
 -- Add team member reference to bookings

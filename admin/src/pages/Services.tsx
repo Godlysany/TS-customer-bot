@@ -74,7 +74,7 @@ const Services = () => {
     queryKey: ['team-members-active'],
     queryFn: async () => {
       const res = await teamMembersApi.getAll();
-      return res.data.filter((tm: any) => tm.isActive);
+      return res.data;
     },
   });
 

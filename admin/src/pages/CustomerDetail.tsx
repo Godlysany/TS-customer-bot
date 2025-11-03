@@ -105,6 +105,20 @@ const CustomerDetail = () => {
                   </div>
                 </div>
               )}
+              {customer?.preferred_language && (
+                <div className="flex items-center gap-3">
+                  <MessageSquare className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-xs text-gray-500">Language Preference</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {customer.preferred_language === 'de' ? '🇩🇪 German (Deutsch)' : 
+                       customer.preferred_language === 'en' ? '🇬🇧 English' :
+                       customer.preferred_language === 'fr' ? '🇫🇷 French (Français)' :
+                       customer.preferred_language}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

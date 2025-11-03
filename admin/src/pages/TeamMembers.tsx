@@ -26,6 +26,7 @@ interface TeamMember {
   phone?: string;
   role: string;
   calendar_id: string;
+  booking_link?: string;
   color: string;
   is_active: boolean;
   availability_schedule?: AvailabilitySchedule;
@@ -96,6 +97,7 @@ const TeamMembers = () => {
         phone: '',
         role: '',
         calendar_id: 'primary',
+        booking_link: '',
         color: '#3B82F6',
         is_active: true,
         availability_schedule: {},
@@ -372,7 +374,7 @@ const TeamMembers = () => {
                   />
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Calendar ID *
                   </label>
@@ -381,11 +383,19 @@ const TeamMembers = () => {
                     value={formData.calendar_id || ''}
                     onChange={(e) => setFormData({ ...formData, calendar_id: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., primary, stefan@example.com, or specific calendar ID"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    For Google Calendar, use 'primary' or specific calendar ID
-                  </p>
+                  <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900 space-y-1">
+                    <p className="font-semibold">📅 How Calendar Integration Works:</p>
+                    <p>• <strong>One Global Connection:</strong> Connect your organization's Google Calendar once in Settings → Business Settings → Calendar tab</p>
+                    <p>• <strong>Multiple Calendars:</strong> Each team member can use a different calendar within that organization by specifying their Calendar ID here</p>
+                    <p>• <strong>Google Calendar IDs:</strong></p>
+                    <p className="ml-4">- Use <code className="bg-white px-1 rounded">primary</code> for the connected account's main calendar</p>
+                    <p className="ml-4">- Use email address (e.g., <code className="bg-white px-1 rounded">stefan@company.com</code>) for shared organization calendars</p>
+                    <p className="ml-4">- Use specific calendar ID from Google Calendar settings for custom calendars</p>
+                    <p className="mt-2">• <strong>Future:</strong> Office 365 and Custom API providers will be added soon</p>
+                  </div>
                 </div>
 
                 <div>
@@ -407,10 +417,30 @@ const TeamMembers = () => {
                 </div>
 
                 <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Booking Link (Optional Fallback)
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.booking_link || ''}
+                    onChange={(e) => setFormData({ ...formData, booking_link: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://calendly.com/your-team-member-link"
+                  />
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+                    <p className="font-semibold">🔗 Booking Link Fallback (Calendly-Style):</p>
+                    <p>• <strong>When to use:</strong> If calendar integration fails or is unavailable, the bot will send this link to customers</p>
+                    <p>• <strong>Team-member-specific:</strong> Each team member should have their own booking link</p>
+                    <p>• <strong>KPI Tracking Note:</strong> Bookings via external links won't be counted in dashboard KPIs (no conversion tracking)</p>
+                    <p>• <strong>Alternative metric:</strong> Track "booking link sent" events to measure bot effectiveness</p>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={formData.is_active !== false}
+                      checked={formData.is_active === true}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                       className="w-4 h-4 text-blue-600 rounded"
                     />
