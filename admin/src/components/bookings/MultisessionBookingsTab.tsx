@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit, X, Clock, CheckCircle, AlertCircle, Calendar, TrendingUp } from 'lucide-react';
+import { Edit, X, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
@@ -235,7 +235,7 @@ const MultisessionBookingsTab = () => {
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <p className="text-xs font-medium text-gray-700 mb-2">Session Schedule:</p>
                         <div className="flex flex-wrap gap-2">
-                          {config.session_bookings.map((booking: any, idx: number) => (
+                          {config.session_bookings.map((booking: any) => (
                             <div
                               key={booking.id}
                               className={`px-2 py-1 text-xs rounded ${
