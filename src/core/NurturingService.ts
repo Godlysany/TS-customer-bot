@@ -382,6 +382,10 @@ export class NurturingService {
     optOutReviews?: boolean;
     nurturingFrequency?: 'high' | 'normal' | 'low' | 'paused';
     botEnabled?: boolean;
+    birthdate?: string | null;
+    email?: string | null;
+    preferred_language?: string | null;
+    bot_enabled?: boolean;
   }): Promise<void> {
     try {
       const updates: any = {};
@@ -390,6 +394,10 @@ export class NurturingService {
       if (preferences.optOutReviews !== undefined) updates.opt_out_reviews = preferences.optOutReviews;
       if (preferences.nurturingFrequency !== undefined) updates.nurturing_frequency = preferences.nurturingFrequency;
       if (preferences.botEnabled !== undefined) updates.bot_enabled = preferences.botEnabled;
+      if (preferences.bot_enabled !== undefined) updates.bot_enabled = preferences.bot_enabled;
+      if (preferences.birthdate !== undefined) updates.birthdate = preferences.birthdate;
+      if (preferences.email !== undefined) updates.email = preferences.email;
+      if (preferences.preferred_language !== undefined) updates.preferred_language = preferences.preferred_language;
 
       const { error } = await supabase
         .from('contacts')
