@@ -29,6 +29,7 @@ import { startMarketingCampaignScheduler, stopMarketingCampaignScheduler } from 
 import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
 import recurringServiceScheduler from './core/RecurringServiceScheduler';
+import birthdayScheduler from './core/BirthdayScheduler';
 import questionnaireRuntimeService from './core/QuestionnaireRuntimeService';
 import { logInfo } from './infrastructure/logger';
 import fs from 'fs';
@@ -171,6 +172,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start recurring service reminder scheduler (checks daily - 1440 minutes)
   recurringServiceScheduler.start(1440);
+  
+  // Start birthday wishes scheduler (checks daily - 1440 minutes)
+  birthdayScheduler.start(1440);
   
   // Auto-reconnect WhatsApp if credentials exist
   const authInfoPath = path.join(__dirname, '../auth_info');
