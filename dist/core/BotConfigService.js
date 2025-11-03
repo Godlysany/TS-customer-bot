@@ -119,7 +119,7 @@ class BotConfigService {
         console.log('✅ Bot configuration loaded successfully');
         return this.cachedConfig;
     }
-    async buildSystemPrompt(contactLanguage) {
+    async buildSystemPrompt(contactLanguage, contactId) {
         const config = await this.getConfig();
         // Load Master System Prompt
         const masterPromptPath = path_1.default.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
@@ -168,12 +168,103 @@ class BotConfigService {
             finalPrompt += '\n\n---\n\n## BUSINESS-SPECIFIC PERSONALITY & TONE\n\n';
             finalPrompt += config.business_fine_tuning_prompt;
         }
+        // CRITICAL: Add customer context (sentiment, analytics, bookings) for intelligent conversations
+        if (contactId) {
+            const customerContext = await this.getCustomerContext(contactId);
+            if (customerContext) {
+                finalPrompt += '\n\n---\n\n## CUSTOMER CONTEXT (Use this to personalize your responses)\n\n';
+                finalPrompt += customerContext;
+            }
+        }
         // Add tone and style instructions
         finalPrompt += `\n\n---\n\n## RESPONSE STYLE GUIDELINES\n\n`;
         finalPrompt += `- **Tone**: ${this.getToneInstruction(config.tone_of_voice)}\n`;
         finalPrompt += `- **Response Length**: ${this.getStyleInstruction(config.response_style)}\n`;
         finalPrompt += `- **Max Characters**: Keep responses under ${config.max_response_length} characters\n`;
         return finalPrompt;
+    }
+    async getCustomerContext(contactId) {
+        try {
+            // Fetch customer analytics (sentiment, keywords, upsell potential)
+            const { data: analytics } = await supabase_1.supabase
+                .from('customer_analytics')
+                .select('sentiment_score, keywords, upsell_potential, total_appointments, last_appointment_at')
+                .eq('contact_id', contactId)
+                .single();
+            // Fetch recent bookings
+            const { data: bookings } = await supabase_1.supabase
+                .from('bookings')
+                .select('id, start_time, status, services(name)')
+                .eq('contact_id', contactId)
+                .in('status', ['confirmed', 'pending', 'completed'])
+                .order('start_time', { ascending: false })
+                .limit(5);
+            if (!analytics && (!bookings || bookings.length === 0)) {
+                return null;
+            }
+            let context = '';
+            const MAX_CONTEXT_LENGTH = 2500; // Professional B2B context needs comprehensive customer intelligence
+            if (analytics) {
+                context += `**Customer Sentiment**: ${analytics.sentiment_score >= 0.3 ? 'Positive 😊' : analytics.sentiment_score >= -0.3 ? 'Neutral 😐' : 'Negative 😞'} (Score: ${analytics.sentiment_score?.toFixed(2) || 'N/A'})\n`;
+                context += `- **Interpretation**: ${this.getSentimentGuidance(analytics.sentiment_score)}\n\n`;
+                if (analytics.keywords && Object.keys(analytics.keywords).length > 0) {
+                    const topKeywords = Object.entries(analytics.keywords)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([word]) => word);
+                    context += `**Common Topics**: ${topKeywords.join(', ')}\n`;
+                    context += `- **Guidance**: These topics matter to this customer. Reference them when relevant.\n\n`;
+                }
+                if (analytics.upsell_potential) {
+                    context += `**Upsell Potential**: ${analytics.upsell_potential.toUpperCase()}\n`;
+                    context += `- **Guidance**: ${this.getUpsellGuidance(analytics.upsell_potential)}\n\n`;
+                }
+                if (analytics.total_appointments > 0) {
+                    context += `**Booking History**: ${analytics.total_appointments} total appointments\n`;
+                    if (analytics.last_appointment_at) {
+                        const lastDate = new Date(analytics.last_appointment_at).toLocaleDateString();
+                        context += `- Last appointment: ${lastDate}\n`;
+                    }
+                }
+            }
+            if (bookings && bookings.length > 0) {
+                context += `\n**Recent Bookings**:\n`;
+                // Limit to 3 most recent to avoid token overflow
+                bookings.slice(0, 3).forEach((booking) => {
+                    const date = new Date(booking.start_time).toLocaleDateString();
+                    const service = booking.services?.name || 'Unknown Service';
+                    context += `- ${service} on ${date} (${booking.status})\n`;
+                });
+            }
+            // Safety: Trim if exceeds max length
+            const trimmedContext = context.trim();
+            if (trimmedContext.length > MAX_CONTEXT_LENGTH) {
+                return trimmedContext.substring(0, MAX_CONTEXT_LENGTH) + '...\n(context trimmed for length)';
+            }
+            return trimmedContext;
+        }
+        catch (error) {
+            console.error('Error fetching customer context:', error);
+            return null;
+        }
+    }
+    getSentimentGuidance(score) {
+        if (score >= 0.5)
+            return 'Very positive customer. Continue providing excellent service.';
+        if (score >= 0.3)
+            return 'Satisfied customer. Maintain quality and look for upsell opportunities.';
+        if (score >= -0.3)
+            return 'Neutral customer. Focus on building rapport and understanding their needs.';
+        if (score >= -0.5)
+            return 'Customer may have concerns. Be extra attentive and empathetic.';
+        return 'Customer is unhappy. Prioritize resolving issues and consider escalation if needed.';
+    }
+    getUpsellGuidance(potential) {
+        if (potential === 'high')
+            return 'Actively suggest premium services and upgrades when relevant.';
+        if (potential === 'medium')
+            return 'Mention complementary services naturally during conversation.';
+        return 'Focus on current needs. Only mention additional services if explicitly relevant.';
     }
     getEmailInstruction(config) {
         switch (config.email_collection_mode) {

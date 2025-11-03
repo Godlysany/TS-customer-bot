@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
     // Get session bookings for each config
     const configsWithBookings = await Promise.all(
       (configs || []).map(async (config: any) => {
-        let sessionBookings = [];
+        let sessionBookings: any[] = [];
         
         // Get the parent booking's session_group_id first
         if (config.parent_booking_id) {
@@ -137,7 +137,7 @@ router.get('/:id', async (req, res) => {
     if (error) throw error;
 
     // Get session bookings
-    let sessionBookings = [];
+    let sessionBookings: any[] = [];
     if (config.parent_booking_id) {
       const { data: parentBooking } = await supabase
         .from('bookings')

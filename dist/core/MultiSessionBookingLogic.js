@@ -10,6 +10,53 @@ const BatchBookingService_1 = __importDefault(require("./BatchBookingService"));
 class MultiSessionBookingLogic {
     constructor() { }
     /**
+     * Fetch customer-specific multi-session configuration overrides
+     * Returns effective configuration (customer override or service default)
+     *
+     * For new bookings: Looks up the most recent active config for contact/service
+     * For existing groups: Use parent_booking_id to get the specific config for that cycle
+     */
+    async getEffectiveMultiSessionConfig(contactId, serviceId, serviceDefaults, parentBookingId) {
+        let customerConfig = null;
+        if (parentBookingId) {
+            // Fetch config for specific parent booking
+            const { data } = await supabase_1.supabase
+                .from('customer_multisession_config')
+                .select('*')
+                .eq('parent_booking_id', parentBookingId)
+                .eq('is_active', true)
+                .maybeSingle();
+            customerConfig = data;
+        }
+        else {
+            // Fetch most recent active config for contact/service (for new treatment cycles)
+            const { data } = await supabase_1.supabase
+                .from('customer_multisession_config')
+                .select('*')
+                .eq('contact_id', contactId)
+                .eq('service_id', serviceId)
+                .eq('is_active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            customerConfig = data;
+        }
+        if (!customerConfig) {
+            return serviceDefaults;
+        }
+        return {
+            totalSessions: customerConfig.custom_total_sessions || serviceDefaults.totalSessions,
+            strategy: customerConfig.custom_strategy || serviceDefaults.strategy,
+            sessionBufferConfig: {
+                minimum_days: customerConfig.custom_min_days_between_sessions || serviceDefaults.sessionBufferConfig?.minimum_days || 7,
+                recommended_days: customerConfig.custom_max_days_between_sessions || serviceDefaults.sessionBufferConfig?.recommended_days || 14,
+                buffer_before_minutes: customerConfig.custom_buffer_before_minutes || serviceDefaults.sessionBufferConfig?.buffer_before_minutes || 0,
+                buffer_after_minutes: customerConfig.custom_buffer_after_minutes || serviceDefaults.sessionBufferConfig?.buffer_after_minutes || 0,
+            },
+            notes: customerConfig.notes || null,
+        };
+    }
+    /**
      * Calculate all session dates based on buffer configuration
      */
     calculateSessionSchedule(params, sessionsCount) {
@@ -65,8 +112,17 @@ class MultiSessionBookingLogic {
      * Uses BatchBookingService for atomic transactional safety
      */
     async bookImmediateStrategy(params) {
+        // Check for customer-specific configuration overrides
+        const effectiveConfig = await this.getEffectiveMultiSessionConfig(params.contactId, params.serviceId, {
+            totalSessions: params.totalSessions,
+            strategy: params.strategy,
+            sessionBufferConfig: params.sessionBufferConfig,
+        });
+        // Use effective configuration (customer override or service default)
+        const totalSessions = effectiveConfig.totalSessions;
+        const sessionBufferConfig = effectiveConfig.sessionBufferConfig;
         const sessionGroupId = (0, crypto_1.randomUUID)();
-        const schedule = this.calculateSessionSchedule(params, params.totalSessions);
+        const schedule = this.calculateSessionSchedule({ ...params, sessionBufferConfig, totalSessions }, totalSessions);
         // Prepare batch booking request
         const batchRequest = {
             contactId: params.contactId,
@@ -77,11 +133,11 @@ class MultiSessionBookingLogic {
             sessionGroupId,
             bookings: schedule.map((session) => ({
                 sessionNumber: session.sessionNumber,
-                totalSessions: params.totalSessions,
+                totalSessions: totalSessions,
                 title: `${params.serviceName} - Session ${session.sessionNumber}`,
                 startTime: session.startTime,
                 endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
-                description: `Multi-session treatment: Session ${session.sessionNumber} of ${params.totalSessions}`,
+                description: `Multi-session treatment: Session ${session.sessionNumber} of ${totalSessions}${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
             })),
         };
         // Execute atomic batch booking (all or nothing)
@@ -97,6 +153,13 @@ class MultiSessionBookingLogic {
      * Uses BatchBookingService for atomic transactional safety
      */
     async bookSequentialStrategy(params) {
+        // Check for customer-specific configuration overrides
+        const effectiveConfig = await this.getEffectiveMultiSessionConfig(params.contactId, params.serviceId, {
+            totalSessions: params.totalSessions,
+            strategy: params.strategy,
+            sessionBufferConfig: params.sessionBufferConfig,
+        });
+        const totalSessions = effectiveConfig.totalSessions;
         const sessionGroupId = (0, crypto_1.randomUUID)();
         // Prepare batch booking request for first session only
         const batchRequest = {
@@ -109,11 +172,11 @@ class MultiSessionBookingLogic {
             bookings: [
                 {
                     sessionNumber: 1,
-                    totalSessions: params.totalSessions,
+                    totalSessions: totalSessions,
                     title: `${params.serviceName} - Session 1`,
                     startTime: params.startDateTime,
                     endTime: new Date(params.startDateTime.getTime() + params.durationMinutes * 60 * 1000),
-                    description: `Multi-session treatment: Session 1 of ${params.totalSessions} (Sequential)`,
+                    description: `Multi-session treatment: Session 1 of ${totalSessions} (Sequential)${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
                 },
             ],
         };
@@ -129,6 +192,14 @@ class MultiSessionBookingLogic {
      * Book N sessions for FLEXIBLE strategy
      */
     async bookFlexibleStrategy(params) {
+        // Check for customer-specific configuration overrides
+        const effectiveConfig = await this.getEffectiveMultiSessionConfig(params.contactId, params.serviceId, {
+            totalSessions: params.totalSessions,
+            strategy: params.strategy,
+            sessionBufferConfig: params.sessionBufferConfig,
+        });
+        const totalSessions = effectiveConfig.totalSessions;
+        const sessionBufferConfig = effectiveConfig.sessionBufferConfig;
         const sessionsToBook = params.sessionsToBook || 1;
         // Check if there's an existing group for this contact/service
         const { data: existingBookings } = await supabase_1.supabase
@@ -151,7 +222,7 @@ class MultiSessionBookingLogic {
             sessionGroupId = (0, crypto_1.randomUUID)();
             startingSessionNumber = 1;
         }
-        const schedule = this.calculateSessionSchedule({ ...params, startDateTime: params.startDateTime }, sessionsToBook);
+        const schedule = this.calculateSessionSchedule({ ...params, startDateTime: params.startDateTime, sessionBufferConfig, totalSessions }, sessionsToBook);
         // Prepare batch booking request for N sessions
         const batchRequest = {
             contactId: params.contactId,
@@ -162,11 +233,11 @@ class MultiSessionBookingLogic {
             sessionGroupId,
             bookings: schedule.map((session, index) => ({
                 sessionNumber: startingSessionNumber + index,
-                totalSessions: params.totalSessions,
+                totalSessions: totalSessions,
                 title: `${params.serviceName} - Session ${startingSessionNumber + index}`,
                 startTime: session.startTime,
                 endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
-                description: `Multi-session treatment: Session ${startingSessionNumber + index} of ${params.totalSessions} (Flexible)`,
+                description: `Multi-session treatment: Session ${startingSessionNumber + index} of ${totalSessions} (Flexible)${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
             })),
         };
         // Execute atomic batch booking
