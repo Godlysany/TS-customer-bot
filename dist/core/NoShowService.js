@@ -6,6 +6,7 @@ const mapper_1 = require("../infrastructure/mapper");
 const whatsapp_1 = require("../adapters/whatsapp");
 const EmailService_1 = require("./EmailService");
 const SettingsService_1 = require("./SettingsService");
+const AIService_1 = require("./AIService");
 class NoShowService {
     emailService;
     settingsService;
@@ -176,21 +177,31 @@ class NoShowService {
             .single();
         if (!booking)
             return;
-        let message = `We noticed you missed your appointment: *${booking.title}* scheduled for ${new Date(booking.start_time).toLocaleString()}.\n\n`;
+        // Build template message
+        let templateMessage = `We noticed you missed your appointment: *${booking.title}* scheduled for ${new Date(booking.start_time).toLocaleString()}.\n\n`;
         if (penaltyFee > 0) {
-            message += `⚠️ A no-show penalty of $${penaltyFee.toFixed(2)} has been applied to your account.\n\n`;
+            templateMessage += `⚠️ A no-show penalty of $${penaltyFee.toFixed(2)} has been applied to your account.\n\n`;
         }
         if (isSuspended && suspensionUntil) {
-            message += `Due to multiple missed appointments, your booking privileges have been temporarily suspended until ${suspensionUntil.toLocaleDateString()}.\n\n`;
-            message += `Please contact us if you have any questions or need to discuss this matter.`;
+            templateMessage += `Due to multiple missed appointments, your booking privileges have been temporarily suspended until ${suspensionUntil.toLocaleDateString()}.\n\n`;
+            templateMessage += `Please contact us if you have any questions or need to discuss this matter.`;
         }
         else {
-            message += `We'd love to reschedule your appointment. Please let us know when works best for you!\n\n`;
-            message += `Reply to this message or contact us to rebook.`;
+            templateMessage += `We'd love to reschedule your appointment. Please let us know when works best for you!\n\n`;
+            templateMessage += `Reply to this message or contact us to rebook.`;
         }
         if (contact.phone_number) {
             try {
-                await (0, whatsapp_1.sendProactiveMessage)(contact.phone_number, contact.id, message);
+                // Personalize through GPT for natural, language-appropriate delivery
+                const aiService = new AIService_1.AIService();
+                const personalizedMessage = await aiService.personalizeMessage({
+                    templateMessage,
+                    contactId: contact.id,
+                    contactName: contact.name,
+                    conversationContext: `Customer missed appointment ${booking.title}. ${isSuspended ? 'Account suspended due to repeated no-shows' : 'Offering to reschedule'}`,
+                    messageType: 'general',
+                });
+                await (0, whatsapp_1.sendProactiveMessage)(contact.phone_number, personalizedMessage, contact.id);
                 await supabase_1.supabase
                     .from('no_show_tracking')
                     .update({

@@ -189,18 +189,24 @@ class NurturingService {
     async getBirthdayContactsToday() {
         try {
             const today = new Date();
-            const monthDay = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
             const { data, error } = await supabase_1.supabase
                 .from('contacts')
                 .select('*')
                 .not('birthdate', 'is', null)
-                .eq('opt_out_birthday_wishes', false)
-                .filter('birthdate', 'like', `%-${monthDay}`);
+                .eq('opt_out_birthday_wishes', false);
             if (error)
                 throw error;
-            // Filter out contacts who already received a birthday message this year
+            // Filter by matching month and day, and exclude already messaged this year
             const thisYear = today.getFullYear();
             return (data || []).filter(contact => {
+                // Check if birthdate matches today's month and day
+                const birthdate = new Date(contact.birthdate);
+                if (birthdate.getMonth() + 1 !== month || birthdate.getDate() !== day) {
+                    return false;
+                }
+                // Exclude if already messaged this year
                 if (!contact.last_birthday_message_at)
                     return true;
                 const lastMessageYear = new Date(contact.last_birthday_message_at).getFullYear();

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -480,13 +513,22 @@ class BookingChatHandler {
             context.paymentStatus = 'pending';
             context.paymentExpiresAt = new Date(paymentLink.expires_at);
             context.paymentAmount = amount;
-            // Send payment link via WhatsApp
-            const paymentMessage = `💳 Payment Required\n\n` +
+            // Build payment message template
+            const paymentMessageTemplate = `💳 Payment Required\n\n` +
                 `To confirm your ${serviceName} appointment, please complete the payment of CHF ${amount.toFixed(2)}.\n\n` +
                 `Click here to pay securely with Stripe:\n${paymentLink.checkout_url}\n\n` +
                 `Payment link expires in 24 hours.\n\n` +
                 `Once payment is confirmed, I'll finalize your booking! 🎉`;
-            await (0, whatsapp_1.sendProactiveMessage)(context.phoneNumber, paymentMessage, context.contactId);
+            // Personalize through GPT for natural, language-appropriate delivery
+            const { AIService } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+            const aiService = new AIService();
+            const personalizedPaymentMessage = await aiService.personalizeMessage({
+                templateMessage: paymentMessageTemplate,
+                contactId: context.contactId,
+                conversationContext: `Customer booking ${serviceName}. Payment required: CHF ${amount.toFixed(2)}`,
+                messageType: 'general',
+            });
+            await (0, whatsapp_1.sendProactiveMessage)(context.phoneNumber, personalizedPaymentMessage, context.contactId);
             // Update payment_link record with WhatsApp message sent
             await supabase_1.supabase
                 .from('payment_links')
@@ -542,7 +584,16 @@ class BookingChatHandler {
                     }
                 }
                 this.clearContext(context.conversationId);
-                return `✅ Payment confirmed! Your booking is now complete. You'll receive a confirmation email shortly. Looking forward to seeing you!`;
+                // Personalize payment confirmation message
+                const { AIService: AIService1 } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+                const aiService1 = new AIService1();
+                const confirmationMessage = await aiService1.personalizeMessage({
+                    templateMessage: `✅ Payment confirmed! Your booking is now complete. You'll receive a confirmation email shortly. Looking forward to seeing you!`,
+                    contactId: context.contactId,
+                    conversationContext: 'Payment successful, booking confirmed',
+                    messageType: 'general',
+                });
+                return confirmationMessage;
             case 'expired':
                 // Payment link expired - cancel pending bookings to free availability
                 if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
@@ -559,7 +610,16 @@ class BookingChatHandler {
                     console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment expiration`);
                 }
                 this.clearContext(context.conversationId);
-                return `⏰ Your payment link has expired. To proceed with the booking, please start over and I'll generate a new payment link for you.`;
+                // Personalize expiration message
+                const { AIService: AIService2 } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+                const aiService2 = new AIService2();
+                const expiredMessage = await aiService2.personalizeMessage({
+                    templateMessage: `⏰ Your payment link has expired. To proceed with the booking, please start over and I'll generate a new payment link for you.`,
+                    contactId: context.contactId,
+                    conversationContext: 'Payment link expired, booking cancelled',
+                    messageType: 'general',
+                });
+                return expiredMessage;
             case 'failed':
                 // Payment failed - cancel pending bookings to free availability
                 if (context.pendingBookingIds && context.pendingBookingIds.length > 0) {
@@ -576,13 +636,31 @@ class BookingChatHandler {
                     console.log(`✅ Cancelled ${context.pendingBookingIds.length} pending booking(s) due to payment failure`);
                 }
                 this.clearContext(context.conversationId);
-                return `❌ There was an issue with your payment. Please try booking again, and I'll assist you with a new payment link.`;
+                // Personalize failure message
+                const { AIService: AIService3 } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+                const aiService3 = new AIService3();
+                const failedMessage = await aiService3.personalizeMessage({
+                    templateMessage: `❌ There was an issue with your payment. Please try booking again, and I'll assist you with a new payment link.`,
+                    contactId: context.contactId,
+                    conversationContext: 'Payment failed, booking cancelled',
+                    messageType: 'general',
+                });
+                return failedMessage;
             case 'pending':
                 // Still waiting for payment
                 const minutesRemaining = context.paymentExpiresAt
                     ? Math.floor((context.paymentExpiresAt.getTime() - Date.now()) / (1000 * 60))
                     : 0;
-                return `I'm still waiting for your payment confirmation. You have ${minutesRemaining} minutes remaining to complete the payment. Once done, your booking will be automatically confirmed! 💳`;
+                // Personalize pending reminder
+                const { AIService: AIService4 } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+                const aiService4 = new AIService4();
+                const pendingMessage = await aiService4.personalizeMessage({
+                    templateMessage: `I'm still waiting for your payment confirmation. You have ${minutesRemaining} minutes remaining to complete the payment. Once done, your booking will be automatically confirmed! 💳`,
+                    contactId: context.contactId,
+                    conversationContext: 'Waiting for payment completion',
+                    messageType: 'general',
+                });
+                return pendingMessage;
             default:
                 return null;
         }
@@ -798,8 +876,8 @@ class BookingChatHandler {
                 this.clearContext(context.conversationId);
                 return `I'm sorry, there was an error creating your bookings: ${result.errors?.join(', ') || 'Unknown error'}`;
             }
-            // Generate confirmation message with actual created bookings
-            let confirmationMsg = `✅ Perfect! All ${totalSessionsRequired} ${name} sessions are now confirmed:\n\n`;
+            // Generate confirmation message template with actual created bookings
+            let confirmationTemplate = `✅ Perfect! All ${totalSessionsRequired} ${name} sessions are now confirmed:\n\n`;
             result.bookings.forEach((booking, idx) => {
                 const bookingDate = new Date(booking.startTime);
                 const dateStr = bookingDate.toLocaleDateString('en-US', {
@@ -811,11 +889,20 @@ class BookingChatHandler {
                     hour: '2-digit',
                     minute: '2-digit',
                 });
-                confirmationMsg += `📅 Session ${idx + 1}: ${dateStr} at ${timeStr}\n`;
+                confirmationTemplate += `📅 Session ${idx + 1}: ${dateStr} at ${timeStr}\n`;
             });
-            confirmationMsg += `\nYou'll receive email confirmations for each session. See you soon! 🎉`;
+            confirmationTemplate += `\nYou'll receive email confirmations for each session. See you soon! 🎉`;
+            // Personalize multi-session confirmation
+            const { AIService } = await Promise.resolve().then(() => __importStar(require('./AIService')));
+            const aiService = new AIService();
+            const personalizedConfirmation = await aiService.personalizeMessage({
+                templateMessage: confirmationTemplate,
+                contactId: context.contactId,
+                conversationContext: `Booked ${totalSessionsRequired} ${name} sessions successfully`,
+                messageType: 'booking_confirmation',
+            });
             this.clearContext(context.conversationId);
-            return confirmationMsg;
+            return personalizedConfirmation;
         }
         catch (error) {
             console.error('Failed to book immediate multi-session:', error);

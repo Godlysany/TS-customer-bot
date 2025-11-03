@@ -4,6 +4,7 @@ exports.RecurringServiceScheduler = void 0;
 const supabase_1 = require("../infrastructure/supabase");
 const whatsapp_1 = require("../adapters/whatsapp");
 const mapper_1 = require("../infrastructure/mapper");
+const AIService_1 = require("./AIService");
 class RecurringServiceScheduler {
     defaultReminderMessage = `Hi {{name}}! It's been a while since your last {{service}}. Based on our recommended schedule, it's time to book your next appointment. Would you like to schedule one?`;
     intervalId = null;
@@ -168,12 +169,22 @@ class RecurringServiceScheduler {
         const messageTemplate = service?.recurring_reminder_message || this.defaultReminderMessage;
         const lastDate = new Date(reminder.completedAt).toLocaleDateString('de-CH');
         const nextDate = new Date(reminder.nextDueDate).toLocaleDateString('de-CH');
-        const message = messageTemplate
+        // Build template with placeholders
+        const templateMessage = messageTemplate
             .replace(/\{\{name\}\}/g, reminder.contactName)
             .replace(/\{\{service\}\}/g, reminder.serviceName)
             .replace(/\{\{last_date\}\}/g, lastDate)
             .replace(/\{\{next_date\}\}/g, nextDate);
-        await (0, whatsapp_1.sendProactiveMessage)(reminder.contactPhone, message, reminder.contactId);
+        // Personalize through GPT for natural, language-appropriate delivery
+        const aiService = new AIService_1.AIService();
+        const personalizedMessage = await aiService.personalizeMessage({
+            templateMessage,
+            contactId: reminder.contactId,
+            contactName: reminder.contactName,
+            conversationContext: `Customer last completed ${reminder.serviceName} on ${lastDate}. Next appointment recommended around ${nextDate}.`,
+            messageType: 'general',
+        });
+        await (0, whatsapp_1.sendProactiveMessage)(reminder.contactPhone, personalizedMessage, reminder.contactId);
         await supabase_1.supabase.from('reminder_logs').insert({
             contact_id: reminder.contactId,
             reminder_type: 'recurring_service',

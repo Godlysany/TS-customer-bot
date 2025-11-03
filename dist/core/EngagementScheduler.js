@@ -7,6 +7,7 @@ exports.getEngagementScheduler = getEngagementScheduler;
 const EngagementService_1 = require("./EngagementService");
 const SettingsService_1 = require("./SettingsService");
 const whatsapp_1 = require("../adapters/whatsapp");
+const AIService_1 = require("./AIService");
 class EngagementScheduler {
     engagementService;
     settingsService;
@@ -59,8 +60,18 @@ class EngagementScheduler {
                     }
                     for (const target of targets) {
                         try {
-                            const message = this.engagementService.formatMessage(campaign.messageTemplate, target);
-                            const success = await (0, whatsapp_1.sendProactiveMessage)(target.phoneNumber, message, target.contactId);
+                            // Build template message with placeholders
+                            const templateMessage = this.engagementService.formatMessage(campaign.messageTemplate, target);
+                            // Personalize through GPT for natural, language-appropriate delivery
+                            const aiService = new AIService_1.AIService();
+                            const personalizedMessage = await aiService.personalizeMessage({
+                                templateMessage,
+                                contactId: target.contactId,
+                                contactName: target.name,
+                                conversationContext: `Nurturing campaign: ${campaign.name}. Last booking: ${target.serviceName || 'N/A'}, ${target.daysSinceLastBooking} days ago`,
+                                messageType: 'general',
+                            });
+                            const success = await (0, whatsapp_1.sendProactiveMessage)(target.phoneNumber, personalizedMessage, target.contactId);
                             if (success) {
                                 totalSent++;
                                 console.log(`   ✅ Sent to ${target.name || target.phoneNumber}`);

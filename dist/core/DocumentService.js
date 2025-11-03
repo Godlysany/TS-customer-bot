@@ -5,6 +5,7 @@ const supabase_1 = require("../infrastructure/supabase");
 const mapper_1 = require("../infrastructure/mapper");
 const whatsapp_1 = require("../adapters/whatsapp");
 const EmailService_1 = require("./EmailService");
+const AIService_1 = require("./AIService");
 class DocumentService {
     emailService;
     constructor() {
@@ -114,21 +115,30 @@ class DocumentService {
             timing === 'post_booking' ? 'after booking' :
                 timing === 'pre_appointment' ? 'before your appointment' :
                     'after your appointment';
-        let message = `📄 *${doc.name}*\n\n`;
+        // Build template message
+        let templateMessage = `📄 *${doc.name}*\n\n`;
         if (doc.description) {
-            message += `${doc.description}\n\n`;
+            templateMessage += `${doc.description}\n\n`;
         }
         if (doc.documentType === 'text') {
-            message += `${doc.fileUrl || ''}\n\n`;
+            templateMessage += `${doc.fileUrl || ''}\n\n`;
         }
         else if (doc.fileUrl) {
-            message += `📎 Document: ${doc.fileUrl}\n\n`;
+            templateMessage += `📎 Document: ${doc.fileUrl}\n\n`;
         }
-        message += `This is for your ${bookingTitle} appointment (${timingText}).`;
+        templateMessage += `This is for your ${bookingTitle} appointment (${timingText}).`;
         if (doc.isRequired) {
-            message += `\n\n⚠️ Please review this ${doc.documentType === 'text' ? 'information' : 'document'} - it's required for your appointment.`;
+            templateMessage += `\n\n⚠️ Please review this ${doc.documentType === 'text' ? 'information' : 'document'} - it's required for your appointment.`;
         }
-        await (0, whatsapp_1.sendProactiveMessage)(phoneNumber, message, contactId);
+        // Personalize through GPT for natural, language-appropriate delivery
+        const aiService = new AIService_1.AIService();
+        const personalizedMessage = await aiService.personalizeMessage({
+            templateMessage,
+            contactId,
+            conversationContext: `Sending ${doc.documentType} document for ${bookingTitle} appointment (${timingText})`,
+            messageType: 'general',
+        });
+        await (0, whatsapp_1.sendProactiveMessage)(phoneNumber, personalizedMessage, contactId);
     }
     async sendViaEmail(email, name, doc, bookingTitle, timing) {
         const timingText = timing === 'pre_booking' ? 'Before Your Appointment' :

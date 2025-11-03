@@ -66,6 +66,8 @@ const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentSche
 const MarketingCampaignScheduler_1 = require("./core/MarketingCampaignScheduler");
 const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"));
 const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
+const RecurringServiceScheduler_1 = __importDefault(require("./core/RecurringServiceScheduler"));
+const BirthdayScheduler_1 = __importDefault(require("./core/BirthdayScheduler"));
 const QuestionnaireRuntimeService_1 = __importDefault(require("./core/QuestionnaireRuntimeService"));
 const logger_1 = require("./infrastructure/logger");
 // Validate critical environment variables
@@ -184,8 +186,9 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     // Start marketing campaign scheduler (checks every 60 minutes)
     (0, MarketingCampaignScheduler_1.startMarketingCampaignScheduler)(60);
     // Start recurring service reminder scheduler (checks daily - 1440 minutes)
-    // Temporarily disabled until schema deployment completes (recurring_interval_days column)
-    // recurringServiceScheduler.start(1440);
+    RecurringServiceScheduler_1.default.start(1440);
+    // Start birthday wishes scheduler (checks daily - 1440 minutes)
+    BirthdayScheduler_1.default.start(1440);
     // Auto-reconnect WhatsApp if credentials exist
     const authInfoPath = path_1.default.join(__dirname, '../auth_info');
     if (fs.existsSync(authInfoPath)) {
