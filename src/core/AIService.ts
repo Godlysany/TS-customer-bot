@@ -16,9 +16,18 @@ export class AIService {
         return config.fallback_message;
       }
 
-      // Language preference - removed as preferred_language column doesn't exist
-      // TODO: Add preferred_language column to contacts table if language support is needed
+      // Fetch contact's preferred language if contactId provided
       let contactLanguage: string | null = null;
+      if (contactId) {
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('preferred_language')
+          .eq('id', contactId)
+          .single();
+        
+        contactLanguage = contact?.preferred_language || null;
+        console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
+      }
 
       // Build dynamic system prompt with business details, fine-tuning, language context, AND customer analytics
       const systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage, contactId);
