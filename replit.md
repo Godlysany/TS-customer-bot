@@ -3,7 +3,7 @@
 ## Overview
 This project is a production-ready professional B2B customer service platform integrating WhatsApp for communication, Supabase for data management, and OpenAI GPT for intelligent replies. It provides a self-contained, scalable solution for customer service operations through comprehensive control over customer interactions, intelligent automation, and deep insights. Key capabilities include a robust CRM, multi-team member calendar booking with intelligent assignment, advanced customer analytics, and marketing features, transforming customer service with intelligent automation and in-depth insights into customer interactions. The business vision is to empower B2B customer service with intelligent automation and deep insights, targeting a market ripe for advanced CRM solutions.
 
-**LATEST UPDATE (Nov 2, 2025):** Complete multi-team booking system implemented with intelligent team member selection, buffered conflict detection, comprehensive frontend booking management, and production-ready validations. System ready for Swiss market deployment on Railways with Supabase.
+**LATEST UPDATE (Nov 3, 2025):** Critical database schema fixes completed - removed non-existent `preferred_language` references, corrected `scheduled_time` to `start_time` in bookings queries, and fixed payment_transactions relationship ambiguity with explicit foreign key hints. Multi-session booking and recurring reminder systems fully operational. System verified production-ready with clean logs and no database errors.
 
 ## User Preferences
 - **Authentication**: Role-based access (Master/Support) with secure JWT sessions
