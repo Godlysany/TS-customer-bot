@@ -1,10 +1,13 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Gift, Calendar, Check, X } from 'lucide-react';
+import { Gift, Calendar, Check, X, Save } from 'lucide-react';
 import { nurturingApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 const BirthdayWishesTab = () => {
   const queryClient = useQueryClient();
+  const [localTemplate, setLocalTemplate] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ['nurturing-settings'],
@@ -35,6 +38,14 @@ const BirthdayWishesTab = () => {
     return setting?.settingValue || '';
   };
 
+  // Initialize local state when settings load
+  useEffect(() => {
+    const template = getSetting('birthday_wish_template');
+    if (template && !localTemplate) {
+      setLocalTemplate(template);
+    }
+  }, [settings]);
+
   const enableBirthday = getSetting('birthday_wish_enabled') === 'true';
   const enablePromotion = getSetting('birthday_enable_promotion') === 'true';
 
@@ -52,15 +63,23 @@ const BirthdayWishesTab = () => {
       nurturingApi.updateSetting(key, value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nurturing-settings'] });
-      toast.success('Setting updated successfully');
+      setHasUnsavedChanges(false);
+      toast.success('Settings saved successfully');
     },
     onError: () => {
-      toast.error('Failed to update setting');
+      toast.error('Failed to save settings');
     },
   });
 
   const handleSettingChange = (key: string, value: string) => {
     updateSettingMutation.mutate({ key, value });
+  };
+
+  const handleSaveTemplate = () => {
+    updateSettingMutation.mutate({ 
+      key: 'birthday_wish_template', 
+      value: localTemplate 
+    });
   };
 
   return (
@@ -102,12 +121,27 @@ const BirthdayWishesTab = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={4}
                   placeholder="Happy Birthday {name}! 🎉 Wishing you a wonderful day filled with joy..."
-                  value={getSetting('birthday_wish_template')}
-                  onChange={(e) => handleSettingChange('birthday_wish_template', e.target.value)}
+                  value={localTemplate}
+                  onChange={(e) => {
+                    setLocalTemplate(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Available placeholders: {'{name}'}, {'{age}'}
-                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    Available placeholders: {'{name}'}, {'{age}'}
+                  </p>
+                  {hasUnsavedChanges && (
+                    <button
+                      onClick={handleSaveTemplate}
+                      disabled={updateSettingMutation.isPending}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <Save className="w-3 h-3" />
+                      Save Template
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

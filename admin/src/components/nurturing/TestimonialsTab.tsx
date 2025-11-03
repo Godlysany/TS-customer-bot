@@ -1,10 +1,15 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Star, MessageSquare, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Star, MessageSquare, ThumbsUp, ThumbsDown, Save } from 'lucide-react';
 import { nurturingApi } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 const TestimonialsTab = () => {
   const queryClient = useQueryClient();
+  const [localTemplate, setLocalTemplate] = useState('');
+  const [localGoogleTemplate, setLocalGoogleTemplate] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasUnsavedGoogleChanges, setHasUnsavedGoogleChanges] = useState(false);
 
   const { data: settings } = useQuery({
     queryKey: ['nurturing-settings'],
@@ -22,15 +27,30 @@ const TestimonialsTab = () => {
     },
   });
 
+  const getSetting = (key: string): string => {
+    const setting = settings?.find((s: any) => s.settingKey === key);
+    return setting?.settingValue || '';
+  };
+
+  // Initialize local state when settings load
+  useEffect(() => {
+    const template = getSetting('review_request_template');
+    const googleTemplate = getSetting('google_review_request_template');
+    if (template && !localTemplate) setLocalTemplate(template);
+    if (googleTemplate && !localGoogleTemplate) setLocalGoogleTemplate(googleTemplate);
+  }, [settings]);
+
   const updateSettingMutation = useMutation({
     mutationFn: ({ key, value }: { key: string; value: string }) => 
       nurturingApi.updateSetting(key, value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nurturing-settings'] });
-      toast.success('Setting updated successfully');
+      setHasUnsavedChanges(false);
+      setHasUnsavedGoogleChanges(false);
+      toast.success('Settings saved successfully');
     },
     onError: () => {
-      toast.error('Failed to update setting');
+      toast.error('Failed to save settings');
     },
   });
 
@@ -38,9 +58,18 @@ const TestimonialsTab = () => {
     updateSettingMutation.mutate({ key, value });
   };
 
-  const getSetting = (key: string): string => {
-    const setting = settings?.find((s: any) => s.settingKey === key);
-    return setting?.settingValue || '';
+  const handleSaveTemplate = () => {
+    updateSettingMutation.mutate({ 
+      key: 'review_request_template', 
+      value: localTemplate 
+    });
+  };
+
+  const handleSaveGoogleTemplate = () => {
+    updateSettingMutation.mutate({ 
+      key: 'google_review_request_template', 
+      value: localGoogleTemplate 
+    });
   };
 
   const enableReviews = getSetting('review_request_enabled') === 'true';
@@ -101,12 +130,27 @@ const TestimonialsTab = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={4}
                   placeholder="Hi {name}! We hope you enjoyed your {service} appointment. We'd love to hear your feedback..."
-                  value={getSetting('review_request_template')}
-                  onChange={(e) => handleSettingChange('review_request_template', e.target.value)}
+                  value={localTemplate}
+                  onChange={(e) => {
+                    setLocalTemplate(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Available placeholders: {'{name}'}, {'{service}'}, {'{date}'}
-                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    Available placeholders: {'{name}'}, {'{service}'}, {'{date}'}
+                  </p>
+                  {hasUnsavedChanges && (
+                    <button
+                      onClick={handleSaveTemplate}
+                      disabled={updateSettingMutation.isPending}
+                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      <Save className="w-3 h-3" />
+                      Save Template
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="border-t border-gray-200 pt-6">
@@ -178,12 +222,27 @@ const TestimonialsTab = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}
                           placeholder="Thank you for your kind words! Would you mind sharing your experience on Google? {link}"
-                          value={getSetting('google_review_request_template')}
-                          onChange={(e) => handleSettingChange('google_review_request_template', e.target.value)}
+                          value={localGoogleTemplate}
+                          onChange={(e) => {
+                            setLocalGoogleTemplate(e.target.value);
+                            setHasUnsavedGoogleChanges(true);
+                          }}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Available placeholders: {'{name}'}, {'{link}'}
-                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-gray-500">
+                            Available placeholders: {'{name}'}, {'{link}'}
+                          </p>
+                          {hasUnsavedGoogleChanges && (
+                            <button
+                              onClick={handleSaveGoogleTemplate}
+                              disabled={updateSettingMutation.isPending}
+                              className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              <Save className="w-3 h-3" />
+                              Save Template
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </>
                   )}
