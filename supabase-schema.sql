@@ -28,6 +28,7 @@ COMMENT ON COLUMN questionnaires.trigger_type IS 'Trigger options: manual, befor
 
 -- Add CRM insight columns
 ALTER TABLE contacts
+ADD COLUMN IF NOT EXISTS preferred_language TEXT,
 ADD COLUMN IF NOT EXISTS preferred_times TEXT,
 ADD COLUMN IF NOT EXISTS preferred_staff TEXT,
 ADD COLUMN IF NOT EXISTS preferred_services TEXT,
@@ -40,11 +41,13 @@ ADD COLUMN IF NOT EXISTS behavioral_notes TEXT,
 ADD COLUMN IF NOT EXISTS customer_insights TEXT;
 
 -- Add index for efficient querying of contacts with specific preferences
+CREATE INDEX IF NOT EXISTS idx_contacts_preferred_language ON contacts(preferred_language) WHERE preferred_language IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_contacts_preferred_staff ON contacts(preferred_staff) WHERE preferred_staff IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_contacts_allergies ON contacts(allergies) WHERE allergies IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_contacts_physical_limitations ON contacts(physical_limitations) WHERE physical_limitations IS NOT NULL;
 
 -- Add comment for documentation
+COMMENT ON COLUMN contacts.preferred_language IS 'Customer''s preferred communication language (de, en, fr, it, etc.) for Swiss multilingual market';
 COMMENT ON COLUMN contacts.preferred_times IS 'Customer''s preferred appointment times (e.g., "mornings", "Tuesdays only")';
 COMMENT ON COLUMN contacts.preferred_staff IS 'Preferred staff members or providers';
 COMMENT ON COLUMN contacts.preferred_services IS 'Services the customer is interested in';
