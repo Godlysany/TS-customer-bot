@@ -1,0 +1,102 @@
+✅ Updated nurturing setting: google_review_request_template = hello 
+✅ Updated nurturing setting: google_review_request_template = hello w
+✅ Updated nurturing setting: google_review_request_template = hello h
+✅ Updated nurturing setting: google_review_request_template = hello y
+✅ Updated nurturing setting: google_review_request_template = hello y 
+✅ Updated nurturing setting: google_review_request_template = hello y w
+✅ Updated nurturing setting: google_review_request_template = hello y wi
+✅ Updated nurturing setting: google_review_request_template = hello y ws
+✅ Updated nurturing setting: google_review_request_template = hello y wii
+✅ Updated nurturing setting: google_review_request_template = hello y wiia
+✅ Updated nurturing setting: google_review_request_template = hello y wiias
+✅ Updated nurturing setting: google_review_request_template = hello y wiiaj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiai
+✅ Updated nurturing setting: google_review_request_template = hello y wiiaja
+✅ Updated nurturing setting: google_review_request_template = hello y wiiaji
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjs
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsjs
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsjsj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsjss
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsjsjj
+✅ Updated nurturing setting: google_review_request_template = hello y wiiajjsjssj
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "document_sent"'
+}
+❌ Error fetching contact activities: {
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "review_request"'
+}
+✅ Updated nurturing setting: google_review_request_template = h
+✅ Updated nurturing setting: google_review_request_template = hi
+✅ Updated nurturing setting: google_review_request_template = hi 
+✅ Updated nurturing setting: google_review_request_template = hi w
+✅ Updated nurturing setting: google_review_request_template = hi h
+✅ Updated nurturing setting: google_review_request_template = hi hy
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "birthday_wish"'
+}
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.j
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.o
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jj
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjo
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjj
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjoo
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjooj
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjooo
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjooj
+✅ Updated nurturing setting: birthday_wish_template = Happy Birthday {name}! 🎉 Wishing you a wonderful day. As a special gift, we'd like to offer you a 10% discount on your next appointment.jjooo
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "document_sent"'
+}
+Failed to create team member: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'availability_schedule' column of 'team_members' in the schema cache"
+}
+Failed to create team member: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'availability_schedule' column of 'team_members' in the schema cache"
+}
+Failed to create team member: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'availability_schedule' column of 'team_members' in the schema cache"
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+🎯 Intent detected: { intent: 'other', confidence: 0.7, entities: {} }
+🌍 Contact language: not set (using default)
+🤖 Generating GPT reply for conversation d12827ea-400a-46a3-a1df-501825aad9e8
+📝 Message history: 20 messages
+⚙️  Tone: professional, Style: concise
+✅ GPT reply generated (172 chars)
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+⚠️ Failed to fetch TTS settings, using defaults: Cannot coerce the result to a single JSON object
+✅ Text sent: Entschuldigung für die Wartezeit! Dr. Weber und Dr. Schmidt sind beide am Montag um 9:00 Uhr verfügbar. Haben Sie eine Präferenz, mit wem Sie den Termin wahrnehmen möchten?

@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersApi, nurturingApi } from '../lib/api';
-import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity, DollarSign } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity, DollarSign, Edit, Save, Bot } from 'lucide-react';
 import PaymentHistory from '../components/PaymentHistory';
+import toast from 'react-hot-toast';
 
 const CustomerDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'payments' | 'questionnaires' | 'nurturing'>('overview');
+  const [isEditingNurturing, setIsEditingNurturing] = useState(false);
+  const [birthdateEdit, setBirthdateEdit] = useState('');
+  const [emailEdit, setEmailEdit] = useState('');
+  const [languageEdit, setLanguageEdit] = useState('');
+  const [botEnabledEdit, setBotEnabledEdit] = useState(true);
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', id],
@@ -42,6 +49,35 @@ const CustomerDetail = () => {
     },
     enabled: !!id,
   });
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: (preferences: any) => nurturingApi.updateContactPreferences(id!, preferences),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer', id] });
+      setIsEditingNurturing(false);
+      toast.success('Nurturing preferences updated successfully');
+    },
+    onError: () => {
+      toast.error('Failed to update preferences');
+    },
+  });
+
+  const handleStartEdit = () => {
+    setBirthdateEdit(customer?.birthdate || '');
+    setEmailEdit(customer?.email || '');
+    setLanguageEdit(customer?.preferred_language || '');
+    setBotEnabledEdit(customer?.bot_enabled !== false);
+    setIsEditingNurturing(true);
+  };
+
+  const handleSaveNurturing = () => {
+    updatePreferencesMutation.mutate({
+      birthdate: birthdateEdit || null,
+      email: emailEdit || null,
+      preferred_language: languageEdit || null,
+      bot_enabled: botEnabledEdit,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -322,41 +358,163 @@ const CustomerDetail = () => {
               )}
 
               {activeTab === 'nurturing' && (
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-purple-500" />
-                    Nurturing Activities
-                  </h2>
-                  
-                  {nurturingActivities && nurturingActivities.length > 0 ? (
-                    <div className="space-y-2">
-                      {nurturingActivities.map((activity: any) => (
-                        <div key={activity.id} className="border-l-4 border-purple-200 bg-purple-50 p-3 rounded">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-900 capitalize">
-                              {activity.activityType.replace(/_/g, ' ')}
-                            </span>
-                            <span className={`px-2 py-0.5 text-xs rounded font-medium ${
-                              activity.status === 'completed' ? 'bg-green-100 text-green-700' :
-                              activity.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                              activity.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                            }`}>
-                              {activity.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-600">
-                            {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
-                          </p>
-                          {activity.messageContent && (
-                            <p className="text-xs text-gray-700 mt-2 italic">{activity.messageContent}</p>
-                          )}
+                <div className="space-y-6">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <User className="w-5 h-5 text-blue-500" />
+                        Nurturing Preferences
+                      </h3>
+                      {!isEditingNurturing ? (
+                        <button
+                          onClick={handleStartEdit}
+                          className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                        >
+                          <Edit className="w-3 h-3" />
+                          Edit
+                        </button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setIsEditingNurturing(false)}
+                            className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleSaveNurturing}
+                            disabled={updatePreferencesMutation.isPending}
+                            className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            <Save className="w-3 h-3" />
+                            Save
+                          </button>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-gray-500">No nurturing activities yet</p>
-                  )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                        {isEditingNurturing ? (
+                          <input
+                            type="date"
+                            value={birthdateEdit}
+                            onChange={(e) => setBirthdateEdit(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-900">
+                            {customer?.birthdate 
+                              ? new Date(customer.birthdate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                              : 'Not set'}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        {isEditingNurturing ? (
+                          <input
+                            type="email"
+                            value={emailEdit}
+                            onChange={(e) => setEmailEdit(e.target.value)}
+                            placeholder="customer@example.com"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-900">{customer?.email || 'Not set'}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Language Preference</label>
+                        {isEditingNurturing ? (
+                          <select
+                            value={languageEdit}
+                            onChange={(e) => setLanguageEdit(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">Auto-detect</option>
+                            <option value="de">German (DE)</option>
+                            <option value="fr">French (FR)</option>
+                            <option value="it">Italian (IT)</option>
+                            <option value="en">English (EN)</option>
+                          </select>
+                        ) : (
+                          <p className="text-sm text-gray-900">
+                            {customer?.preferred_language 
+                              ? customer.preferred_language.toUpperCase()
+                              : 'Auto-detect'}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                          <Bot className="w-4 h-4" />
+                          Bot Auto-Reply Enabled
+                        </label>
+                        {isEditingNurturing ? (
+                          <button
+                            onClick={() => setBotEnabledEdit(!botEnabledEdit)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              botEnabledEdit ? 'bg-blue-600' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              botEnabledEdit ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        ) : (
+                          <p className="text-sm text-gray-900">
+                            {customer?.bot_enabled !== false ? (
+                              <span className="text-green-600 font-medium">Enabled</span>
+                            ) : (
+                              <span className="text-red-600 font-medium">Disabled</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-purple-500" />
+                      Nurturing Activities
+                    </h2>
+                    
+                    {nurturingActivities && nurturingActivities.length > 0 ? (
+                      <div className="space-y-2">
+                        {nurturingActivities.map((activity: any) => (
+                          <div key={activity.id} className="border-l-4 border-purple-200 bg-purple-50 p-3 rounded">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-900 capitalize">
+                                {activity.activityType.replace(/_/g, ' ')}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                                activity.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                activity.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                                activity.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {activity.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString()}
+                            </p>
+                            {activity.messageContent && (
+                              <p className="text-xs text-gray-700 mt-2 italic">{activity.messageContent}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">No nurturing activities yet</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
