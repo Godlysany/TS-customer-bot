@@ -34,12 +34,26 @@ router.get('/', async (req, res) => {
     // Get session bookings for each config
     const configsWithBookings = await Promise.all(
       (configs || []).map(async (config: any) => {
-        // Get all bookings in this session group
-        const { data: sessionBookings } = await supabase
-          .from('bookings')
-          .select('id, scheduled_time, start_time, end_time, status, session_number, total_sessions, cost, notes')
-          .eq('session_group_id', config.parent_booking_id)
-          .order('session_number', { ascending: true });
+        let sessionBookings = [];
+        
+        // Get the parent booking's session_group_id first
+        if (config.parent_booking_id) {
+          const { data: parentBooking } = await supabase
+            .from('bookings')
+            .select('session_group_id')
+            .eq('id', config.parent_booking_id)
+            .single();
+          
+          // Then fetch all bookings in this session group
+          if (parentBooking?.session_group_id) {
+            const { data } = await supabase
+              .from('bookings')
+              .select('id, scheduled_time, start_time, end_time, status, session_number, total_sessions, cost, notes')
+              .eq('session_group_id', parentBooking.session_group_id)
+              .order('session_number', { ascending: true });
+            sessionBookings = data || [];
+          }
+        }
 
         // Calculate effective values (custom or service default)
         const serviceConfig = config.service?.session_buffer_config || {};
@@ -81,7 +95,7 @@ router.get('/', async (req, res) => {
           completion_percentage: config.completion_percentage,
           
           // Session bookings
-          session_bookings: sessionBookings || [],
+          session_bookings: sessionBookings,
           
           // Metadata
           notes: config.notes,
@@ -123,15 +137,27 @@ router.get('/:id', async (req, res) => {
     if (error) throw error;
 
     // Get session bookings
-    const { data: sessionBookings } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('session_group_id', config.parent_booking_id)
-      .order('session_number', { ascending: true });
+    let sessionBookings = [];
+    if (config.parent_booking_id) {
+      const { data: parentBooking } = await supabase
+        .from('bookings')
+        .select('session_group_id')
+        .eq('id', config.parent_booking_id)
+        .single();
+      
+      if (parentBooking?.session_group_id) {
+        const { data } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('session_group_id', parentBooking.session_group_id)
+          .order('session_number', { ascending: true });
+        sessionBookings = data || [];
+      }
+    }
 
     res.json({
       ...config,
-      session_bookings: sessionBookings || []
+      session_bookings: sessionBookings
     });
   } catch (error: any) {
     console.error('Error fetching multi-session config:', error);

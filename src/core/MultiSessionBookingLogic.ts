@@ -32,19 +32,40 @@ export class MultiSessionBookingLogic {
   /**
    * Fetch customer-specific multi-session configuration overrides
    * Returns effective configuration (customer override or service default)
+   * 
+   * For new bookings: Looks up the most recent active config for contact/service
+   * For existing groups: Use parent_booking_id to get the specific config for that cycle
    */
   private async getEffectiveMultiSessionConfig(
     contactId: string,
     serviceId: string,
-    serviceDefaults: any
+    serviceDefaults: any,
+    parentBookingId?: string
   ): Promise<any> {
-    const { data: customerConfig } = await supabase
-      .from('customer_multisession_config')
-      .select('*')
-      .eq('contact_id', contactId)
-      .eq('service_id', serviceId)
-      .eq('is_active', true)
-      .maybeSingle();
+    let customerConfig = null;
+
+    if (parentBookingId) {
+      // Fetch config for specific parent booking
+      const { data } = await supabase
+        .from('customer_multisession_config')
+        .select('*')
+        .eq('parent_booking_id', parentBookingId)
+        .eq('is_active', true)
+        .maybeSingle();
+      customerConfig = data;
+    } else {
+      // Fetch most recent active config for contact/service (for new treatment cycles)
+      const { data } = await supabase
+        .from('customer_multisession_config')
+        .select('*')
+        .eq('contact_id', contactId)
+        .eq('service_id', serviceId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      customerConfig = data;
+    }
 
     if (!customerConfig) {
       return serviceDefaults;
