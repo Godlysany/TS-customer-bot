@@ -1,0 +1,119 @@
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+Error fetching customer service history: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column bookings.scheduled_time does not exist'
+}
+Error fetching customer service history: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column bookings.scheduled_time does not exist'
+}
+Error fetching customer transactions: {
+  code: 'PGRST201',
+  details: [
+    {
+      cardinality: 'one-to-many',
+      embedding: 'payment_transactions with bookings',
+      relationship: 'bookings_payment_transaction_id_fkey using payment_transactions(id) and bookings(payment_transaction_id)'
+    },
+    {
+      cardinality: 'many-to-one',
+      embedding: 'payment_transactions with bookings',
+      relationship: 'payment_transactions_booking_id_fkey using payment_transactions(booking_id) and bookings(id)'
+    },
+    {
+      cardinality: 'many-to-one',
+      embedding: 'payment_transactions with bookings',
+      relationship: 'payment_transactions_related_booking_id_fkey using payment_transactions(related_booking_id) and bookings(id)'
+    }
+  ],
+  hint: "Try changing 'bookings' to one of the following: 'bookings!bookings_payment_transaction_id_fkey', 'bookings!payment_transactions_booking_id_fkey', 'bookings!payment_transactions_related_booking_id_fkey'. Find the desired relationship in the 'details' key.",
+  message: "Could not embed because more than one relationship was found for 'payment_transactions' and 'bookings'"
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+Error fetching customer service history: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column bookings.scheduled_time does not exist'
+}
+Error fetching customer service history: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column bookings.scheduled_time does not exist'
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+❌ Error fetching contact activities: {
+  code: '22P02',
+  details: null,
+  hint: null,
+  message: 'invalid input syntax for type uuid: "document_sent"'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+21:21:34 [info]: 📧 Processing marketing campaigns...
+📧 Campaign processing complete: 0 sent, 0 failed, 0 questionnaires triggered
+📄 Pre-appointment documents: 0 sent, 0 failed
+📄 Post-appointment documents: 0 sent, 0 failed
+📄 Total document processing: 0 sent, 0 failed
+📋 Found 0 active engagement campaigns
+📨 Engagement processing complete: 0 sent, 0 failed
+🚫 No-show processing complete: 0 detected, 0 recovered, 0 failed
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+📨 Processing proactive engagement campaigns...
+📄 Processing scheduled document deliveries...
+🚫 Processing no-show detection...
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+Error fetching outstanding balances: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column contacts.preferred_language does not exist'
+}
+📊 Dashboard stats: { customers: 0, conversations: 0, messages: 0, bookings: 0 }
+📨 Reminder processing complete: 0 sent, 0 failed
+📨 Processing pending reminders...
+📨 Processing pending reminders...
+📨 Reminder processing complete: 0 sent, 0 failed

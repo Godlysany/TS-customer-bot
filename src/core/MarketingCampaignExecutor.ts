@@ -64,7 +64,7 @@ export class MarketingCampaignExecutor {
         // H2: Get pending deliveries for this campaign
         const { data: pendingDeliveries, error: deliveryError } = await supabase
           .from('campaign_deliveries')
-          .select('*, contacts(name, phone_number, preferred_language)')
+          .select('*, contacts(name, phone_number, email)')
           .eq('campaign_id', campaign.id)
           .eq('delivery_status', 'pending')
           .order('scheduled_at', { ascending: true });

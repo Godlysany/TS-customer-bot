@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
           multi_session_strategy,
           session_buffer_config
         ),
-        parent_booking:bookings(id, scheduled_time, status)
+        parent_booking:bookings(id, start_time, status)
       `)
       .eq('is_active', true)
       .in('status', ['active', 'paused'])
@@ -129,7 +129,7 @@ router.get('/:id', async (req, res) => {
         *,
         contact:contacts(id, name, phone_number, email),
         service:services(id, name, requires_multiple_sessions, total_sessions_required, multi_session_strategy),
-        parent_booking:bookings(id, scheduled_time, status)
+        parent_booking:bookings(id, start_time, status)
       `)
       .eq('id', id)
       .single();

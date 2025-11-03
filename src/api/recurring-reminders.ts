@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
         *,
         contact:contacts(id, name, phone_number, email),
         service:services(id, name, recurring_interval_days, recurring_reminder_days_before, recurring_reminder_message),
-        last_booking:bookings(id, scheduled_time, status)
+        last_booking:bookings(id, start_time, status)
       `)
       .eq('is_active', true)
       .order('next_reminder_due_at', { ascending: true, nullsFirst: false });

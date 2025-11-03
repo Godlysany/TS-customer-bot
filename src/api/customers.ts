@@ -180,7 +180,7 @@ router.get('/:id/service-history', async (req, res) => {
       .from('bookings')
       .select(`
         id,
-        scheduled_time,
+        start_time,
         status,
         cost,
         notes,
@@ -198,14 +198,14 @@ router.get('/:id/service-history', async (req, res) => {
         )
       `)
       .eq('contact_id', id)
-      .order('scheduled_time', { ascending: false });
+      .order('start_time', { ascending: false });
 
     if (error) throw error;
 
     // Format the response
     const formattedHistory = (bookings || []).map((booking: any) => ({
       id: booking.id,
-      scheduledTime: booking.scheduled_time,
+      scheduledTime: booking.start_time,
       status: booking.status,
       cost: booking.cost,
       notes: booking.notes,
@@ -244,7 +244,7 @@ router.get('/:id/transactions', authMiddleware, async (req, res) => {
       .from('payment_transactions')
       .select(`
         *,
-        booking:bookings(id, title, start_time),
+        booking:bookings!payment_transactions_booking_id_fkey(id, title, start_time),
         service:services(id, name)
       `)
       .eq('contact_id', id)
@@ -317,7 +317,6 @@ router.get('/admin/outstanding-balances', authMiddleware, async (req, res) => {
         email,
         outstanding_balance_chf,
         payment_allowance_granted,
-        preferred_language,
         created_at
       `)
       .gt('outstanding_balance_chf', 0)
