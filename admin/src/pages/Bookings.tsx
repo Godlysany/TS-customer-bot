@@ -6,9 +6,10 @@ import type { Booking } from '../types';
 import { format } from 'date-fns';
 import { Calendar, Clock, X, Users, Phone, Mail, User, AlertCircle, Edit, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import MultisessionBookingsTab from '../components/bookings/MultisessionBookingsTab';
 
 const Bookings = () => {
-  const [activeTab, setActiveTab] = useState<'appointments' | 'waitlist'>('appointments');
+  const [activeTab, setActiveTab] = useState<'appointments' | 'waitlist' | 'multisession'>('appointments');
   const [selectedBookingForCancel, setSelectedBookingForCancel] = useState<string | null>(null);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -298,6 +299,19 @@ const Bookings = () => {
                 <span>Waitlist ({waitlistEntries?.length || 0})</span>
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('multisession')}
+              className={`pb-3 px-1 border-b-2 font-medium transition-colors ${
+                activeTab === 'multisession'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                <span>Multi-Session</span>
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -466,7 +480,7 @@ const Bookings = () => {
               </div>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'waitlist' ? (
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Active Waitlist</h2>
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -562,6 +576,8 @@ const Bookings = () => {
               </div>
             )}
           </div>
+        ) : (
+          <MultisessionBookingsTab />
         )}
 
         {/* Cancel Booking Modal */}

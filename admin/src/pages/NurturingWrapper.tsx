@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { FileText, Send, Tag, Gift, Star, FolderOpen } from 'lucide-react';
+import { FileText, Send, Tag, Gift, Star, FolderOpen, Clock } from 'lucide-react';
 import QuestionnairesTab from '../components/nurturing/QuestionnairesTab';
 import CampaignsTab from '../components/nurturing/CampaignsTab';
 import PromotionsTab from '../components/nurturing/PromotionsTab';
 import BirthdayWishesTab from '../components/nurturing/BirthdayWishesTab';
 import TestimonialsTab from '../components/nurturing/TestimonialsTab';
 import ServiceDocumentsTab from '../components/nurturing/ServiceDocumentsTab';
+import RecurringRemindersTab from '../components/nurturing/RecurringRemindersTab';
 
 const NurturingWrapper = () => {
-  const [activeTab, setActiveTab] = useState<'questionnaires' | 'campaigns' | 'promotions' | 'birthday' | 'testimonials' | 'documents'>('questionnaires');
+  const [activeTab, setActiveTab] = useState<'questionnaires' | 'campaigns' | 'promotions' | 'birthday' | 'testimonials' | 'documents' | 'recurring'>('questionnaires');
 
   return (
     <div className="p-8">
@@ -86,6 +87,17 @@ const NurturingWrapper = () => {
               <FolderOpen className="w-4 h-4" />
               Service Documents
             </button>
+            <button
+              onClick={() => setActiveTab('recurring')}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'recurring'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Recurring Service Reminders
+            </button>
           </nav>
         </div>
       </div>
@@ -96,6 +108,7 @@ const NurturingWrapper = () => {
       {activeTab === 'birthday' && <BirthdayWishesTab />}
       {activeTab === 'testimonials' && <TestimonialsTab />}
       {activeTab === 'documents' && <ServiceDocumentsTab />}
+      {activeTab === 'recurring' && <RecurringRemindersTab />}
     </div>
   );
 };
