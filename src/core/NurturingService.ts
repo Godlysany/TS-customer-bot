@@ -384,6 +384,7 @@ export class NurturingService {
     botEnabled?: boolean;
     birthdate?: string | null;
     email?: string | null;
+    preferredLanguage?: string | null;
     preferred_language?: string | null;
     bot_enabled?: boolean;
   }): Promise<void> {
@@ -397,6 +398,7 @@ export class NurturingService {
       if (preferences.bot_enabled !== undefined) updates.bot_enabled = preferences.bot_enabled;
       if (preferences.birthdate !== undefined) updates.birthdate = preferences.birthdate;
       if (preferences.email !== undefined) updates.email = preferences.email;
+      if (preferences.preferredLanguage !== undefined) updates.preferred_language = preferences.preferredLanguage;
       if (preferences.preferred_language !== undefined) updates.preferred_language = preferences.preferred_language;
 
       const { error } = await supabase

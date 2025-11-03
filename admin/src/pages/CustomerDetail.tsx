@@ -74,8 +74,8 @@ const CustomerDetail = () => {
     updatePreferencesMutation.mutate({
       birthdate: birthdateEdit || null,
       email: emailEdit || null,
-      preferred_language: languageEdit || null,
-      bot_enabled: botEnabledEdit,
+      preferredLanguage: languageEdit || null,
+      botEnabled: botEnabledEdit,
     });
   };
 
