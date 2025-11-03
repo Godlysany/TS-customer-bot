@@ -30,6 +30,40 @@ export class MultiSessionBookingLogic {
   constructor() {}
 
   /**
+   * Fetch customer-specific multi-session configuration overrides
+   * Returns effective configuration (customer override or service default)
+   */
+  private async getEffectiveMultiSessionConfig(
+    contactId: string,
+    serviceId: string,
+    serviceDefaults: any
+  ): Promise<any> {
+    const { data: customerConfig } = await supabase
+      .from('customer_multisession_config')
+      .select('*')
+      .eq('contact_id', contactId)
+      .eq('service_id', serviceId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!customerConfig) {
+      return serviceDefaults;
+    }
+
+    return {
+      totalSessions: customerConfig.custom_total_sessions || serviceDefaults.totalSessions,
+      strategy: customerConfig.custom_strategy || serviceDefaults.strategy,
+      sessionBufferConfig: {
+        minimum_days: customerConfig.custom_min_days_between_sessions || serviceDefaults.sessionBufferConfig?.minimum_days || 7,
+        recommended_days: customerConfig.custom_max_days_between_sessions || serviceDefaults.sessionBufferConfig?.recommended_days || 14,
+        buffer_before_minutes: customerConfig.custom_buffer_before_minutes || serviceDefaults.sessionBufferConfig?.buffer_before_minutes || 0,
+        buffer_after_minutes: customerConfig.custom_buffer_after_minutes || serviceDefaults.sessionBufferConfig?.buffer_after_minutes || 0,
+      },
+      notes: customerConfig.notes || null,
+    };
+  }
+
+  /**
    * Calculate all session dates based on buffer configuration
    */
   calculateSessionSchedule(
@@ -107,8 +141,26 @@ export class MultiSessionBookingLogic {
    * Uses BatchBookingService for atomic transactional safety
    */
   async bookImmediateStrategy(params: MultiSessionBookingParams): Promise<any[]> {
+    // Check for customer-specific configuration overrides
+    const effectiveConfig = await this.getEffectiveMultiSessionConfig(
+      params.contactId,
+      params.serviceId,
+      {
+        totalSessions: params.totalSessions,
+        strategy: params.strategy,
+        sessionBufferConfig: params.sessionBufferConfig,
+      }
+    );
+
+    // Use effective configuration (customer override or service default)
+    const totalSessions = effectiveConfig.totalSessions;
+    const sessionBufferConfig = effectiveConfig.sessionBufferConfig;
+
     const sessionGroupId = randomUUID();
-    const schedule = this.calculateSessionSchedule(params, params.totalSessions);
+    const schedule = this.calculateSessionSchedule(
+      { ...params, sessionBufferConfig, totalSessions },
+      totalSessions
+    );
 
     // Prepare batch booking request
     const batchRequest = {
@@ -120,11 +172,11 @@ export class MultiSessionBookingLogic {
       sessionGroupId,
       bookings: schedule.map((session) => ({
         sessionNumber: session.sessionNumber,
-        totalSessions: params.totalSessions,
+        totalSessions: totalSessions,
         title: `${params.serviceName} - Session ${session.sessionNumber}`,
         startTime: session.startTime,
         endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
-        description: `Multi-session treatment: Session ${session.sessionNumber} of ${params.totalSessions}`,
+        description: `Multi-session treatment: Session ${session.sessionNumber} of ${totalSessions}${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
       })),
     };
 
@@ -144,6 +196,19 @@ export class MultiSessionBookingLogic {
    * Uses BatchBookingService for atomic transactional safety
    */
   async bookSequentialStrategy(params: MultiSessionBookingParams): Promise<any> {
+    // Check for customer-specific configuration overrides
+    const effectiveConfig = await this.getEffectiveMultiSessionConfig(
+      params.contactId,
+      params.serviceId,
+      {
+        totalSessions: params.totalSessions,
+        strategy: params.strategy,
+        sessionBufferConfig: params.sessionBufferConfig,
+      }
+    );
+
+    const totalSessions = effectiveConfig.totalSessions;
+
     const sessionGroupId = randomUUID();
 
     // Prepare batch booking request for first session only
@@ -157,11 +222,11 @@ export class MultiSessionBookingLogic {
       bookings: [
         {
           sessionNumber: 1,
-          totalSessions: params.totalSessions,
+          totalSessions: totalSessions,
           title: `${params.serviceName} - Session 1`,
           startTime: params.startDateTime,
           endTime: new Date(params.startDateTime.getTime() + params.durationMinutes * 60 * 1000),
-          description: `Multi-session treatment: Session 1 of ${params.totalSessions} (Sequential)`,
+          description: `Multi-session treatment: Session 1 of ${totalSessions} (Sequential)${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
         },
       ],
     };
@@ -181,6 +246,20 @@ export class MultiSessionBookingLogic {
    * Book N sessions for FLEXIBLE strategy
    */
   async bookFlexibleStrategy(params: MultiSessionBookingParams): Promise<any[]> {
+    // Check for customer-specific configuration overrides
+    const effectiveConfig = await this.getEffectiveMultiSessionConfig(
+      params.contactId,
+      params.serviceId,
+      {
+        totalSessions: params.totalSessions,
+        strategy: params.strategy,
+        sessionBufferConfig: params.sessionBufferConfig,
+      }
+    );
+
+    const totalSessions = effectiveConfig.totalSessions;
+    const sessionBufferConfig = effectiveConfig.sessionBufferConfig;
+
     const sessionsToBook = params.sessionsToBook || 1;
     
     // Check if there's an existing group for this contact/service
@@ -207,7 +286,7 @@ export class MultiSessionBookingLogic {
     }
 
     const schedule = this.calculateSessionSchedule(
-      { ...params, startDateTime: params.startDateTime },
+      { ...params, startDateTime: params.startDateTime, sessionBufferConfig, totalSessions },
       sessionsToBook
     );
 
@@ -221,11 +300,11 @@ export class MultiSessionBookingLogic {
       sessionGroupId,
       bookings: schedule.map((session, index) => ({
         sessionNumber: startingSessionNumber + index,
-        totalSessions: params.totalSessions,
+        totalSessions: totalSessions,
         title: `${params.serviceName} - Session ${startingSessionNumber + index}`,
         startTime: session.startTime,
         endTime: new Date(session.startTime.getTime() + params.durationMinutes * 60 * 1000),
-        description: `Multi-session treatment: Session ${startingSessionNumber + index} of ${params.totalSessions} (Flexible)`,
+        description: `Multi-session treatment: Session ${startingSessionNumber + index} of ${totalSessions} (Flexible)${effectiveConfig.notes ? ` - ${effectiveConfig.notes}` : ''}`,
       })),
     };
 
