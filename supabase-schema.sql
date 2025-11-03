@@ -149,6 +149,7 @@ ALTER TABLE contacts ADD COLUMN IF NOT EXISTS opt_out_reviews BOOLEAN DEFAULT fa
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_review_request_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_birthday_message_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS nurturing_frequency VARCHAR(20) DEFAULT 'normal' CHECK (nurturing_frequency IN ('high', 'normal', 'low', 'paused'));
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS bot_enabled BOOLEAN DEFAULT true;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS google_review_submitted BOOLEAN DEFAULT false;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS google_review_submitted_at TIMESTAMP WITH TIME ZONE;
 
@@ -833,6 +834,6 @@ SET
 WHERE actual_start_time IS NULL OR actual_end_time IS NULL;
 
 -- Schema update trigger (forces GitHub Actions deployment)
--- Last updated: 2025-11-03 23:12:00 UTC
--- Review Request Scheduler + Complete Nurturing Automation (9 schedulers operational)
+-- Last updated: 2025-11-03 23:50:00 UTC
+-- Customer-specific bot toggle (bot_enabled column) + Review Request Scheduler
 

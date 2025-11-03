@@ -333,6 +333,18 @@ async function handleMessage(msg: WAMessage) {
 
     const messageHistory = await messageService.getConversationMessages(conversation.id);
 
+    // Check if bot is enabled for this specific contact
+    const { data: contactSettings } = await supabase
+      .from('contacts')
+      .select('bot_enabled')
+      .eq('id', conversation.contactId)
+      .single();
+
+    if (contactSettings && contactSettings.bot_enabled === false) {
+      console.log(`🚫 Bot disabled for contact ${conversation.contactId} - skipping auto-reply`);
+      return;
+    }
+
     const canBotReply = await conversationTakeoverService.canBotReply(conversation.id);
     if (!canBotReply) {
       console.log('👤 Agent has taken over conversation, bot will not reply');

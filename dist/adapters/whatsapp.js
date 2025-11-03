@@ -299,6 +299,16 @@ async function handleMessage(msg) {
             await TTSService_1.default.updateMessageWithVoiceData(inboundMessage.id, voiceTranscription, voiceDuration);
         }
         const messageHistory = await MessageService_1.default.getConversationMessages(conversation.id);
+        // Check if bot is enabled for this specific contact
+        const { data: contactSettings } = await supabase_1.supabase
+            .from('contacts')
+            .select('bot_enabled')
+            .eq('id', conversation.contactId)
+            .single();
+        if (contactSettings && contactSettings.bot_enabled === false) {
+            console.log(`🚫 Bot disabled for contact ${conversation.contactId} - skipping auto-reply`);
+            return;
+        }
         const canBotReply = await ConversationTakeoverService_1.default.canBotReply(conversation.id);
         if (!canBotReply) {
             console.log('👤 Agent has taken over conversation, bot will not reply');

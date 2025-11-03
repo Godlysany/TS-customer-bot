@@ -150,7 +150,7 @@ class NurturingService {
             // Get contact info
             const { data: contact, error: contactError } = await supabase_1.supabase
                 .from('contacts')
-                .select('name, birthdate, opt_out_marketing, opt_out_birthday_wishes, opt_out_reviews, nurturing_frequency, last_review_request_at, last_birthday_message_at, google_review_submitted')
+                .select('name, birthdate, opt_out_marketing, opt_out_birthday_wishes, opt_out_reviews, nurturing_frequency, bot_enabled, last_review_request_at, last_birthday_message_at, google_review_submitted')
                 .eq('id', contactId)
                 .single();
             if (contactError || !contact)
@@ -169,6 +169,7 @@ class NurturingService {
                 optOutBirthdayWishes: contact.opt_out_birthday_wishes || false,
                 optOutReviews: contact.opt_out_reviews || false,
                 nurturingFrequency: contact.nurturing_frequency || 'normal',
+                botEnabled: contact.bot_enabled !== false, // Default to true if not set
                 lastReviewRequestAt: contact.last_review_request_at ? new Date(contact.last_review_request_at) : undefined,
                 lastBirthdayMessageAt: contact.last_birthday_message_at ? new Date(contact.last_birthday_message_at) : undefined,
                 googleReviewSubmitted: contact.google_review_submitted || false,
@@ -327,12 +328,15 @@ class NurturingService {
                 updates.opt_out_reviews = preferences.optOutReviews;
             if (preferences.nurturingFrequency !== undefined)
                 updates.nurturing_frequency = preferences.nurturingFrequency;
+            if (preferences.botEnabled !== undefined)
+                updates.bot_enabled = preferences.botEnabled;
             const { error } = await supabase_1.supabase
                 .from('contacts')
                 .update(updates)
                 .eq('id', contactId);
             if (error)
                 throw error;
+            console.log(`✅ Updated contact preferences for ${contactId}:`, updates);
         }
         catch (error) {
             console.error('❌ Error updating contact nurturing preferences:', error);
