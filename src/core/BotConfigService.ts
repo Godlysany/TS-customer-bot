@@ -313,7 +313,7 @@ export class BotConfigService {
       }
 
       let context = '';
-      const MAX_CONTEXT_LENGTH = 800; // Prevent token overflow in GPT prompts
+      const MAX_CONTEXT_LENGTH = 2500; // Professional B2B context needs comprehensive customer intelligence
 
       if (analytics) {
         context += `**Customer Sentiment**: ${analytics.sentiment_score >= 0.3 ? 'Positive 😊' : analytics.sentiment_score >= -0.3 ? 'Neutral 😐' : 'Negative 😞'} (Score: ${analytics.sentiment_score?.toFixed(2) || 'N/A'})\n`;
