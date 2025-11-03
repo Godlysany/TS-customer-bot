@@ -1,6 +1,7 @@
 import { EngagementService } from './EngagementService';
 import { SettingsService } from './SettingsService';
 import { sendProactiveMessage } from '../adapters/whatsapp';
+import { AIService } from './AIService';
 
 export class EngagementScheduler {
   private engagementService: EngagementService;
@@ -75,14 +76,25 @@ export class EngagementScheduler {
 
           for (const target of targets) {
             try {
-              const message = this.engagementService.formatMessage(
+              // Build template message with placeholders
+              const templateMessage = this.engagementService.formatMessage(
                 campaign.messageTemplate,
                 target
               );
 
+              // Personalize through GPT for natural, language-appropriate delivery
+              const aiService = new AIService();
+              const personalizedMessage = await aiService.personalizeMessage({
+                templateMessage,
+                contactId: target.contactId,
+                contactName: target.name,
+                conversationContext: `Nurturing campaign: ${campaign.name}. Last booking: ${target.serviceName || 'N/A'}, ${target.daysSinceLastBooking} days ago`,
+                messageType: 'general',
+              });
+
               const success = await sendProactiveMessage(
                 target.phoneNumber,
-                message,
+                personalizedMessage,
                 target.contactId
               );
 

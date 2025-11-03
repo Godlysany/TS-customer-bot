@@ -316,8 +316,21 @@ export class MarketingCampaignExecutor {
           .single();
 
         if (contact?.phone_number) {
-          const message = `🎁 Thank you for completing the questionnaire!\n\nYou've earned a special reward: ${promotion.name}\n\n${promotion.description || ''}\n\nThis promotion will be automatically applied to your next booking. Enjoy!`;
-          await sendProactiveMessage(contact.phone_number, message, contactId);
+          // Build template message
+          const templateMessage = `🎁 Thank you for completing the questionnaire!\n\nYou've earned a special reward: ${promotion.name}\n\n${promotion.description || ''}\n\nThis promotion will be automatically applied to your next booking. Enjoy!`;
+          
+          // Personalize through GPT for natural, language-appropriate delivery
+          const { AIService } = await import('./AIService');
+          const aiService = new AIService();
+          const personalizedMessage = await aiService.personalizeMessage({
+            templateMessage,
+            contactId,
+            contactName: contact.name,
+            conversationContext: `Customer completed questionnaire and earned promotion: ${promotion.name}`,
+            messageType: 'general',
+          });
+          
+          await sendProactiveMessage(contact.phone_number, personalizedMessage, contactId);
         }
       }
 

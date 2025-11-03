@@ -1,6 +1,7 @@
 import { supabase } from '../infrastructure/supabase';
 import { sendProactiveMessage } from '../adapters/whatsapp';
 import { toCamelCase } from '../infrastructure/mapper';
+import { AIService } from './AIService';
 
 interface RecurringService {
   id: string;
@@ -214,13 +215,24 @@ export class RecurringServiceScheduler {
     const lastDate = new Date(reminder.completedAt).toLocaleDateString('de-CH');
     const nextDate = new Date(reminder.nextDueDate).toLocaleDateString('de-CH');
 
-    const message = messageTemplate
+    // Build template with placeholders
+    const templateMessage = messageTemplate
       .replace(/\{\{name\}\}/g, reminder.contactName)
       .replace(/\{\{service\}\}/g, reminder.serviceName)
       .replace(/\{\{last_date\}\}/g, lastDate)
       .replace(/\{\{next_date\}\}/g, nextDate);
 
-    await sendProactiveMessage(reminder.contactPhone, message, reminder.contactId);
+    // Personalize through GPT for natural, language-appropriate delivery
+    const aiService = new AIService();
+    const personalizedMessage = await aiService.personalizeMessage({
+      templateMessage,
+      contactId: reminder.contactId,
+      contactName: reminder.contactName,
+      conversationContext: `Customer last completed ${reminder.serviceName} on ${lastDate}. Next appointment recommended around ${nextDate}.`,
+      messageType: 'general',
+    });
+
+    await sendProactiveMessage(reminder.contactPhone, personalizedMessage, reminder.contactId);
 
     await supabase.from('reminder_logs').insert({
       contact_id: reminder.contactId,

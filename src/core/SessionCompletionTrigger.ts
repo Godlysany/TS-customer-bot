@@ -165,9 +165,19 @@ export class SessionCompletionTrigger {
    */
   private async sendWhatsAppMessage(phoneNumber: string, message: string, contactId?: string): Promise<void> {
     try {
+      // Personalize through GPT for natural, language-appropriate delivery
+      const { AIService } = await import('./AIService');
+      const aiService = new AIService();
+      const personalizedMessage = await aiService.personalizeMessage({
+        templateMessage: message,
+        contactId,
+        conversationContext: 'Customer just completed a multi-session appointment',
+        messageType: 'general',
+      });
+
       // Dynamic import to avoid circular dependency with whatsapp adapter
       const { sendProactiveMessage } = await import('../adapters/whatsapp');
-      await sendProactiveMessage(phoneNumber, message, contactId || '');
+      await sendProactiveMessage(phoneNumber, personalizedMessage, contactId || '');
     } catch (error) {
       console.error('Failed to send WhatsApp message:', error);
       // Fall back to creating a system note for manual follow-up

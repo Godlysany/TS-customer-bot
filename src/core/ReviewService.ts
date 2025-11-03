@@ -1,6 +1,7 @@
 import { supabase } from '../infrastructure/supabase';
 import { toCamelCase, toSnakeCase } from '../infrastructure/mapper';
 import { SettingsService } from './SettingsService';
+import { AIService } from './AIService';
 
 interface Review {
   id: string;
@@ -62,9 +63,20 @@ export class ReviewService {
     const contact = booking.contacts;
     const reviewLink = `https://g.page/r/YOUR_GOOGLE_REVIEW_LINK`;
 
-    const message = `Hi ${contact.name || 'there'}! 😊 Thank you for visiting us. We'd love to hear about your experience! Could you take a moment to leave us a review? ${reviewLink}`;
+    // Build template message
+    const templateMessage = `Hi ${contact.name || 'there'}! 😊 Thank you for visiting us. We'd love to hear about your experience! Could you take a moment to leave us a review? ${reviewLink}`;
 
-    await sendMessage(contact.phone_number, message);
+    // Personalize through GPT for natural, language-appropriate delivery
+    const aiService = new AIService();
+    const personalizedMessage = await aiService.personalizeMessage({
+      templateMessage,
+      contactId: booking.contact_id,
+      contactName: contact.name,
+      conversationContext: `Customer completed appointment: ${booking.title}. Requesting Google review`,
+      messageType: 'review_request',
+    });
+
+    await sendMessage(contact.phone_number, personalizedMessage);
 
     await supabase
       .from('reviews')
