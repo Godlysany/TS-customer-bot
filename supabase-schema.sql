@@ -719,6 +719,77 @@ VALUES
   ('team_selection_mode', 'smart', 'booking', 'Team member selection: smart (auto-assign based on availability/preferences), manual (customer chooses), disabled (no team members)')
 ON CONFLICT (key) DO NOTHING;
 
+-- =====================================================
+-- CUSTOMER RECURRING REMINDERS (Added 2025-11-03)
+-- =====================================================
+-- Customer-specific overrides for recurring service reminders
+
+CREATE TABLE IF NOT EXISTS customer_recurring_reminders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  last_booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  custom_interval_days INTEGER,
+  custom_reminder_days_before INTEGER,
+  custom_message TEXT,
+  last_reminder_sent_at TIMESTAMPTZ,
+  next_reminder_due_at TIMESTAMPTZ,
+  last_completed_booking_at TIMESTAMPTZ,
+  total_reminders_sent INTEGER DEFAULT 0,
+  total_bookings_completed INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(contact_id, service_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_recurring_reminders_contact ON customer_recurring_reminders(contact_id);
+CREATE INDEX IF NOT EXISTS idx_customer_recurring_reminders_service ON customer_recurring_reminders(service_id);
+CREATE INDEX IF NOT EXISTS idx_customer_recurring_reminders_active ON customer_recurring_reminders(is_active) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_customer_recurring_reminders_due ON customer_recurring_reminders(next_reminder_due_at, is_active) 
+  WHERE is_active = true AND next_reminder_due_at IS NOT NULL;
+
+COMMENT ON TABLE customer_recurring_reminders IS 'Customer-specific recurring service reminder configurations that override service defaults';
+
+-- =====================================================
+-- CUSTOMER MULTI-SESSION CONFIG (Added 2025-11-03)
+-- =====================================================
+-- Customer-specific overrides for multi-session booking parameters
+
+CREATE TABLE IF NOT EXISTS customer_multisession_config (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  parent_booking_id UUID REFERENCES bookings(id) ON DELETE CASCADE,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  custom_total_sessions INTEGER,
+  custom_strategy VARCHAR(50),
+  custom_min_days_between_sessions INTEGER,
+  custom_max_days_between_sessions INTEGER,
+  custom_buffer_before_minutes INTEGER,
+  custom_buffer_after_minutes INTEGER,
+  custom_session_schedule JSONB,
+  sessions_completed INTEGER DEFAULT 0,
+  sessions_scheduled INTEGER DEFAULT 0,
+  sessions_cancelled INTEGER DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'active',
+  completion_percentage DECIMAL(5,2) DEFAULT 0.0,
+  notes TEXT,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(contact_id, service_id, parent_booking_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_multisession_config_contact ON customer_multisession_config(contact_id);
+CREATE INDEX IF NOT EXISTS idx_customer_multisession_config_service ON customer_multisession_config(service_id);
+CREATE INDEX IF NOT EXISTS idx_customer_multisession_config_active ON customer_multisession_config(status, is_active) 
+  WHERE status = 'active' AND is_active = true;
+CREATE INDEX IF NOT EXISTS idx_customer_multisession_config_parent_booking ON customer_multisession_config(parent_booking_id);
+
+COMMENT ON TABLE customer_multisession_config IS 'Customer-specific multi-session booking configurations that override service defaults';
+
 COMMENT ON TABLE settings IS 'System-wide configuration including calendar provider and team selection modes';
 
 -- Session group tracking for multi-session bookings
