@@ -833,6 +833,6 @@ SET
 WHERE actual_start_time IS NULL OR actual_end_time IS NULL;
 
 -- Schema update trigger (forces GitHub Actions deployment)
--- Last updated: 2025-11-02 23:50:00 UTC
--- Team members infrastructure + buffered conflict detection deployed
+-- Last updated: 2025-11-03 23:12:00 UTC
+-- Review Request Scheduler + Complete Nurturing Automation (9 schedulers operational)
 

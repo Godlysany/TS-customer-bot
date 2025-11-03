@@ -68,6 +68,7 @@ const DocumentScheduler_1 = __importDefault(require("./core/DocumentScheduler"))
 const NoShowScheduler_1 = __importDefault(require("./core/NoShowScheduler"));
 const RecurringServiceScheduler_1 = __importDefault(require("./core/RecurringServiceScheduler"));
 const BirthdayScheduler_1 = __importDefault(require("./core/BirthdayScheduler"));
+const ReviewRequestScheduler_1 = __importDefault(require("./core/ReviewRequestScheduler"));
 const QuestionnaireRuntimeService_1 = __importDefault(require("./core/QuestionnaireRuntimeService"));
 const logger_1 = require("./infrastructure/logger");
 // Validate critical environment variables
@@ -189,6 +190,8 @@ const server = app.listen(config_1.config.port, config_1.config.host, () => {
     RecurringServiceScheduler_1.default.start(1440);
     // Start birthday wishes scheduler (checks daily - 1440 minutes)
     BirthdayScheduler_1.default.start(1440);
+    // Start review request scheduler (checks every 60 minutes)
+    ReviewRequestScheduler_1.default.start(60);
     // Auto-reconnect WhatsApp if credentials exist
     const authInfoPath = path_1.default.join(__dirname, '../auth_info');
     if (fs.existsSync(authInfoPath)) {

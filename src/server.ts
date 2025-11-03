@@ -30,6 +30,7 @@ import documentScheduler from './core/DocumentScheduler';
 import noShowScheduler from './core/NoShowScheduler';
 import recurringServiceScheduler from './core/RecurringServiceScheduler';
 import birthdayScheduler from './core/BirthdayScheduler';
+import reviewRequestScheduler from './core/ReviewRequestScheduler';
 import questionnaireRuntimeService from './core/QuestionnaireRuntimeService';
 import { logInfo } from './infrastructure/logger';
 import fs from 'fs';
@@ -175,6 +176,9 @@ const server = app.listen(config.port, config.host, () => {
   
   // Start birthday wishes scheduler (checks daily - 1440 minutes)
   birthdayScheduler.start(1440);
+  
+  // Start review request scheduler (checks every 60 minutes)
+  reviewRequestScheduler.start(60);
   
   // Auto-reconnect WhatsApp if credentials exist
   const authInfoPath = path.join(__dirname, '../auth_info');
