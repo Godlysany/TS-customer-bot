@@ -284,6 +284,7 @@ router.get('/admin/outstanding-balances', auth_1.authMiddleware, async (req, res
         email,
         outstanding_balance_chf,
         payment_allowance_granted,
+        preferred_language,
         created_at
       `)
             .gt('outstanding_balance_chf', 0)
