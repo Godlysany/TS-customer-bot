@@ -21,9 +21,11 @@ import { QuestionnaireService } from '../core/QuestionnaireService';
 import botDiscountService from '../core/BotDiscountService';
 import promotionService from '../core/PromotionService';
 import ttsService from '../core/TTSService';
+import { BotConfigService } from '../core/BotConfigService';
 
 const debounceTimers = new Map();
 const messageBuffers = new Map();
+const botConfigService = new BotConfigService(); // Initialize at module level for reuse
 
 // Store current QR code for frontend display
 let currentQrCode: string | null = null;
@@ -503,18 +505,106 @@ async function handleMessage(msg: WAMessage) {
     let intentConfidence = 1.0; // Default high confidence for automated flows
 
     try {
-      // PRIORITY 0: Check for explicit language change request
+      // PRIORITY 0: Check for language confirmation responses
+      const { data: contactData } = await supabase
+        .from('contacts')
+        .select('pending_language_change, language_confirmed')
+        .eq('id', contact.id)
+        .single();
+      
+      // Check if customer is confirming a pending language change
+      if (contactData?.pending_language_change) {
+        const lowerText = text.toLowerCase();
+        const isConfirmation = /^(yes|ja|oui|si|sì|sim|okay|ok|sure|please|bitte|s'il vous plaît|per favore|por favor|genau|gerne)/i.test(lowerText);
+        const isDenial = /^(no|nein|non|niente|nada|cancel|nicht)/i.test(lowerText);
+        
+        if (isConfirmation) {
+          // Customer confirmed language change
+          await aiService.updateContactLanguage(contact.id, contactData.pending_language_change, true);
+          
+          const languageNames: Record<string, string> = {
+            de: 'Deutsch', en: 'English', fr: 'Français', 
+            it: 'Italiano', es: 'Español', pt: 'Português'
+          };
+          
+          replyText = `Perfect! I'll continue our conversation in ${languageNames[contactData.pending_language_change]}. How can I help you?`;
+          
+          const messageRecord = await messageService.createMessage({
+            conversationId: conversation.id,
+            content: replyText,
+            messageType: 'text',
+            direction: 'outbound',
+            sender: 'bot',
+            approvalStatus: 'approved',
+          });
+          
+          await messageService.updateConversationLastMessage(conversation.id);
+          await sock.sendMessage(sender, { text: replyText });
+          console.log(`✅ Language confirmed and changed to ${contactData.pending_language_change}`);
+          return;
+        } else if (isDenial) {
+          // Customer declined language change - clear pending and stay with default
+          await supabase
+            .from('contacts')
+            .update({ pending_language_change: null })
+            .eq('id', contact.id);
+          
+          const config = await botConfigService.getConfig();
+          const defaultLang = config.default_bot_language || 'de';
+          
+          const cancelMessages: Record<string, string> = {
+            de: 'Kein Problem! Ich bleibe bei der Standardsprache. Wie kann ich Ihnen helfen?',
+            en: 'No problem! I\'ll continue in the default language. How can I help you?',
+            fr: 'Pas de problème! Je continue dans la langue par défaut. Comment puis-je vous aider?',
+            it: 'Nessun problema! Continuerò nella lingua predefinita. Come posso aiutarti?',
+          };
+          
+          replyText = cancelMessages[defaultLang] || cancelMessages['de'];
+          
+          const messageRecord = await messageService.createMessage({
+            conversationId: conversation.id,
+            content: replyText,
+            messageType: 'text',
+            direction: 'outbound',
+            sender: 'bot',
+            approvalStatus: 'approved',
+          });
+          
+          await messageService.updateConversationLastMessage(conversation.id);
+          await sock.sendMessage(sender, { text: replyText });
+          console.log(`✅ Language change declined, staying with default ${defaultLang}`);
+          return;
+        }
+      }
+      
+      // PRIORITY 0.5: Check for explicit language change request (if not already responding to confirmation)
       const languageRequest = await aiService.detectLanguageChangeRequest(text);
       if (languageRequest.languageRequested && languageRequest.confidence > 0.7) {
-        console.log(`🌍 Language change detected: ${languageRequest.languageRequested} (confidence: ${languageRequest.confidence})`);
-        await aiService.updateContactLanguage(contact.id, languageRequest.languageRequested);
+        console.log(`🌍 Language change requested: ${languageRequest.languageRequested} (confidence: ${languageRequest.confidence})`);
+        
+        // Store as pending language change and ask for confirmation
+        await supabase
+          .from('contacts')
+          .update({ pending_language_change: languageRequest.languageRequested })
+          .eq('id', contact.id);
         
         const languageNames: Record<string, string> = {
           de: 'Deutsch', en: 'English', fr: 'Français', 
           it: 'Italiano', es: 'Español', pt: 'Português'
         };
         
-        replyText = `Perfect! I'll continue our conversation in ${languageNames[languageRequest.languageRequested]}. How can I help you?`;
+        // Ask for confirmation in DEFAULT language
+        const config = await botConfigService.getConfig();
+        const defaultLang = config.default_bot_language || 'de';
+        
+        const confirmationMessages: Record<string, string> = {
+          de: `Möchten Sie, dass ich auf ${languageNames[languageRequest.languageRequested]} wechsle?`,
+          en: `Would you like me to switch to ${languageNames[languageRequest.languageRequested]}?`,
+          fr: `Souhaitez-vous que je passe en ${languageNames[languageRequest.languageRequested]}?`,
+          it: `Vuoi che passi a ${languageNames[languageRequest.languageRequested]}?`,
+        };
+        
+        replyText = confirmationMessages[defaultLang] || confirmationMessages['de'];
         
         const messageRecord = await messageService.createMessage({
           conversationId: conversation.id,
@@ -527,7 +617,7 @@ async function handleMessage(msg: WAMessage) {
         
         await messageService.updateConversationLastMessage(conversation.id);
         await sock.sendMessage(sender, { text: replyText });
-        console.log(`✅ Language confirmation sent in ${languageRequest.languageRequested}`);
+        console.log(`✅ Language change confirmation requested for ${languageRequest.languageRequested}`);
         return;
       }
       
@@ -611,8 +701,6 @@ async function handleMessage(msg: WAMessage) {
     }
 
     // Check if human approval is required based on confidence threshold
-    const { BotConfigService } = await import('../core/BotConfigService');
-    const botConfigService = new BotConfigService();
     const botConfig = await botConfigService.getConfig();
     const needsApproval = botConfig.require_approval_low_confidence && 
                           intentConfidence < botConfig.confidence_threshold;

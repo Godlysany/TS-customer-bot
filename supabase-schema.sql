@@ -837,3 +837,60 @@ WHERE actual_start_time IS NULL OR actual_end_time IS NULL;
 -- Last updated: 2025-11-03 23:50:00 UTC
 -- Customer-specific bot toggle (bot_enabled column) + Review Request Scheduler
 
+-- =====================================================
+-- SENTIMENT ANALYSIS & ESCALATION TRACKING
+-- Added: 2025-11-04
+-- Purpose: Track conversation sentiment, frustration, confusion for intelligent escalation
+-- =====================================================
+
+ALTER TABLE conversations
+ADD COLUMN IF NOT EXISTS sentiment_score DECIMAL(3,2) DEFAULT 0.0,
+ADD COLUMN IF NOT EXISTS frustration_level DECIMAL(3,2) DEFAULT 0.0,
+ADD COLUMN IF NOT EXISTS confusion_level DECIMAL(3,2) DEFAULT 0.0,
+ADD COLUMN IF NOT EXISTS satisfaction_level DECIMAL(3,2) DEFAULT 0.5,
+ADD COLUMN IF NOT EXISTS sentiment_trend VARCHAR(20),
+ADD COLUMN IF NOT EXISTS escalation_status VARCHAR(20) DEFAULT 'none',
+ADD COLUMN IF NOT EXISTS escalation_reason TEXT,
+ADD COLUMN IF NOT EXISTS last_sentiment_analysis TIMESTAMPTZ;
+
+-- Add indexes for sentiment-based queries and analytics
+CREATE INDEX IF NOT EXISTS idx_conversations_escalation_status 
+  ON conversations(escalation_status) 
+  WHERE escalation_status IN ('pending', 'escalated');
+
+CREATE INDEX IF NOT EXISTS idx_conversations_high_frustration 
+  ON conversations(frustration_level DESC) 
+  WHERE frustration_level > 0.6;
+
+CREATE INDEX IF NOT EXISTS idx_conversations_high_confusion 
+  ON conversations(confusion_level DESC) 
+  WHERE confusion_level > 0.7;
+
+CREATE INDEX IF NOT EXISTS idx_conversations_sentiment_analysis_time 
+  ON conversations(last_sentiment_analysis) 
+  WHERE last_sentiment_analysis IS NOT NULL;
+
+-- Add comments for documentation
+COMMENT ON COLUMN conversations.sentiment_score IS 'Overall sentiment score from -1 (very negative) to +1 (very positive)';
+COMMENT ON COLUMN conversations.frustration_level IS 'Customer frustration level from 0 (calm) to 1 (very frustrated)';
+COMMENT ON COLUMN conversations.confusion_level IS 'Customer confusion level from 0 (clear) to 1 (very confused)';
+COMMENT ON COLUMN conversations.satisfaction_level IS 'Customer satisfaction level from 0 (unhappy) to 1 (very happy)';
+COMMENT ON COLUMN conversations.sentiment_trend IS 'Sentiment trend over conversation: improving, stable, or declining';
+COMMENT ON COLUMN conversations.escalation_status IS 'Escalation status: none, pending, escalated, resolved';
+COMMENT ON COLUMN conversations.escalation_reason IS 'Reason for escalation (frustration, confusion, booking_failure, etc.)';
+COMMENT ON COLUMN conversations.last_sentiment_analysis IS 'Timestamp of last sentiment analysis';
+
+-- Add language confirmation tracking for explicit confirmation requirement
+ALTER TABLE contacts
+ADD COLUMN IF NOT EXISTS language_confirmed BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS language_confirmation_date TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS pending_language_change VARCHAR(5);
+
+COMMENT ON COLUMN contacts.language_confirmed IS 'Whether customer has explicitly confirmed their preferred language';
+COMMENT ON COLUMN contacts.language_confirmation_date IS 'When customer confirmed their language preference';
+COMMENT ON COLUMN contacts.pending_language_change IS 'Temporary storage for language change requests awaiting customer confirmation';
+
+-- Schema update trigger
+-- Last updated: 2025-11-04 01:00:00 UTC
+-- Sentiment analysis + escalation tracking + language confirmation with pending state
+

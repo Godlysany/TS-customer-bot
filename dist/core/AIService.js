@@ -465,16 +465,27 @@ If NO explicit language change is requested, return: { "language_requested": nul
     }
     /**
      * Update contact's preferred language in database
+     * @param contactId - Contact ID
+     * @param languageCode - Language code (de, en, fr, it, etc.)
+     * @param confirmed - Whether customer has explicitly confirmed this change
      */
-    async updateContactLanguage(contactId, languageCode) {
+    async updateContactLanguage(contactId, languageCode, confirmed = false) {
         try {
+            const updateData = {
+                preferred_language: languageCode,
+                pending_language_change: null, // Clear pending state
+            };
+            if (confirmed) {
+                updateData.language_confirmed = true;
+                updateData.language_confirmation_date = new Date();
+            }
             const { error } = await supabase_1.supabase
                 .from('contacts')
-                .update({ preferred_language: languageCode })
+                .update(updateData)
                 .eq('id', contactId);
             if (error)
                 throw error;
-            console.log(`✅ Updated contact ${contactId} preferred language to: ${languageCode}`);
+            console.log(`✅ Updated contact ${contactId} preferred language to: ${languageCode} (confirmed: ${confirmed})`);
         }
         catch (error) {
             console.error('❌ Failed to update contact language:', error);
