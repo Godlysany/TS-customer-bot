@@ -1,0 +1,97 @@
+  hint: null,
+  message: 'column bookings.cost does not exist'
+Error fetching customer service history: {
+}
+  code: '42703',
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+🤖 Generating GPT reply for conversation d12827ea-400a-46a3-a1df-501825aad9e8
+  details: null,
+Error fetching customer service history: {
+📝 Message history: 28 messages
+⚙️  Tone: professional, Style: concise
+✅ GPT reply generated (202 chars)
+  message: 'column bookings.cost does not exist'
+📋 Loading bot configuration from database...
+✅ Bot configuration loaded successfully
+}
+⚠️ Failed to fetch TTS settings, using defaults: Cannot coerce the result to a single JSON object
+🎯 Intent detected: { intent: 'question', confidence: 0.9, entities: {} }
+🌍 Contact language: de
+✅ Text sent: Entschuldigung für das Missverständnis. Ich habe Ihren Termin am Montag um 9:00 Uhr mit Dr. Weber gebucht. Möchten Sie mir noch Ihre E-Mail-Adresse geben, damit wir Ihnen eine Bestätigung senden können?
+  code: '42703',
+  details: null,
+  hint: null,
+🔍 Extracting CRM data from conversation d12827ea-400a-46a3-a1df-501825aad9e8 (28 messages)
+✅ Extracted 4 customer insights (confidence: 0.9)
+   Insights: {
+  "email": null,
+  "birthdate": null,
+  "preferredTimes": "Monday at 9:00 AM",
+  "preferredStaff": "Dr. Weber",
+  "preferredServices": "Zahn dentahygiene (dental hygiene)",
+  "fearsAnxieties": null,
+  "allergies": null,
+  "physicalLimitations": null,
+  "specialRequests": null,
+  "behavioralNotes": "Prefers communication in German; initially hesitant to provide an email address",
+  "other": null
+}
+   📝 Updating preferred services: adding "Zahn dentahygiene (dental hygiene)"
+   📝 Updating behavioral notes: adding "Prefers communication in German; initially hesitant to provide an email address"
+✅ Updated contact 692aa3ae-d9fb-4006-b0fd-58fd047bfa7c with CRM insights (4 fields)
+Starting Container
+🔑 Auth endpoint: http://0.0.0.0:8080/api/auth/login
+📂 Admin dist exists: true
+📄 Files in admin/dist: [ 'assets', 'index.html', 'version.json', 'vite.svg' ]
+⏰ Starting engagement scheduler (checking every 60 minutes)
+📨 Processing proactive engagement campaigns...
+⏰ Starting recurring appointment scheduler (checking every 1440 minutes)
+📅 Processing recurring appointments...
+⏰ Starting document scheduler (checking every 60 minutes)
+📄 Processing scheduled document deliveries...
+⏰ Starting no-show scheduler (checking every 60 minutes)
+🚫 Processing no-show detection...
+📦 Assets in admin/dist/assets: [ 'app.js', 'index.css' ]
+⏰ Starting reminder scheduler (checking every 5 minutes)
+📨 Processing pending reminders...
+⏰ Starting birthday scheduler (checking every 1440 minutes)
+🎂 Processing birthday wishes...
+📧 Campaign processing complete: 0 sent, 0 failed, 0 questionnaires triggered
+00:42:16 [info]: H1: Rehydrated 0 active questionnaire sessions
+⏰ Starting review request scheduler (checking every 60 minutes)
+⭐ Processing pending review requests...
+📱 No WhatsApp credentials - connect via Settings page
+📄 Post-appointment documents: 0 sent, 0 failed
+📄 Pre-appointment documents: 0 sent, 0 failed
+📅 Google Calendar provider initialized
+⭐ No pending review requests
+📄 Total document processing: 0 sent, 0 failed
+📅 Recurring processing complete: 0 notifications sent, 0 failed
+✅ Google Calendar client initialized
+📅 Found 0 customers due for recurring service reminders
+00:42:15 [info]: 📧 Processing marketing campaigns...
+⏰ Starting recurring service scheduler (checking every 1440 minutes)
+00:42:16 [info]: H1: Questionnaire session rehydration complete
+📅 Processing recurring service reminders...
+📅 Processing 0 active recurring appointments
+📧 Starting marketing campaign scheduler (every 60 minutes)
+✅ Recurring reminders complete: 0 sent, 0 failed
+📨 Reminder processing complete: 0 sent, 0 failed
+🚫 No-show processing complete: 0 detected, 0 recovered, 0 failed
+🎂 No birthdays today
+📋 Found 0 active engagement campaigns
+📨 Engagement processing complete: 0 sent, 0 failed
+✅ Environment variables validated
+🚀 Starting server on 0.0.0.0:8080...
+(node:1) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✅ CRM API server running on 0.0.0.0:8080
+📱 Frontend served from /app/admin/dist
+🔗 Health check: http://0.0.0.0:8080/health
+Stopping Container
+⚠️  SIGTERM received, closing server...
+⏰ Reminder scheduler stopped
+⏰ Engagement scheduler stopped
+⏰ Recurring appointment scheduler stopped
+📧 Marketing campaign scheduler stopped

@@ -174,18 +174,52 @@ class AIService {
                     availabilityContext = `\n\n**CRITICAL RULE:** NEVER invent or make up team member names. Only mention team members if you have been explicitly provided with their names in this context.`;
                 }
             }
+            // SOPHISTICATED SENTIMENT ANALYSIS: Analyze full conversation for escalation detection
+            const sentiment = await this.analyzeConversationSentiment(conversationId, messageHistory, currentMessage);
             // Build dynamic system prompt with business details, fine-tuning, language context, AND customer analytics
             let systemPrompt = await BotConfigService_1.default.buildSystemPrompt(contactLanguage, contactId);
+            // STRICT LANGUAGE ENFORCEMENT: Add explicit language directive based on customer preference
+            const activeLanguage = contactLanguage || config.default_bot_language || 'de';
+            const languageMap = {
+                'de': 'German (Deutsch)',
+                'en': 'English',
+                'fr': 'French (Français)',
+                'it': 'Italian (Italiano)',
+                'es': 'Spanish (Español)',
+                'pt': 'Portuguese (Português)'
+            };
+            const languageName = languageMap[activeLanguage] || 'German (Deutsch)';
+            systemPrompt += `\n\n🌍 **CRITICAL LANGUAGE RULE - HIGHEST PRIORITY:**
+You MUST respond EXCLUSIVELY in ${languageName} language.
+- Customer language preference: ${languageName}
+- Even if customer writes in another language, you MUST reply in ${languageName}
+- If customer says "I don't understand English", respond IN ${languageName} that you will help them
+- NEVER mix languages in your response
+- This is a STRICT requirement - violations are unacceptable
+`;
             // Append availability context to prevent hallucinations
             if (availabilityContext) {
                 systemPrompt += availabilityContext;
             }
+            // ENHANCED CONTEXT: Add sentiment and conversation quality insights
+            if (sentiment.escalationRecommended || sentiment.frustrationLevel > 0.6 || sentiment.confusionLevel > 0.7) {
+                systemPrompt += `\n\n⚠️ **CONVERSATION CONTEXT - ATTENTION REQUIRED:**
+Current Sentiment: ${sentiment.overallSentiment} (score: ${sentiment.sentimentScore})
+Frustration Level: ${(sentiment.frustrationLevel * 100).toFixed(0)}%
+Confusion Level: ${(sentiment.confusionLevel * 100).toFixed(0)}%
+Trend: ${sentiment.sentimentTrend}
+${sentiment.keyIssues.length > 0 ? `Key Issues: ${sentiment.keyIssues.join(', ')}` : ''}
+${sentiment.repeatedConcerns.length > 0 ? `Repeated Concerns: ${sentiment.repeatedConcerns.join(', ')}` : ''}
+
+**ACTION REQUIRED:** Customer needs extra care. Be empathetic, address their concerns directly, and consider offering human assistance.`;
+            }
+            // EXPANDED CONTEXT WINDOW: 30 messages instead of 10 for better understanding
             const messages = [
                 {
                     role: 'system',
                     content: systemPrompt,
                 },
-                ...messageHistory.slice(-10).map(msg => ({
+                ...messageHistory.slice(-30).map(msg => ({
                     role: msg.direction === 'inbound' ? 'user' : 'assistant',
                     content: msg.content,
                 })),
@@ -195,8 +229,31 @@ class AIService {
                 },
             ];
             console.log(`🤖 Generating GPT reply for conversation ${conversationId}`);
-            console.log(`📝 Message history: ${messageHistory.length} messages`);
+            console.log(`📝 Message history: ${messageHistory.length} messages (using last 30 for context)`);
             console.log(`⚙️  Tone: ${config.tone_of_voice}, Style: ${config.response_style}`);
+            console.log(`🌍 Language: ${languageName} (STRICT enforcement enabled)`);
+            console.log(`📊 Sentiment: ${sentiment.overallSentiment} (frustration: ${sentiment.frustrationLevel}, confusion: ${sentiment.confusionLevel})`);
+            // CHECK FOR ESCALATION: Use sophisticated sentiment analysis instead of simple confidence
+            if (sentiment.escalationRecommended) {
+                console.log(`🚨 ESCALATION RECOMMENDED:`, sentiment.escalationReasons);
+                // Mark conversation as requiring human attention
+                try {
+                    await supabase_1.supabase
+                        .from('conversations')
+                        .update({
+                        escalation_status: 'pending',
+                        escalation_reason: sentiment.escalationReasons.join('; '),
+                        sentiment_score: sentiment.sentimentScore,
+                        frustration_level: sentiment.frustrationLevel,
+                        confusion_level: sentiment.confusionLevel,
+                    })
+                        .eq('id', conversationId);
+                }
+                catch (dbError) {
+                    // Graceful degradation if sentiment columns don't exist yet
+                    console.log('ℹ️ Could not save escalation status (columns may not exist yet):', dbError.message);
+                }
+            }
             const response = await openai.chat.completions.create({
                 model: 'gpt-4o',
                 messages,
@@ -204,13 +261,28 @@ class AIService {
                 max_tokens: config.max_response_length,
             });
             const reply = response.choices[0]?.message?.content || config.fallback_message;
-            // Check confidence and escalate if needed (pass intent for context-aware confidence)
+            // LEGACY CONFIDENCE CHECK: Keep for backward compatibility but sentiment analysis is primary
             const confidence = this.estimateConfidence(reply, intent);
             if (config.require_approval_low_confidence && confidence < config.confidence_threshold) {
                 console.log(`⚠️  Low confidence reply (${confidence}), may require approval`);
-                // TODO: Implement approval workflow
             }
-            console.log(`✅ GPT reply generated (${reply.length} chars)`);
+            console.log(`✅ GPT reply generated (${reply.length} chars) - Language: ${languageName}`);
+            // Save sentiment to database for persistence (graceful degradation if columns don't exist)
+            try {
+                await supabase_1.supabase
+                    .from('conversations')
+                    .update({
+                    sentiment_score: sentiment.sentimentScore,
+                    frustration_level: sentiment.frustrationLevel,
+                    confusion_level: sentiment.confusionLevel,
+                    last_sentiment_analysis: new Date(),
+                })
+                    .eq('id', conversationId);
+            }
+            catch (dbError) {
+                // Graceful degradation if sentiment columns don't exist yet
+                console.log('ℹ️ Could not save sentiment data (columns may not exist yet):', dbError.message);
+            }
             return reply;
         }
         catch (error) {
@@ -610,6 +682,114 @@ Respond with JSON only:
         }
         catch (error) {
             console.error('❌ Error updating contact with insights:', error.message);
+        }
+    }
+    /**
+     * Sophisticated sentiment analysis using full conversation history
+     * Detects frustration, confusion, satisfaction trends, and recommends escalation
+     */
+    async analyzeConversationSentiment(conversationId, messageHistory, currentMessage) {
+        try {
+            const openai = await (0, openai_1.default)();
+            // Build full conversation text for analysis
+            const conversationMessages = messageHistory.slice(-20).map((msg, idx) => `[${msg.direction === 'inbound' ? 'CUSTOMER' : 'BOT'}]: ${msg.content}`).join('\n');
+            const fullContext = currentMessage
+                ? `${conversationMessages}\n[CUSTOMER]: ${currentMessage}`
+                : conversationMessages;
+            const sentimentPrompt = `You are an expert sentiment analyst for customer service conversations. Analyze this conversation comprehensively.
+
+**CONVERSATION HISTORY** (last 20 messages):
+${fullContext}
+
+**ANALYSIS REQUIREMENTS**:
+
+1. **Overall Sentiment**: Classify as positive, neutral, negative, frustrated, or confused
+2. **Sentiment Score**: Rate from -1 (very negative) to +1 (very positive)
+3. **Frustration Level**: 0-1 (detect anger, impatience, repeated complaints, escalating tone)
+4. **Confusion Level**: 0-1 (detect misunderstandings, repeated questions, unclear responses, language barriers)
+5. **Satisfaction Level**: 0-1 (detect happiness, gratitude, problem resolution)
+6. **Sentiment Trend**: Is sentiment improving, stable, or declining over the conversation?
+7. **Escalation Recommended**: Should this conversation be escalated to a human?
+8. **Escalation Reasons**: Why should it be escalated? (e.g., "Customer frustrated after 3 booking attempts", "Language barrier causing confusion")
+9. **Key Issues**: What are the main problems or concerns? (e.g., ["Booking confusion", "Payment issue"])
+10. **Repeated Concerns**: What issues keep coming up? (e.g., ["Wants Monday 9am but not available", "Asking about Dr. Weber repeatedly"])
+11. **Conversation Quality**: excellent, good, fair, or poor
+
+**ESCALATION TRIGGERS** (recommend escalation if ANY apply):
+- Customer explicitly frustrated or angry (strong language, capitalization, complaints)
+- Same question/issue repeated 3+ times without resolution
+- Booking process failing repeatedly (2+ failed attempts)
+- Language barrier causing significant confusion
+- Customer requesting human assistance
+- Payment or billing disputes
+- Medical/sensitive information mishandled
+- Bot giving contradictory information
+
+**RESPOND WITH JSON ONLY**:
+{
+  "overall_sentiment": "positive|neutral|negative|frustrated|confused",
+  "sentiment_score": -1 to 1,
+  "frustration_level": 0 to 1,
+  "confusion_level": 0 to 1,
+  "satisfaction_level": 0 to 1,
+  "sentiment_trend": "improving|stable|declining",
+  "escalation_recommended": boolean,
+  "escalation_reasons": ["reason 1", "reason 2"],
+  "key_issues": ["issue 1", "issue 2"],
+  "repeated_concerns": ["concern 1"],
+  "conversation_quality": "excellent|good|fair|poor"
+}`;
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: sentimentPrompt,
+                    },
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.3, // Lower temperature for more consistent analysis
+            });
+            const analysis = JSON.parse(response.choices[0]?.message?.content || '{}');
+            console.log(`📊 SENTIMENT ANALYSIS for conversation ${conversationId}:`, {
+                sentiment: analysis.overall_sentiment,
+                score: analysis.sentiment_score,
+                frustration: analysis.frustration_level,
+                confusion: analysis.confusion_level,
+                trend: analysis.sentiment_trend,
+                shouldEscalate: analysis.escalation_recommended,
+                reasons: analysis.escalation_reasons
+            });
+            return {
+                overallSentiment: analysis.overall_sentiment || 'neutral',
+                sentimentScore: analysis.sentiment_score || 0,
+                frustrationLevel: analysis.frustration_level || 0,
+                confusionLevel: analysis.confusion_level || 0,
+                satisfactionLevel: analysis.satisfaction_level || 0.5,
+                sentimentTrend: analysis.sentiment_trend || 'stable',
+                escalationRecommended: analysis.escalation_recommended || false,
+                escalationReasons: analysis.escalation_reasons || [],
+                keyIssues: analysis.key_issues || [],
+                repeatedConcerns: analysis.repeated_concerns || [],
+                conversationQuality: analysis.conversation_quality || 'good',
+            };
+        }
+        catch (error) {
+            console.error('❌ Sentiment analysis error:', error.message);
+            // Return safe defaults on error
+            return {
+                overallSentiment: 'neutral',
+                sentimentScore: 0,
+                frustrationLevel: 0,
+                confusionLevel: 0,
+                satisfactionLevel: 0.5,
+                sentimentTrend: 'stable',
+                escalationRecommended: false,
+                escalationReasons: [],
+                keyIssues: [],
+                repeatedConcerns: [],
+                conversationQuality: 'fair',
+            };
         }
     }
     /**
