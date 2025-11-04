@@ -18,13 +18,13 @@ router.post('/login', async (req, res) => {
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
             maxAge: 8 * 60 * 60 * 1000, // 8 hours instead of 15 minutes
         });
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
         res.json({ agent });
@@ -60,7 +60,7 @@ router.post('/refresh', async (req, res) => {
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'strict',
             maxAge: 8 * 60 * 60 * 1000, // 8 hours instead of 15 minutes
         });
         res.json({ message: 'Token refreshed' });

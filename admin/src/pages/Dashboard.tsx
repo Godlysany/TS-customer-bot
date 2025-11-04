@@ -198,31 +198,31 @@ export default function Dashboard() {
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Avg Frustration</h3>
               <p className={`text-2xl font-bold ${
-                sentimentStats.averageFrustration >= 0.8 ? 'text-red-600' :
-                sentimentStats.averageFrustration >= 0.5 ? 'text-yellow-600' :
+                (sentimentStats.averageFrustration ?? 0) >= 0.8 ? 'text-red-600' :
+                (sentimentStats.averageFrustration ?? 0) >= 0.5 ? 'text-yellow-600' :
                 'text-green-600'
               }`}>
-                {(sentimentStats.averageFrustration * 100).toFixed(1)}%
+                {((sentimentStats.averageFrustration ?? 0) * 100).toFixed(1)}%
               </p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Avg Confusion</h3>
               <p className={`text-2xl font-bold ${
-                sentimentStats.averageConfusion >= 0.7 ? 'text-red-600' :
-                sentimentStats.averageConfusion >= 0.4 ? 'text-yellow-600' :
+                (sentimentStats.averageConfusion ?? 0) >= 0.7 ? 'text-red-600' :
+                (sentimentStats.averageConfusion ?? 0) >= 0.4 ? 'text-yellow-600' :
                 'text-green-600'
               }`}>
-                {(sentimentStats.averageConfusion * 100).toFixed(1)}%
+                {((sentimentStats.averageConfusion ?? 0) * 100).toFixed(1)}%
               </p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">Escalation Rate</h3>
               <p className={`text-2xl font-bold ${
-                sentimentStats.escalationRate >= 20 ? 'text-red-600' :
-                sentimentStats.escalationRate >= 10 ? 'text-yellow-600' :
+                (sentimentStats.escalationRate ?? 0) >= 20 ? 'text-red-600' :
+                (sentimentStats.escalationRate ?? 0) >= 10 ? 'text-yellow-600' :
                 'text-green-600'
               }`}>
-                {sentimentStats.escalationRate.toFixed(1)}%
+                {(sentimentStats.escalationRate ?? 0).toFixed(1)}%
               </p>
             </div>
             <div>
