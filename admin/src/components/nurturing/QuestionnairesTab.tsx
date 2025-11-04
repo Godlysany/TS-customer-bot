@@ -228,7 +228,7 @@ const QuestionnairesTab = () => {
       response.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       response.contact_phone?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = filterType === 'all' || response.questionnaire_type === filterType;
+    const matchesType = filterType === 'all' || response.trigger_type === filterType;
     
     return matchesSearch && matchesType;
   });
@@ -383,10 +383,12 @@ const QuestionnairesTab = () => {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Types</option>
-                <option value="anamnesis">Anamnesis</option>
-                <option value="feedback">Feedback</option>
-                <option value="custom">Custom</option>
+                <option value="all">All Triggers</option>
+                <option value="manual">Manual</option>
+                <option value="before_booking">Before Booking</option>
+                <option value="after_booking">After Booking</option>
+                <option value="first_contact">First Contact</option>
+                <option value="service_specific">Service-Specific</option>
               </select>
             </div>
           </div>
@@ -442,11 +444,12 @@ const QuestionnairesTab = () => {
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                response.questionnaire_type === 'anamnesis' ? 'bg-blue-100 text-blue-700' :
-                                response.questionnaire_type === 'feedback' ? 'bg-green-100 text-green-700' :
+                                response.trigger_type === 'before_booking' ? 'bg-blue-100 text-blue-700' :
+                                response.trigger_type === 'after_booking' ? 'bg-green-100 text-green-700' :
+                                response.trigger_type === 'service_specific' ? 'bg-purple-100 text-purple-700' :
                                 'bg-gray-100 text-gray-700'
                               }`}>
-                                {response.questionnaire_type}
+                                {response.trigger_type || 'manual'}
                               </span>
                             </td>
                             <td className="px-6 py-4">
@@ -484,11 +487,12 @@ const QuestionnairesTab = () => {
                         </p>
                       </div>
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                        selectedResponse.questionnaire_type === 'anamnesis' ? 'bg-blue-100 text-blue-700' :
-                        selectedResponse.questionnaire_type === 'feedback' ? 'bg-green-100 text-green-700' :
+                        selectedResponse.trigger_type === 'before_booking' ? 'bg-blue-100 text-blue-700' :
+                        selectedResponse.trigger_type === 'after_booking' ? 'bg-green-100 text-green-700' :
+                        selectedResponse.trigger_type === 'service_specific' ? 'bg-purple-100 text-purple-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                        {selectedResponse.questionnaire_type}
+                        {selectedResponse.trigger_type || 'manual'}
                       </span>
                     </div>
 
@@ -571,36 +575,9 @@ const QuestionnairesTab = () => {
                     rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Trigger Type
-                  </label>
-                  <select
-                    value={formData.trigger_type}
-                    onChange={(e) => setFormData({ ...formData, trigger_type: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="manual">Manual</option>
-                    <option value="first_booking">First Booking</option>
-                    <option value="post_booking">Post Booking</option>
-                    <option value="post_service">Post Service</option>
-                    <option value="new_customer">New Customer</option>
-                    <option value="no_show">No-Show</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.active}
-                      onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Active</span>
-                  </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Configure trigger conditions and activation in the <strong>Questionnaire Settings</strong> tab after creating
+                  </p>
                 </div>
               </div>
 

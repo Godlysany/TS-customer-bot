@@ -855,17 +855,27 @@ router.put('/api/questionnaires/:id', auth_1.authMiddleware, (0, auth_1.requireR
             return res.status(400).json({ error: 'Invalid questionnaire ID format' });
         }
         const updates = req.body;
+        // Convert camelCase 'active' to snake_case 'is_active' for database
+        if ('active' in updates) {
+            updates.is_active = updates.active;
+            delete updates.active;
+        }
         const { data, error } = await supabase_1.supabase
             .from('questionnaires')
             .update(updates)
             .eq('id', id)
             .select()
-            .single();
+            .maybeSingle();
         if (error)
             throw error;
+        // Convert is_active back to active for frontend
+        if (data && 'is_active' in data) {
+            data.active = data.is_active;
+        }
         res.json(data);
     }
     catch (error) {
+        console.error('Error updating questionnaire:', error);
         res.status(500).json({ error: error.message });
     }
 });
