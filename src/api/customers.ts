@@ -297,7 +297,10 @@ router.get('/:id/service-history', async (req, res) => {
       .eq('contact_id', id)
       .order('start_time', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Service history query error:', error);
+      throw error;
+    }
 
     // Format the response
     const formattedHistory = (bookings || []).map((booking: any) => ({

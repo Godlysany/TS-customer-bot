@@ -228,14 +228,17 @@ router.get('/api/bookings', async (req, res) => {
         team_members(id, name, color)
       `)
             .order('start_time', { ascending: true });
-        if (error)
+        if (error) {
+            console.error('❌ Bookings query error:', error);
             throw error;
+        }
         // Map to camelCase for frontend compatibility
         const { toCamelCaseArray } = await Promise.resolve().then(() => __importStar(require('../infrastructure/mapper')));
         res.json(toCamelCaseArray(data || []));
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('❌ Error fetching bookings:', error);
+        res.status(500).json({ error: error.message, details: error });
     }
 });
 // Create new booking (with before_booking questionnaire trigger)

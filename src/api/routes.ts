@@ -214,13 +214,17 @@ router.get('/api/bookings', async (req, res) => {
       `)
       .order('start_time', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Bookings query error:', error);
+      throw error;
+    }
     
     // Map to camelCase for frontend compatibility
     const { toCamelCaseArray } = await import('../infrastructure/mapper');
     res.json(toCamelCaseArray(data || []));
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error fetching bookings:', error);
+    res.status(500).json({ error: error.message, details: error });
   }
 });
 
