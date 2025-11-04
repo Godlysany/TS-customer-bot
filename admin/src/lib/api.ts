@@ -299,3 +299,20 @@ export const teamMembersApi = {
   update: (id: string, data: any) => api.put(`/team-members/${id}`, data),
   delete: (id: string) => api.delete(`/team-members/${id}`),
 };
+
+export const businessHoursApi = {
+  getAll: () => api.get('/business-hours'),
+  create: (data: any) => api.post('/business-hours', data),
+  update: (id: string, data: any) => api.put(`/business-hours/${id}`, data),
+  delete: (id: string) => api.delete(`/business-hours/${id}`),
+  replaceAll: (hours: any[]) => api.put('/business-hours', { hours }),
+};
+
+export const teamUnavailabilityApi = {
+  getAll: (teamMemberId?: string) => 
+    api.get('/team-unavailability', { params: { teamMemberId } }),
+  getById: (id: string) => api.get(`/team-unavailability/${id}`),
+  create: (data: any) => api.post('/team-unavailability', data),
+  update: (id: string, data: any) => api.put(`/team-unavailability/${id}`, data),
+  delete: (id: string) => api.delete(`/team-unavailability/${id}`),
+};
