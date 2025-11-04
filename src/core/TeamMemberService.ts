@@ -97,21 +97,69 @@ export class TeamMemberService {
    * Create a new team member
    */
   async create(input: CreateTeamMemberInput): Promise<TeamMember> {
+    // Validate required fields
+    if (!input.name || input.name.trim() === '') {
+      throw new Error('Team member name is required');
+    }
+    if (!input.email || input.email.trim() === '') {
+      throw new Error('Team member email is required');
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(input.email)) {
+      throw new Error('Invalid email format');
+    }
+    
+    // Check if email already exists
+    const { data: existing } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('email', input.email.toLowerCase())
+      .maybeSingle();
+    
+    if (existing) {
+      throw new Error(`A team member with email ${input.email} already exists`);
+    }
+    
+    // Prepare team member data with defaults for required fields
+    const teamMemberData: any = {
+      name: input.name.trim(),
+      email: input.email.toLowerCase().trim(),
+      phone: input.phone || null,
+      role: input.role || null,
+      // calendar_id is required by database - default to 'primary' for Google Calendar
+      calendar_id: input.calendarId || 'primary',
+      availability_schedule: input.availabilitySchedule || {},
+      default_buffer_before_minutes: input.defaultBufferBeforeMinutes || 0,
+      default_buffer_after_minutes: input.defaultBufferAfterMinutes || 0,
+      is_active: true,
+      display_order: 0,
+      // Default color if not provided
+      color: input.color || '#3B82F6',
+      notes: input.notes || null,
+    };
+
     const { data, error } = await supabase
       .from('team_members')
-      .insert(toSnakeCase({
-        ...input,
-        availabilitySchedule: input.availabilitySchedule || {},
-        defaultBufferBeforeMinutes: input.defaultBufferBeforeMinutes || 0,
-        defaultBufferAfterMinutes: input.defaultBufferAfterMinutes || 0,
-        isActive: true,
-        displayOrder: 0,
-      }))
+      .insert(teamMemberData)
       .select()
       .single();
 
     if (error) {
       console.error('Failed to create team member:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === '23505') {
+        throw new Error('A team member with this email already exists');
+      }
+      if (error.code === '23502') {
+        // Missing required field
+        const match = error.message.match(/column "([^"]+)"/);
+        const columnName = match ? match[1] : 'required field';
+        throw new Error(`Missing required field: ${columnName}`);
+      }
+      
       throw new Error(`Failed to create team member: ${error.message}`);
     }
 
