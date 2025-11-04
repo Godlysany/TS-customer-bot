@@ -591,8 +591,8 @@ async function handleMessage(msg: WAMessage) {
             }
           }
         } else {
-          // Pass intent to generateReply for context-aware confidence scoring
-          replyText = await aiService.generateReply(conversation.id, messageHistory, text, intent.intent, conversation.contactId);
+          // Pass intent AND entities to generateReply for context-aware confidence scoring and precision enhancement
+          replyText = await aiService.generateReply(conversation.id, messageHistory, text, intent.intent, conversation.contactId, intent.entities);
           
           // Check and append autonomous discount/promotion offers (for non-booking intents)
           replyText = await checkAndAppendAutonomousOffers(

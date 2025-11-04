@@ -5,7 +5,67 @@ import botConfigService from './BotConfigService';
 import { ExtractedConversationData } from '../types/crm';
 
 export class AIService {
-  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string, intent?: string, contactId?: string): Promise<string> {
+  /**
+   * Testable service detection helper
+   * Extracted for unit testing to prevent regression in hallucination prevention
+   */
+  detectServiceFromMessage(
+    message: string,
+    services: Array<{ id: string; name: string }>,
+    intentEntities?: Record<string, any>
+  ): { service: { id: string; name: string } | null; method: string } {
+    const stopwords = ['service', 'clinic', 'therapy', 'appointment', 'booking', 'treatment', 'care', 'center', 'studio'];
+    let detectionMethod = 'none';
+    
+    // PRECISION ENHANCEMENT: Use intent entities if available (highest priority)
+    if (intentEntities?.service) {
+      const service = services.find(s => 
+        s.name.toLowerCase() === intentEntities.service.toLowerCase()
+      );
+      if (service) {
+        return { service, method: 'intent_entity' };
+      }
+    }
+    
+    // Fallback to message-based detection
+    const lowerMessage = message.toLowerCase();
+    
+    const service = services.find(s => {
+      const serviceName = s.name.toLowerCase();
+      
+      // Exact match (preferred)
+      if (lowerMessage.includes(serviceName)) {
+        detectionMethod = 'exact_match';
+        return true;
+      }
+      
+      // Multi-word match: require at least 2 meaningful words from service name
+      const serviceWords = serviceName.split(' ')
+        .filter((word: string) => word.length > 3 && !stopwords.includes(word));
+      
+      if (serviceWords.length >= 2) {
+        const matchCount = serviceWords.filter((word: string) => lowerMessage.includes(word)).length;
+        if (matchCount >= 2) {
+          detectionMethod = 'multi_word_match';
+          return true;
+        }
+      }
+      
+      // Single unique word match (only if service has one distinctive word)
+      if (serviceWords.length === 1) {
+        if (lowerMessage.includes(serviceWords[0])) {
+          detectionMethod = 'single_word_match';
+          return true;
+        }
+      }
+      
+      return false;
+    });
+    
+    return { service: service || null, method: detectionMethod };
+  }
+
+  async generateReply(conversationId: string, messageHistory: Message[], currentMessage: string, intent?: string, contactId?: string, intentEntities?: Record<string, any>): Promise<string> {
     try {
       const openai = await getOpenAIClient();
       const config = await botConfigService.getConfig();
@@ -32,6 +92,10 @@ export class AIService {
       // HALLUCINATION PREVENTION: Get REAL team member availability for booking requests
       let availabilityContext = '';
       if (intent === 'booking_request' && contactId) {
+        const detectionStartTime = Date.now();
+        let detectionMethod = 'none';
+        let detectionSuccess = false;
+        
         try {
           const { BookingChatHandler } = await import('./BookingChatHandler');
           const bookingHandler = new BookingChatHandler();
@@ -42,37 +106,31 @@ export class AIService {
             .select('id, name')
             .eq('is_active', true);
           
-          // Tightened service detection: exact match or multi-word match
-          const lowerMessage = currentMessage.toLowerCase();
+          // Use extracted testable detection method
+          const detection = this.detectServiceFromMessage(currentMessage, services || [], intentEntities);
+          const serviceMentioned = detection.service;
+          detectionMethod = detection.method;
           
-          // Common stopwords to ignore in fuzzy matching
-          const stopwords = ['service', 'clinic', 'therapy', 'appointment', 'booking', 'treatment', 'care', 'center', 'studio'];
+          if (serviceMentioned && detectionMethod === 'intent_entity') {
+            console.log(`🎯 Service detected via intent entity: ${serviceMentioned.name}`);
+          }
           
-          const serviceMentioned = services?.find(s => {
-            const serviceName = s.name.toLowerCase();
-            
-            // Exact match (preferred)
-            if (lowerMessage.includes(serviceName)) return true;
-            
-            // Multi-word match: require at least 2 meaningful words from service name
-            const serviceWords = serviceName.split(' ')
-              .filter((word: string) => word.length > 3 && !stopwords.includes(word));
-            
-            if (serviceWords.length >= 2) {
-              const matchCount = serviceWords.filter((word: string) => lowerMessage.includes(word)).length;
-              return matchCount >= 2; // Require at least 2 words to match
-            }
-            
-            // Single unique word match (only if service has one distinctive word)
-            if (serviceWords.length === 1) {
-              return lowerMessage.includes(serviceWords[0]);
-            }
-            
-            return false;
-          });
+          const detectionTime = Date.now() - detectionStartTime;
           
           if (serviceMentioned) {
+            detectionSuccess = true;
             const availability = await bookingHandler.getServiceAvailability(serviceMentioned.id);
+            
+            // PRODUCTION LOGGING: Track detection success
+            console.log(`📊 SERVICE DETECTION METRICS:`, {
+              contactId,
+              serviceName: serviceMentioned.name,
+              detectionMethod,
+              detectionTimeMs: detectionTime,
+              hasTeamMembers: availability.hasTeamMembers,
+              teamMemberCount: availability.teamMembers.length,
+              message: currentMessage.substring(0, 100), // First 100 chars for debugging
+            });
             
             if (availability.hasTeamMembers) {
               availabilityContext = `\n\n**FACTUAL TEAM MEMBER DATA (DO NOT INVENT NAMES):**\nAvailable team members for ${availability.serviceName}: ${availability.teamMembers.map(tm => `${tm.name} (${tm.role})`).join(', ')}.\n**CRITICAL:** Only mention these EXACT team member names. Do NOT make up or invent any other names.`;
@@ -80,11 +138,30 @@ export class AIService {
               availabilityContext = `\n\n**IMPORTANT:** No team members are currently assigned to ${availability.serviceName}. Apologize and ask customer to contact us directly.`;
             }
           } else {
+            // PRODUCTION LOGGING: Track detection failure
+            console.log(`⚠️ SERVICE DETECTION FAILED:`, {
+              contactId,
+              intent,
+              detectionTimeMs: detectionTime,
+              message: currentMessage.substring(0, 100),
+              availableServices: services?.map(s => s.name).join(', '),
+            });
+            
             // Fallback: General anti-hallucination instruction when service not detected
             availabilityContext = `\n\n**CRITICAL RULE:** NEVER invent or make up team member names. Only mention team members if you have been explicitly provided with their names in this context.`;
           }
         } catch (error) {
           console.error('⚠️ Failed to fetch team member availability:', error);
+          
+          // PRODUCTION LOGGING: Track errors
+          console.log(`❌ SERVICE DETECTION ERROR:`, {
+            contactId,
+            intent,
+            error: error instanceof Error ? error.message : String(error),
+            detectionMethod,
+            detectionSuccess,
+          });
+          
           // Fallback instruction even on error
           availabilityContext = `\n\n**CRITICAL RULE:** NEVER invent or make up team member names. Only mention team members if you have been explicitly provided with their names in this context.`;
         }
