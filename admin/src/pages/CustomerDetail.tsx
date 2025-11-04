@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { customersApi, nurturingApi } from '../lib/api';
-import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity, DollarSign, Edit, Save, Bot } from 'lucide-react';
+import { customersApi, nurturingApi, analyticsApi } from '../lib/api';
+import { ArrowLeft, Mail, Phone, Calendar, MessageSquare, FileText, TrendingUp, Heart, ClipboardList, User, Clock, Activity, DollarSign, Edit, Save, Bot, AlertTriangle, CheckCircle, Languages } from 'lucide-react';
 import PaymentHistory from '../components/PaymentHistory';
 import toast from 'react-hot-toast';
 
@@ -45,6 +45,15 @@ const CustomerDetail = () => {
     queryKey: ['customer-nurturing-activities', id],
     queryFn: async () => {
       const res = await nurturingApi.getContactActivities(id!, 20);
+      return res.data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: sentimentData } = useQuery({
+    queryKey: ['customer-sentiment', id],
+    queryFn: async () => {
+      const res = await analyticsApi.getSentiment(id!);
       return res.data;
     },
     enabled: !!id,
@@ -189,58 +198,191 @@ const CustomerDetail = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Insights</h2>
             
-            {(() => {
-              const sentimentScore = customer?.analytics?.sentiment_score ?? customer?.sentiment_score;
-              const keywords = customer?.analytics?.keywords ?? customer?.keywords;
-              const upsellPotential = customer?.analytics?.upsell_potential ?? customer?.upsell_potential;
-              const hasSentiment = sentimentScore !== null && sentimentScore !== undefined;
-              const hasKeywords = keywords && keywords.length > 0;
-              const hasUpsell = upsellPotential;
+            {/* Escalation Warning Banner */}
+            {sentimentData && (sentimentData.escalationStatus === 'pending' || sentimentData.escalationStatus === 'escalated') && (
+              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-red-900">Conversation Escalated</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      {sentimentData.escalationReason || 'This conversation has been escalated and requires immediate attention.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-              return (hasSentiment || hasKeywords || hasUpsell) ? (
-                <div className="space-y-6">
-                  {hasSentiment && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Customer Sentiment</p>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        sentimentScore >= 0.3 ? 'bg-green-100 text-green-700' :
-                        sentimentScore >= -0.3 ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+            {/* Sentiment Analytics Section */}
+            {sentimentData ? (
+              <div className="space-y-6">
+                {/* Overall Sentiment Score */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Overall Sentiment</p>
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      sentimentData.sentimentScore >= 0.3 ? 'bg-green-100 text-green-700' :
+                      sentimentData.sentimentScore >= -0.3 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {sentimentData.sentimentScore >= 0.3 ? '😊 Positive' : 
+                       sentimentData.sentimentScore >= -0.3 ? '😐 Neutral' : 
+                       '😞 Negative'}
+                      <span className="ml-2 text-xs opacity-75">({sentimentData.sentimentScore.toFixed(2)})</span>
+                    </span>
+                    {sentimentData.sentimentTrend && sentimentData.sentimentTrend !== 'stable' && (
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        sentimentData.sentimentTrend === 'improving' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                       }`}>
-                        {sentimentScore >= 0.3 ? '😊 Positive' : sentimentScore >= -0.3 ? '😐 Neutral' : '😞 Negative'}
-                        <span className="ml-2 text-xs opacity-75">({sentimentScore.toFixed(2)})</span>
+                        {sentimentData.sentimentTrend === 'improving' ? '↗ Improving' : '↘ Declining'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Frustration & Confusion Levels */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-gray-700">Frustration Level</p>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        sentimentData.frustrationLevel >= 0.8 ? 'bg-red-100 text-red-700' :
+                        sentimentData.frustrationLevel >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {(sentimentData.frustrationLevel * 100).toFixed(0)}%
                       </span>
                     </div>
-                  )}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          sentimentData.frustrationLevel >= 0.8 ? 'bg-red-600' :
+                          sentimentData.frustrationLevel >= 0.5 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${sentimentData.frustrationLevel * 100}%` }}
+                      />
+                    </div>
+                  </div>
 
-                  {hasKeywords && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Common Keywords</p>
-                      <div className="flex flex-wrap gap-2">
-                        {keywords.map((keyword: string, idx: number) => (
-                          <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
-                            {keyword}
-                          </span>
-                        ))}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-gray-700">Confusion Level</p>
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        sentimentData.confusionLevel >= 0.7 ? 'bg-red-100 text-red-700' :
+                        sentimentData.confusionLevel >= 0.4 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {(sentimentData.confusionLevel * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          sentimentData.confusionLevel >= 0.7 ? 'bg-red-600' :
+                          sentimentData.confusionLevel >= 0.4 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                        }`}
+                        style={{ width: `${sentimentData.confusionLevel * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Language Status */}
+                {sentimentData.language && (
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Languages className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-medium text-gray-900">Language Preferences</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-500">Preferred Language</p>
+                        <p className="font-medium text-gray-900">
+                          {sentimentData.language.preferred ? sentimentData.language.preferred.toUpperCase() : 'Not set'}
+                        </p>
                       </div>
+                      <div>
+                        <p className="text-gray-500">Confirmation Status</p>
+                        <div className="flex items-center gap-1">
+                          {sentimentData.language.confirmed ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="font-medium text-green-700">Confirmed</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <span className="font-medium text-gray-600">Not confirmed</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {sentimentData.language.pending && (
+                        <div className="col-span-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                          Pending language change to: {sentimentData.language.pending.toUpperCase()}
+                        </div>
+                      )}
+                      {sentimentData.language.confirmationDate && (
+                        <div className="col-span-2">
+                          <p className="text-gray-500 text-xs">Confirmed on</p>
+                          <p className="text-gray-900 text-xs">
+                            {new Date(sentimentData.language.confirmationDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {hasUpsell && (
-                    <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-green-700">High upsell potential detected</span>
+                {/* Last Analysis Time */}
+                {sentimentData.lastAnalysis && (
+                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Last analyzed: {new Date(sentimentData.lastAnalysis).toLocaleString()}
+                  </div>
+                )}
+
+                {/* Legacy Analytics Data */}
+                {(() => {
+                  const keywords = customer?.analytics?.keywords ?? customer?.keywords;
+                  const upsellPotential = customer?.analytics?.upsell_potential ?? customer?.upsell_potential;
+                  const hasKeywords = keywords && keywords.length > 0;
+                  const hasUpsell = upsellPotential;
+
+                  return (hasKeywords || hasUpsell) ? (
+                    <div className="border-t border-gray-200 pt-6 space-y-4">
+                      {hasKeywords && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">Common Keywords</p>
+                          <div className="flex flex-wrap gap-2">
+                            {keywords.map((keyword: string, idx: number) => (
+                              <span key={idx} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {hasUpsell && (
+                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <TrendingUp className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-green-700">High upsell potential detected</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No analytics data available yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Analytics will appear as the customer interacts with your business</p>
-                </div>
-              );
-            })()}
+                  ) : null;
+                })()}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No analytics data available yet</p>
+                <p className="text-sm text-gray-400 mt-1">Analytics will appear as the customer interacts with your business</p>
+              </div>
+            )}
                 </div>
               )}
 

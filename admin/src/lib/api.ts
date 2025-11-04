@@ -62,6 +62,10 @@ export const analyticsApi = {
     api.get(`/contacts/${contactId}/analytics`),
   refresh: (contactId: string) => 
     api.post(`/contacts/${contactId}/analytics/refresh`),
+  getSentiment: (contactId: string) =>
+    api.get(`/customers/${contactId}/sentiment`),
+  getOverallSentiment: () =>
+    api.get('/analytics/sentiment'),
 };
 
 export const marketingApi = {

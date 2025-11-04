@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, reviewApi } from '../lib/api';
+import { dashboardApi, reviewApi, analyticsApi } from '../lib/api';
 
 type TimeFrame = 'today' | 'week' | 'month' | 'all';
 
@@ -48,8 +48,17 @@ export default function Dashboard() {
     },
   });
 
+  const { data: sentimentStatsResponse } = useQuery({
+    queryKey: ['sentiment-stats'],
+    queryFn: async () => {
+      const response = await analyticsApi.getOverallSentiment();
+      return response.data;
+    },
+  });
+
   const stats = statsResponse;
   const reviewStats = reviewStatsResponse;
+  const sentimentStats = sentimentStatsResponse;
 
   const timeFrameLabels = {
     today: 'Today',
@@ -179,6 +188,72 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Sentiment Analytics */}
+      {sentimentStats && (
+        <div className="bg-white p-6 rounded-lg shadow mb-8">
+          <h2 className="text-lg font-semibold mb-4">Customer Sentiment Analytics</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Avg Frustration</h3>
+              <p className={`text-2xl font-bold ${
+                sentimentStats.averageFrustration >= 0.8 ? 'text-red-600' :
+                sentimentStats.averageFrustration >= 0.5 ? 'text-yellow-600' :
+                'text-green-600'
+              }`}>
+                {(sentimentStats.averageFrustration * 100).toFixed(1)}%
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Avg Confusion</h3>
+              <p className={`text-2xl font-bold ${
+                sentimentStats.averageConfusion >= 0.7 ? 'text-red-600' :
+                sentimentStats.averageConfusion >= 0.4 ? 'text-yellow-600' :
+                'text-green-600'
+              }`}>
+                {(sentimentStats.averageConfusion * 100).toFixed(1)}%
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Escalation Rate</h3>
+              <p className={`text-2xl font-bold ${
+                sentimentStats.escalationRate >= 20 ? 'text-red-600' :
+                sentimentStats.escalationRate >= 10 ? 'text-yellow-600' :
+                'text-green-600'
+              }`}>
+                {sentimentStats.escalationRate.toFixed(1)}%
+              </p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Conversations Tracked</h3>
+              <p className="text-2xl font-bold">{sentimentStats.totalConversations || 0}</p>
+            </div>
+          </div>
+
+          {/* Language Distribution */}
+          {sentimentStats.languageDistribution && Object.keys(sentimentStats.languageDistribution).length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-3">Language Distribution</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(sentimentStats.languageDistribution).map(([lang, count]: [string, any]) => (
+                  <div key={lang} className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 uppercase">{lang}</span>
+                      <span className="text-lg font-bold text-gray-900">{count}</span>
+                    </div>
+                    {sentimentStats.confirmedLanguages && sentimentStats.confirmedLanguages[lang] && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {sentimentStats.confirmedLanguages[lang]} confirmed
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="bg-white p-6 rounded-lg shadow">

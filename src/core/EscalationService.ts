@@ -37,7 +37,56 @@ export class EscalationService {
     agentId?: string;
   }): Promise<EscalationWithDetails[]> {
     try {
-      let query = supabase
+      // Try with sentiment columns first (post-migration)
+      try {
+        let query = supabase
+          .from('escalations')
+          .select(`
+            *,
+            conversation:conversations!inner(
+              id,
+              last_message_at,
+              sentiment_score,
+              frustration_level,
+              confusion_level,
+              sentiment_trend,
+              contact:contacts!inner(
+                id,
+                name,
+                phone_number
+              )
+            ),
+            agent:agents(
+              id,
+              name,
+              email
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        if (filters?.status) {
+          query = query.eq('status', filters.status);
+        }
+
+        if (filters?.agentId) {
+          query = query.eq('agent_id', filters.agentId);
+        }
+
+        const { data, error } = await query;
+
+        if (error && !error.message.includes('column') && !error.code?.startsWith('42')) {
+          throw error;
+        }
+
+        if (data) {
+          return toCamelCaseArray(data) as EscalationWithDetails[];
+        }
+      } catch (err: any) {
+        console.log('ℹ️ Sentiment columns not available, falling back to basic query');
+      }
+
+      // Fallback query without sentiment columns (pre-migration)
+      let fallbackQuery = supabase
         .from('escalations')
         .select(`
           *,
@@ -59,14 +108,14 @@ export class EscalationService {
         .order('created_at', { ascending: false });
 
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        fallbackQuery = fallbackQuery.eq('status', filters.status);
       }
 
       if (filters?.agentId) {
-        query = query.eq('agent_id', filters.agentId);
+        fallbackQuery = fallbackQuery.eq('agent_id', filters.agentId);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await fallbackQuery;
 
       if (error) throw error;
 

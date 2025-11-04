@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { escalationsApi, authApi } from '../../lib/api';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertCircle, User, Clock, CheckCircle2, MessageSquare, ArrowRight } from 'lucide-react';
+import { AlertCircle, User, Clock, CheckCircle2, MessageSquare, ArrowRight, AlertTriangle, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,10 @@ interface Escalation {
     id: string;
     lastMessage: string;
     lastMessageAt: string;
+    sentimentScore?: number;
+    frustrationLevel?: number;
+    confusionLevel?: number;
+    sentimentTrend?: 'improving' | 'declining' | 'stable';
     contact: {
       id: string;
       name: string;
@@ -278,6 +282,32 @@ const ConversationReviews = () => {
 
                   {escalation.reason && (
                     <p className="text-sm text-gray-600 mb-2 line-clamp-2">{escalation.reason}</p>
+                  )}
+
+                  {/* Sentiment Indicators */}
+                  {(escalation.conversation.frustrationLevel !== undefined || escalation.conversation.confusionLevel !== undefined) && (
+                    <div className="flex gap-2 mb-2">
+                      {escalation.conversation.frustrationLevel !== undefined && escalation.conversation.frustrationLevel > 0 && (
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          escalation.conversation.frustrationLevel >= 0.8 ? 'bg-red-100 text-red-700' :
+                          escalation.conversation.frustrationLevel >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          <AlertTriangle className="w-3 h-3" />
+                          Frustration: {(escalation.conversation.frustrationLevel * 100).toFixed(0)}%
+                        </div>
+                      )}
+                      {escalation.conversation.confusionLevel !== undefined && escalation.conversation.confusionLevel > 0 && (
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          escalation.conversation.confusionLevel >= 0.7 ? 'bg-red-100 text-red-700' :
+                          escalation.conversation.confusionLevel >= 0.4 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          <HelpCircle className="w-3 h-3" />
+                          Confusion: {(escalation.conversation.confusionLevel * 100).toFixed(0)}%
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {escalation.conversation.lastMessage && (
