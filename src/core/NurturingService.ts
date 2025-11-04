@@ -167,12 +167,18 @@ export class NurturingService {
   /**
    * Get nurturing activities for a contact
    */
-  async getContactActivities(contactId: string, limit: number = 50): Promise<NurturingActivity[]> {
+  async getContactActivities(contactId: string, limit: number = 50, activityType?: string): Promise<NurturingActivity[]> {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('nurturing_activity_log')
         .select('*')
-        .eq('contact_id', contactId)
+        .eq('contact_id', contactId);
+
+      if (activityType) {
+        query = query.eq('activity_type', activityType);
+      }
+
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -180,6 +186,26 @@ export class NurturingService {
       return (data || []).map(toCamelCase) as NurturingActivity[];
     } catch (error: any) {
       console.error('❌ Error fetching contact activities:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all activities of a specific type (cross-customer query)
+   */
+  async getActivitiesByType(activityType: string, limit: number = 50): Promise<NurturingActivity[]> {
+    try {
+      const { data, error } = await supabase
+        .from('nurturing_activity_log')
+        .select('*, contact:contacts(name, phone_number)')
+        .eq('activity_type', activityType)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return (data || []).map(toCamelCase) as NurturingActivity[];
+    } catch (error: any) {
+      console.error('❌ Error fetching activities by type:', error);
       return [];
     }
   }

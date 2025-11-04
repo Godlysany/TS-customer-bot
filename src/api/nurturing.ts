@@ -72,13 +72,24 @@ router.get('/nurturing/contacts/:contactId/profile', authMiddleware, async (req,
   }
 });
 
-router.get('/nurturing/contacts/:contactId/activities', authMiddleware, async (req, res) => {
+router.get('/nurturing/contacts/:contactIdOrType/activities', authMiddleware, async (req, res) => {
   try {
-    const { contactId } = req.params;
+    const { contactIdOrType } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
+    const activityType = req.query.type as string | undefined;
     
-    const activities = await NurturingService.getContactActivities(contactId, limit);
-    res.json(activities);
+    // Check if this is a UUID (contactId) or an activity type string
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contactIdOrType);
+    
+    if (isUUID) {
+      // Query by contactId
+      const activities = await NurturingService.getContactActivities(contactIdOrType, limit, activityType);
+      res.json(activities);
+    } else {
+      // Query by activity type (global query)
+      const activities = await NurturingService.getActivitiesByType(contactIdOrType, limit);
+      res.json(activities);
+    }
   } catch (error: any) {
     console.error('Error fetching contact activities:', error);
     res.status(500).json({ error: error.message });
