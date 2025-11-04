@@ -894,3 +894,120 @@ COMMENT ON COLUMN contacts.pending_language_change IS 'Temporary storage for lan
 -- Last updated: 2025-11-04 01:00:00 UTC
 -- Sentiment analysis + escalation tracking + language confirmation with pending state
 
+-- =====================================================================
+-- BUSINESS OPENING HOURS & TEAM UNAVAILABILITY SYSTEM
+-- Created: November 4, 2025
+-- Purpose: Bulletproof booking availability system with cascading validation
+-- =====================================================================
+
+-- 1. Create business_opening_hours table for normalized business operating schedule
+CREATE TABLE IF NOT EXISTS business_opening_hours (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  is_closed BOOLEAN DEFAULT false NOT NULL,
+  open_time TIME,
+  close_time TIME,
+  break_start TIME,
+  break_end TIME,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(day_of_week),
+  CHECK (
+    (is_closed = true AND open_time IS NULL AND close_time IS NULL) OR
+    (is_closed = false AND open_time IS NOT NULL AND close_time IS NOT NULL AND open_time < close_time)
+  ),
+  CHECK (
+    (break_start IS NULL AND break_end IS NULL) OR
+    (break_start IS NOT NULL AND break_end IS NOT NULL AND break_start < break_end AND break_start >= open_time AND break_end <= close_time)
+  )
+);
+
+-- Indexes for business_opening_hours
+CREATE INDEX IF NOT EXISTS idx_business_opening_hours_day 
+  ON business_opening_hours(day_of_week);
+
+CREATE INDEX IF NOT EXISTS idx_business_opening_hours_open 
+  ON business_opening_hours(day_of_week, is_closed) 
+  WHERE is_closed = false;
+
+-- Comments
+COMMENT ON TABLE business_opening_hours IS 'Normalized business operating hours schedule (day 0=Sunday, 6=Saturday)';
+COMMENT ON COLUMN business_opening_hours.day_of_week IS 'Day of week: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday';
+COMMENT ON COLUMN business_opening_hours.is_closed IS 'True if business is closed on this day';
+COMMENT ON COLUMN business_opening_hours.open_time IS 'Opening time (24-hour format)';
+COMMENT ON COLUMN business_opening_hours.close_time IS 'Closing time (24-hour format)';
+COMMENT ON COLUMN business_opening_hours.break_start IS 'Break/lunch start time (optional)';
+COMMENT ON COLUMN business_opening_hours.break_end IS 'Break/lunch end time (optional)';
+
+-- Insert default business hours (Monday-Friday 9:00-18:00, closed weekends)
+INSERT INTO business_opening_hours (day_of_week, is_closed, open_time, close_time, notes)
+VALUES 
+  (0, true, NULL, NULL, 'Sunday - Closed'),
+  (1, false, '09:00', '18:00', 'Monday'),
+  (2, false, '09:00', '18:00', 'Tuesday'),
+  (3, false, '09:00', '18:00', 'Wednesday'),
+  (4, false, '09:00', '18:00', 'Thursday'),
+  (5, false, '09:00', '18:00', 'Friday'),
+  (6, true, NULL, NULL, 'Saturday - Closed')
+ON CONFLICT (day_of_week) DO NOTHING;
+
+-- Add updated_at trigger for business_opening_hours
+CREATE TRIGGER update_business_opening_hours_updated_at 
+BEFORE UPDATE ON business_opening_hours 
+FOR EACH ROW 
+EXECUTE FUNCTION update_updated_at_column();
+
+-- 2. Create team_member_unavailability table for holidays, time off, and personal blocks
+CREATE TABLE IF NOT EXISTS team_member_unavailability (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+  start_at TIMESTAMPTZ NOT NULL,
+  end_at TIMESTAMPTZ NOT NULL,
+  reason VARCHAR(100) NOT NULL CHECK (reason IN ('vacation', 'sick_leave', 'training', 'personal', 'emergency', 'other')),
+  scope VARCHAR(20) DEFAULT 'all' CHECK (scope IN ('all', 'partial')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (end_at > start_at)
+);
+
+-- Indexes for team_member_unavailability
+CREATE INDEX IF NOT EXISTS idx_team_unavailability_member 
+  ON team_member_unavailability(team_member_id);
+
+CREATE INDEX IF NOT EXISTS idx_team_unavailability_dates 
+  ON team_member_unavailability(start_at, end_at);
+
+CREATE INDEX IF NOT EXISTS idx_team_unavailability_active 
+  ON team_member_unavailability(team_member_id, start_at, end_at) 
+  WHERE end_at > NOW();
+
+-- Comments
+COMMENT ON TABLE team_member_unavailability IS 'Tracks team member holidays, time off, and unavailability periods';
+COMMENT ON COLUMN team_member_unavailability.reason IS 'Reason for unavailability: vacation, sick_leave, training, personal, emergency, other';
+COMMENT ON COLUMN team_member_unavailability.scope IS 'Scope of unavailability: all (completely unavailable), partial (limited availability)';
+COMMENT ON COLUMN team_member_unavailability.start_at IS 'Start of unavailability period';
+COMMENT ON COLUMN team_member_unavailability.end_at IS 'End of unavailability period';
+
+-- Add updated_at trigger for team_member_unavailability
+CREATE TRIGGER update_team_unavailability_updated_at 
+BEFORE UPDATE ON team_member_unavailability 
+FOR EACH ROW 
+EXECUTE FUNCTION update_updated_at_column();
+
+-- 3. Add always_follow_business_hours flag to services table
+ALTER TABLE services 
+ADD COLUMN IF NOT EXISTS always_follow_business_hours BOOLEAN DEFAULT true;
+
+-- Index for services that enforce business hours
+CREATE INDEX IF NOT EXISTS idx_services_business_hours_enforcement 
+  ON services(always_follow_business_hours) 
+  WHERE always_follow_business_hours = true;
+
+COMMENT ON COLUMN services.always_follow_business_hours IS 'If true, service booking windows are automatically clamped to business_opening_hours (prevents services from being available outside business hours)';
+
+-- Schema update trigger
+-- Last updated: 2025-11-04 23:30:00 UTC
+-- Business opening hours + team unavailability system for bulletproof availability validation
+

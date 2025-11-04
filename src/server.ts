@@ -23,6 +23,8 @@ import teamMemberRoutes from './api/team-member-routes';
 import recurringRemindersRoutes from './api/recurring-reminders';
 import multisessionBookingsRoutes from './api/multisession-bookings';
 import analyticsRoutes from './api/analytics';
+import businessHoursRoutes from './api/business-hours-routes';
+import teamUnavailabilityRoutes from './api/team-unavailability-routes';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
@@ -96,6 +98,8 @@ app.use('/api', teamMemberRoutes);
 app.use('/api/recurring-reminders', recurringRemindersRoutes);
 app.use('/api/multisession-bookings', multisessionBookingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api', businessHoursRoutes);
+app.use('/api', teamUnavailabilityRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');

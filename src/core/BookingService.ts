@@ -10,6 +10,8 @@ import { DocumentService } from './DocumentService';
 import NoShowService from './NoShowService';
 import PaymentService from './PaymentService';
 import botConfigService from './BotConfigService';
+import businessHoursService from './BusinessHoursService';
+import teamUnavailabilityService from './TeamMemberUnavailabilityService';
 
 /**
  * BookingWorkflowContext
@@ -227,6 +229,27 @@ export class BookingService {
 
       if (!isWithinSchedule) {
         throw new Error(`Team member is not available from ${startTimeStr} to ${endTimeStr} on ${dayOfWeek}s`);
+      }
+
+      // CRITICAL: Check for team member unavailability periods (holidays, time off)
+      const unavailabilityConflicts = await teamUnavailabilityService.getConflicts(
+        options.teamMemberId,
+        actualStartTime,
+        actualEndTime
+      );
+
+      if (unavailabilityConflicts.length > 0) {
+        const conflict = unavailabilityConflicts[0];
+        const reasonMap: Record<string, string> = {
+          vacation: 'on vacation',
+          sick_leave: 'on sick leave',
+          training: 'in training',
+          personal: 'taking personal time',
+          emergency: 'unavailable (emergency)',
+          other: 'unavailable',
+        };
+        const reasonText = reasonMap[conflict.reason] || 'unavailable';
+        throw new Error(`Team member is ${reasonText} during this time period. Please choose a different date or time.`);
       }
 
       // CRITICAL: Check for team member conflicts (their existing bookings with buffers)
@@ -669,9 +692,80 @@ export class BookingService {
     const startTime = new Date(event.startTime);
     const endTime = new Date(event.endTime);
 
-    // Check opening hours for both start AND end time
-    await this.checkOpeningHours(startTime, config.opening_hours);
-    await this.checkOpeningHours(endTime, config.opening_hours);
+    // CRITICAL: Fetch service buffers to validate BUFFERED interval (not just appointment time)
+    let bufferBefore = 0;
+    let bufferAfter = 0;
+
+    if (serviceId) {
+      const { data: service } = await supabase
+        .from('services')
+        .select('buffer_time_before, buffer_time_after')
+        .eq('id', serviceId)
+        .single();
+
+      if (service) {
+        bufferBefore = service.buffer_time_before || 0;
+        bufferAfter = service.buffer_time_after || 0;
+      }
+    }
+
+    // Calculate BUFFERED start/end times (actual time slot occupied)
+    const actualStartTime = new Date(startTime);
+    actualStartTime.setMinutes(actualStartTime.getMinutes() - bufferBefore);
+
+    const actualEndTime = new Date(endTime);
+    actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferAfter);
+
+    // CRITICAL: Reject bookings that cross day boundaries (buffers pushing past midnight)
+    if (actualStartTime.getDate() !== actualEndTime.getDate()) {
+      const bufferNote = (bufferBefore > 0 || bufferAfter > 0) 
+        ? ` (with ${bufferBefore}min setup + ${bufferAfter}min cleanup)` 
+        : '';
+      throw new Error(`Your appointment${bufferNote} would cross midnight. Please schedule earlier in the day or choose a shorter appointment.`);
+    }
+
+    // CRITICAL: Check ENTIRE BUFFERED interval falls within business hours
+    // This prevents bookings with buffers from spanning breaks or crossing closing/opening boundaries
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = actualStartTime.getDay();
+    const dayName = dayNames[dayOfWeek];
+    
+    // Get available windows for this day (excludes breaks and closed periods)
+    const availableWindows = await businessHoursService.getAvailableWindows(dayOfWeek);
+    
+    if (availableWindows.length === 0) {
+      throw new Error(`We are closed on ${dayName}. Please choose a different day.`);
+    }
+
+    // Convert BUFFERED booking times to minutes-since-midnight for accurate comparison
+    const actualStartMinutes = actualStartTime.getHours() * 60 + actualStartTime.getMinutes();
+    const actualEndMinutes = actualEndTime.getHours() * 60 + actualEndTime.getMinutes();
+
+    // Check if ENTIRE BUFFERED interval falls within at least one available window
+    const fitsInWindow = availableWindows.some(window => {
+      // Convert window times to minutes-since-midnight
+      const [windowStartHour, windowStartMin] = window.start.split(':').map(Number);
+      const [windowEndHour, windowEndMin] = window.end.split(':').map(Number);
+      const windowStartMinutes = windowStartHour * 60 + windowStartMin;
+      const windowEndMinutes = windowEndHour * 60 + windowEndMin;
+      
+      return actualStartMinutes >= windowStartMinutes && actualEndMinutes <= windowEndMinutes;
+    });
+
+    if (!fitsInWindow) {
+      // Provide helpful error message
+      const bufferNote = (bufferBefore > 0 || bufferAfter > 0) 
+        ? ` (including ${bufferBefore}min setup + ${bufferAfter}min cleanup time)` 
+        : '';
+      
+      if (availableWindows.length === 1) {
+        throw new Error(`Your appointment${bufferNote} must be scheduled within our business hours: ${availableWindows[0].start}-${availableWindows[0].end} on ${dayName}.`);
+      } else {
+        // Multiple windows (has a break)
+        const windowsText = availableWindows.map(w => `${w.start}-${w.end}`).join(' and ');
+        throw new Error(`Your appointment${bufferNote} must fit within our available hours on ${dayName}: ${windowsText}. Please avoid scheduling across our break period.`);
+      }
+    }
     
     // Check emergency blocker slots
     for (const blocker of config.emergency_blocker_slots) {
