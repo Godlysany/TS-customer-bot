@@ -659,6 +659,7 @@ router.post('/api/marketing/filter', async (req, res) => {
 router.post('/api/marketing/campaigns', authMiddleware, requireRole('master', 'operator', 'support'), async (req, res) => {
   try {
     const { name, messageTemplate, filterCriteria, promotionId, questionnaireId, promotionAfterCompletion, scheduledAt, status, createdBy } = req.body;
+    console.log('📧 Creating campaign:', { name, promotionId, questionnaireId, status });
     const campaign = await marketingService.createCampaign(
       name,
       messageTemplate,
@@ -672,6 +673,7 @@ router.post('/api/marketing/campaigns', authMiddleware, requireRole('master', 'o
     );
     res.json(campaign);
   } catch (error: any) {
+    console.error('❌ Campaign creation error:', error);
     res.status(500).json({ error: error.message });
   }
 });

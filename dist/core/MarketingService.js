@@ -115,9 +115,7 @@ class MarketingService {
         }
         // Use provided status or infer from scheduledAt
         const campaignStatus = status || (scheduledAt ? 'scheduled' : 'draft');
-        const { data, error } = await supabase_1.supabase
-            .from('marketing_campaigns')
-            .insert({
+        const insertData = {
             name,
             message_template: messageTemplate,
             filter_criteria: filterCriteria,
@@ -126,9 +124,15 @@ class MarketingService {
             promotion_after_completion: promotionAfterCompletion || false,
             scheduled_at: scheduledAtISO,
             total_recipients: contacts.length,
-            created_by: createdBy,
             status: campaignStatus
-        })
+        };
+        // Only add created_by if provided
+        if (createdBy) {
+            insertData.created_by = createdBy;
+        }
+        const { data, error } = await supabase_1.supabase
+            .from('marketing_campaigns')
+            .insert(insertData)
             .select()
             .single();
         if (error)

@@ -153,20 +153,26 @@ export class MarketingService {
     // Use provided status or infer from scheduledAt
     const campaignStatus = status || (scheduledAt ? 'scheduled' : 'draft');
 
+    const insertData: any = {
+      name,
+      message_template: messageTemplate,
+      filter_criteria: filterCriteria,
+      promotion_id: promotionId || null,
+      questionnaire_id: questionnaireId || null,
+      promotion_after_completion: promotionAfterCompletion || false,
+      scheduled_at: scheduledAtISO,
+      total_recipients: contacts.length,
+      status: campaignStatus
+    };
+
+    // Only add created_by if provided
+    if (createdBy) {
+      insertData.created_by = createdBy;
+    }
+
     const { data, error } = await supabase
       .from('marketing_campaigns')
-      .insert({
-        name,
-        message_template: messageTemplate,
-        filter_criteria: filterCriteria,
-        promotion_id: promotionId || null,
-        questionnaire_id: questionnaireId || null,
-        promotion_after_completion: promotionAfterCompletion || false,
-        scheduled_at: scheduledAtISO,
-        total_recipients: contacts.length,
-        created_by: createdBy,
-        status: campaignStatus
-      })
+      .insert(insertData)
       .select()
       .single();
 

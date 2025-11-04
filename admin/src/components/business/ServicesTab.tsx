@@ -852,13 +852,19 @@ const ServicesTab = () => {
                         </label>
                         <input
                           type="text"
-                          value={(formData.documentKeywords || []).join(', ')}
-                          onChange={(e) => {
+                          value={Array.isArray(formData.documentKeywords) ? formData.documentKeywords.join(', ') : ''}
+                          onBlur={(e) => {
+                            // Only process when user leaves the field
                             const keywords = e.target.value
                               .split(',')
                               .map(k => k.trim())
                               .filter(k => k.length > 0);
                             setFormData({ ...formData, documentKeywords: keywords });
+                          }}
+                          onChange={(e) => {
+                            // Allow free typing, store as temp string
+                            const value = e.target.value;
+                            setFormData({ ...formData, documentKeywords: value as any });
                           }}
                           placeholder="E.g., preparation, guidelines, instructions, what to bring"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
