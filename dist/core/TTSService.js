@@ -14,9 +14,20 @@ class TTSService {
             const { data, error } = await supabase_1.supabase
                 .from('bot_config')
                 .select('tts_reply_mode, tts_provider, tts_voice_id, tts_enabled')
-                .single();
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
             if (error) {
                 console.warn('⚠️ Failed to fetch TTS settings, using defaults:', error.message);
+                return {
+                    ttsReplyMode: 'text_only',
+                    ttsProvider: 'elevenlabs',
+                    ttsVoiceId: null,
+                    ttsEnabled: false,
+                };
+            }
+            if (!data) {
+                console.warn('⚠️ No bot_config row found, using defaults');
                 return {
                     ttsReplyMode: 'text_only',
                     ttsProvider: 'elevenlabs',

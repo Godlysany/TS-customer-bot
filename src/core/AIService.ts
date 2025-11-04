@@ -29,8 +29,44 @@ export class AIService {
         console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
       }
 
+      // HALLUCINATION PREVENTION: Get REAL team member availability for booking requests
+      let availabilityContext = '';
+      if (intent === 'booking_request' && contactId) {
+        try {
+          const { BookingChatHandler } = await import('./BookingChatHandler');
+          const bookingHandler = new BookingChatHandler();
+          
+          // Detect service from message
+          const { data: services } = await supabase
+            .from('services')
+            .select('id, name')
+            .eq('is_active', true);
+          
+          const serviceMentioned = services?.find(s => 
+            currentMessage.toLowerCase().includes(s.name.toLowerCase())
+          );
+          
+          if (serviceMentioned) {
+            const availability = await bookingHandler.getServiceAvailability(serviceMentioned.id);
+            
+            if (availability.hasTeamMembers) {
+              availabilityContext = `\n\n**FACTUAL TEAM MEMBER DATA (DO NOT INVENT NAMES):**\nAvailable team members for ${availability.serviceName}: ${availability.teamMembers.map(tm => `${tm.name} (${tm.role})`).join(', ')}.\n**CRITICAL:** Only mention these EXACT team member names. Do NOT make up or invent any other names.`;
+            } else {
+              availabilityContext = `\n\n**IMPORTANT:** No team members are currently assigned to ${availability.serviceName}. Apologize and ask customer to contact us directly.`;
+            }
+          }
+        } catch (error) {
+          console.error('⚠️ Failed to fetch team member availability:', error);
+        }
+      }
+
       // Build dynamic system prompt with business details, fine-tuning, language context, AND customer analytics
-      const systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage, contactId);
+      let systemPrompt = await botConfigService.buildSystemPrompt(contactLanguage, contactId);
+      
+      // Append availability context to prevent hallucinations
+      if (availabilityContext) {
+        systemPrompt += availabilityContext;
+      }
 
       const messages = [
         {

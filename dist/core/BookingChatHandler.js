@@ -76,6 +76,52 @@ class BookingChatHandler {
         return `${hours}:${minutes}`;
     }
     /**
+     * Get available team members and slots for a service (used by AIService for factual responses)
+     * This prevents AI hallucinations by providing REAL availability data before responding
+     */
+    async getServiceAvailability(serviceId, dateRange) {
+        try {
+            // Get service details
+            const { data: service } = await supabase_1.supabase
+                .from('services')
+                .select('name, duration_minutes')
+                .eq('id', serviceId)
+                .single();
+            // Get team members assigned to this service
+            const { data: teamMembers } = await supabase_1.supabase
+                .from('service_team_members')
+                .select('team_member_id, team_members(id, name, role, is_active)')
+                .eq('service_id', serviceId);
+            if (!teamMembers || teamMembers.length === 0) {
+                return {
+                    teamMembers: [],
+                    hasTeamMembers: false,
+                    serviceName: service?.name || 'service',
+                };
+            }
+            const activeMembers = teamMembers
+                .map((tm) => (0, mapper_1.toCamelCase)(tm.teamMembers))
+                .filter((tm) => tm.isActive);
+            return {
+                teamMembers: activeMembers.map((tm) => ({
+                    id: tm.id,
+                    name: tm.name,
+                    role: tm.role || 'Team Member',
+                })),
+                hasTeamMembers: activeMembers.length > 0,
+                serviceName: service?.name || 'service',
+            };
+        }
+        catch (error) {
+            console.error('Error getting service availability:', error);
+            return {
+                teamMembers: [],
+                hasTeamMembers: false,
+                serviceName: 'service',
+            };
+        }
+    }
+    /**
      * Select optimal team member based on availability, customer history, and load balancing
      */
     async selectOptimalTeamMember(serviceId, startTime, endTime, contactId) {

@@ -125,12 +125,16 @@ class NurturingService {
     /**
      * Get nurturing activities for a contact
      */
-    async getContactActivities(contactId, limit = 50) {
+    async getContactActivities(contactId, limit = 50, activityType) {
         try {
-            const { data, error } = await supabase_1.supabase
+            let query = supabase_1.supabase
                 .from('nurturing_activity_log')
                 .select('*')
-                .eq('contact_id', contactId)
+                .eq('contact_id', contactId);
+            if (activityType) {
+                query = query.eq('activity_type', activityType);
+            }
+            const { data, error } = await query
                 .order('created_at', { ascending: false })
                 .limit(limit);
             if (error)
@@ -139,6 +143,26 @@ class NurturingService {
         }
         catch (error) {
             console.error('❌ Error fetching contact activities:', error);
+            return [];
+        }
+    }
+    /**
+     * Get all activities of a specific type (cross-customer query)
+     */
+    async getActivitiesByType(activityType, limit = 50) {
+        try {
+            const { data, error } = await supabase_1.supabase
+                .from('nurturing_activity_log')
+                .select('*, contact:contacts(name, phone_number)')
+                .eq('activity_type', activityType)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            if (error)
+                throw error;
+            return (data || []).map(mapper_1.toCamelCase);
+        }
+        catch (error) {
+            console.error('❌ Error fetching activities by type:', error);
             return [];
         }
     }
@@ -330,6 +354,16 @@ class NurturingService {
                 updates.nurturing_frequency = preferences.nurturingFrequency;
             if (preferences.botEnabled !== undefined)
                 updates.bot_enabled = preferences.botEnabled;
+            if (preferences.bot_enabled !== undefined)
+                updates.bot_enabled = preferences.bot_enabled;
+            if (preferences.birthdate !== undefined)
+                updates.birthdate = preferences.birthdate;
+            if (preferences.email !== undefined)
+                updates.email = preferences.email;
+            if (preferences.preferredLanguage !== undefined)
+                updates.preferred_language = preferences.preferredLanguage;
+            if (preferences.preferred_language !== undefined)
+                updates.preferred_language = preferences.preferred_language;
             const { error } = await supabase_1.supabase
                 .from('contacts')
                 .update(updates)

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -28,8 +61,38 @@ class AIService {
                 contactLanguage = contact?.preferred_language || null;
                 console.log(`🌍 Contact language: ${contactLanguage || 'not set (using default)'}`);
             }
+            // HALLUCINATION PREVENTION: Get REAL team member availability for booking requests
+            let availabilityContext = '';
+            if (intent === 'booking_request' && contactId) {
+                try {
+                    const { BookingChatHandler } = await Promise.resolve().then(() => __importStar(require('./BookingChatHandler')));
+                    const bookingHandler = new BookingChatHandler();
+                    // Detect service from message
+                    const { data: services } = await supabase_1.supabase
+                        .from('services')
+                        .select('id, name')
+                        .eq('is_active', true);
+                    const serviceMentioned = services?.find(s => currentMessage.toLowerCase().includes(s.name.toLowerCase()));
+                    if (serviceMentioned) {
+                        const availability = await bookingHandler.getServiceAvailability(serviceMentioned.id);
+                        if (availability.hasTeamMembers) {
+                            availabilityContext = `\n\n**FACTUAL TEAM MEMBER DATA (DO NOT INVENT NAMES):**\nAvailable team members for ${availability.serviceName}: ${availability.teamMembers.map(tm => `${tm.name} (${tm.role})`).join(', ')}.\n**CRITICAL:** Only mention these EXACT team member names. Do NOT make up or invent any other names.`;
+                        }
+                        else {
+                            availabilityContext = `\n\n**IMPORTANT:** No team members are currently assigned to ${availability.serviceName}. Apologize and ask customer to contact us directly.`;
+                        }
+                    }
+                }
+                catch (error) {
+                    console.error('⚠️ Failed to fetch team member availability:', error);
+                }
+            }
             // Build dynamic system prompt with business details, fine-tuning, language context, AND customer analytics
-            const systemPrompt = await BotConfigService_1.default.buildSystemPrompt(contactLanguage, contactId);
+            let systemPrompt = await BotConfigService_1.default.buildSystemPrompt(contactLanguage, contactId);
+            // Append availability context to prevent hallucinations
+            if (availabilityContext) {
+                systemPrompt += availabilityContext;
+            }
             const messages = [
                 {
                     role: 'system',

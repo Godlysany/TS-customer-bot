@@ -69,6 +69,60 @@ export class BookingChatHandler {
   }
 
   /**
+   * Get available team members and slots for a service (used by AIService for factual responses)
+   * This prevents AI hallucinations by providing REAL availability data before responding
+   */
+  async getServiceAvailability(serviceId: string, dateRange?: { start: Date; end: Date }): Promise<{
+    teamMembers: Array<{ id: string; name: string; role: string }>;
+    hasTeamMembers: boolean;
+    serviceName: string;
+  }> {
+    try {
+      // Get service details
+      const { data: service } = await supabase
+        .from('services')
+        .select('name, duration_minutes')
+        .eq('id', serviceId)
+        .single();
+
+      // Get team members assigned to this service
+      const { data: teamMembers } = await supabase
+        .from('service_team_members')
+        .select('team_member_id, team_members(id, name, role, is_active)')
+        .eq('service_id', serviceId);
+
+      if (!teamMembers || teamMembers.length === 0) {
+        return {
+          teamMembers: [],
+          hasTeamMembers: false,
+          serviceName: service?.name || 'service',
+        };
+      }
+
+      const activeMembers = teamMembers
+        .map((tm: any) => toCamelCase(tm.teamMembers))
+        .filter((tm: any) => tm.isActive);
+
+      return {
+        teamMembers: activeMembers.map((tm: any) => ({
+          id: tm.id,
+          name: tm.name,
+          role: tm.role || 'Team Member',
+        })),
+        hasTeamMembers: activeMembers.length > 0,
+        serviceName: service?.name || 'service',
+      };
+    } catch (error) {
+      console.error('Error getting service availability:', error);
+      return {
+        teamMembers: [],
+        hasTeamMembers: false,
+        serviceName: 'service',
+      };
+    }
+  }
+
+  /**
    * Select optimal team member based on availability, customer history, and load balancing
    */
   async selectOptimalTeamMember(
