@@ -8,6 +8,8 @@ const TestimonialsTab = () => {
   const queryClient = useQueryClient();
   const [localTemplate, setLocalTemplate] = useState('');
   const [localGoogleTemplate, setLocalGoogleTemplate] = useState('');
+  const [localEnableReviews, setLocalEnableReviews] = useState(false);
+  const [localEnableGoogleReview, setLocalEnableGoogleReview] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hasUnsavedGoogleChanges, setHasUnsavedGoogleChanges] = useState(false);
 
@@ -34,10 +36,14 @@ const TestimonialsTab = () => {
 
   // Initialize local state when settings load
   useEffect(() => {
-    const template = getSetting('review_request_template');
-    const googleTemplate = getSetting('google_review_request_template');
-    if (template && !localTemplate) setLocalTemplate(template);
-    if (googleTemplate && !localGoogleTemplate) setLocalGoogleTemplate(googleTemplate);
+    if (settings) {
+      const template = getSetting('review_request_template');
+      const googleTemplate = getSetting('google_review_request_template');
+      if (template && !localTemplate) setLocalTemplate(template);
+      if (googleTemplate && !localGoogleTemplate) setLocalGoogleTemplate(googleTemplate);
+      setLocalEnableReviews(getSetting('review_request_enabled') === 'true');
+      setLocalEnableGoogleReview(getSetting('enable_google_review_followup') === 'true');
+    }
   }, [settings]);
 
   const updateSettingMutation = useMutation({
@@ -72,9 +78,6 @@ const TestimonialsTab = () => {
     });
   };
 
-  const enableReviews = getSetting('review_request_enabled') === 'true';
-  const enableGoogleReview = getSetting('enable_google_review_followup') === 'true';
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -93,18 +96,22 @@ const TestimonialsTab = () => {
               <p className="text-xs text-gray-500 mt-1">Send automated review requests after appointments</p>
             </div>
             <button
-              onClick={() => handleSettingChange('review_request_enabled', (!enableReviews).toString())}
+              onClick={() => {
+                const newValue = !localEnableReviews;
+                setLocalEnableReviews(newValue);
+                handleSettingChange('review_request_enabled', newValue.toString());
+              }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                enableReviews ? 'bg-blue-600' : 'bg-gray-300'
+                localEnableReviews ? 'bg-blue-600' : 'bg-gray-300'
               }`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                enableReviews ? 'translate-x-6' : 'translate-x-1'
+                localEnableReviews ? 'translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
-          {enableReviews && (
+          {localEnableReviews && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -169,18 +176,22 @@ const TestimonialsTab = () => {
                       <p className="text-xs text-gray-500 mt-1">Uses AI sentiment analysis to detect positive reviews</p>
                     </div>
                     <button
-                      onClick={() => handleSettingChange('enable_google_review_followup', (!enableGoogleReview).toString())}
+                      onClick={() => {
+                        const newValue = !localEnableGoogleReview;
+                        setLocalEnableGoogleReview(newValue);
+                        handleSettingChange('enable_google_review_followup', newValue.toString());
+                      }}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        enableGoogleReview ? 'bg-blue-600' : 'bg-gray-300'
+                        localEnableGoogleReview ? 'bg-blue-600' : 'bg-gray-300'
                       }`}
                     >
                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        enableGoogleReview ? 'translate-x-6' : 'translate-x-1'
+                        localEnableGoogleReview ? 'translate-x-6' : 'translate-x-1'
                       }`} />
                     </button>
                   </div>
 
-                  {enableGoogleReview && (
+                  {localEnableGoogleReview && (
                     <>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 const BirthdayWishesTab = () => {
   const queryClient = useQueryClient();
   const [localTemplate, setLocalTemplate] = useState('');
+  const [localEnableBirthday, setLocalEnableBirthday] = useState(false);
+  const [localEnablePromotion, setLocalEnablePromotion] = useState(false);
+  const [localPromotionId, setLocalPromotionId] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const { data: settings } = useQuery({
@@ -40,14 +43,16 @@ const BirthdayWishesTab = () => {
 
   // Initialize local state when settings load
   useEffect(() => {
-    const template = getSetting('birthday_wish_template');
-    if (template && !localTemplate) {
-      setLocalTemplate(template);
+    if (settings) {
+      const template = getSetting('birthday_wish_template');
+      if (template && !localTemplate) {
+        setLocalTemplate(template);
+      }
+      setLocalEnableBirthday(getSetting('birthday_wish_enabled') === 'true');
+      setLocalEnablePromotion(getSetting('birthday_enable_promotion') === 'true');
+      setLocalPromotionId(getSetting('birthday_promotion_id'));
     }
   }, [settings]);
-
-  const enableBirthday = getSetting('birthday_wish_enabled') === 'true';
-  const enablePromotion = getSetting('birthday_enable_promotion') === 'true';
 
   const { data: promotions } = useQuery({
     queryKey: ['promotions'],
@@ -55,7 +60,7 @@ const BirthdayWishesTab = () => {
       const res = await nurturingApi.getPromotions();
       return res.data;
     },
-    enabled: enablePromotion,
+    enabled: localEnablePromotion,
   });
 
   const updateSettingMutation = useMutation({
@@ -100,18 +105,22 @@ const BirthdayWishesTab = () => {
               <p className="text-xs text-gray-500 mt-1">Send automated birthday messages to customers</p>
             </div>
             <button
-              onClick={() => handleSettingChange('birthday_wish_enabled', (!enableBirthday).toString())}
+              onClick={() => {
+                const newValue = !localEnableBirthday;
+                setLocalEnableBirthday(newValue);
+                handleSettingChange('birthday_wish_enabled', newValue.toString());
+              }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                enableBirthday ? 'bg-blue-600' : 'bg-gray-300'
+                localEnableBirthday ? 'bg-blue-600' : 'bg-gray-300'
               }`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                enableBirthday ? 'translate-x-6' : 'translate-x-1'
+                localEnableBirthday ? 'translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
 
-          {enableBirthday && (
+          {localEnableBirthday && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -150,25 +159,32 @@ const BirthdayWishesTab = () => {
                   <p className="text-xs text-gray-500 mt-1">Attach a special birthday promotion to the message</p>
                 </div>
                 <button
-                  onClick={() => handleSettingChange('birthday_enable_promotion', (!enablePromotion).toString())}
+                  onClick={() => {
+                    const newValue = !localEnablePromotion;
+                    setLocalEnablePromotion(newValue);
+                    handleSettingChange('birthday_enable_promotion', newValue.toString());
+                  }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    enablePromotion ? 'bg-blue-600' : 'bg-gray-300'
+                    localEnablePromotion ? 'bg-blue-600' : 'bg-gray-300'
                   }`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    enablePromotion ? 'translate-x-6' : 'translate-x-1'
+                    localEnablePromotion ? 'translate-x-6' : 'translate-x-1'
                   }`} />
                 </button>
               </div>
 
-              {enablePromotion && (
+              {localEnablePromotion && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select Promotion
                   </label>
                   <select
-                    value={getSetting('birthday_promotion_id')}
-                    onChange={(e) => handleSettingChange('birthday_promotion_id', e.target.value)}
+                    value={localPromotionId}
+                    onChange={(e) => {
+                      setLocalPromotionId(e.target.value);
+                      handleSettingChange('birthday_promotion_id', e.target.value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">No promotion selected</option>
