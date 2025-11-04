@@ -645,7 +645,7 @@ router.get('/tts-settings', async (req, res) => {
     const { data, error } = await supabase
       .from('bot_config')
       .select('tts_reply_mode, tts_provider, tts_voice_id, tts_enabled')
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
 

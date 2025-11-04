@@ -145,8 +145,8 @@ router.post('/agents', authMiddleware, requireRole('master'), async (req, res) =
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    if (!['master', 'support'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be either master or support' });
+    if (!['master', 'support', 'operator'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be master, support, or operator' });
     }
 
     const agent = await agentService.createAgent({ name, email, password, role });
@@ -164,8 +164,8 @@ router.put('/agents/:id', authMiddleware, requireRole('master'), async (req, res
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    if (role && !['master', 'support'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be either master or support' });
+    if (role && !['master', 'support', 'operator'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be master, support, or operator' });
     }
 
     const agent = await agentService.updateAgent(req.params.id, {
