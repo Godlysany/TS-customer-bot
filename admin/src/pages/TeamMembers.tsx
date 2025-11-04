@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { teamMembersApi } from '../lib/api';
 import { Plus, Edit, Trash2, X, Mail, Phone, Calendar, Palette, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import TeamUnavailabilityManager from '../components/team/TeamUnavailabilityManager';
 
 interface TimeSlot {
   start: string;
@@ -532,6 +533,15 @@ const TeamMembers = () => {
                   })}
                 </div>
               </div>
+
+              {editingMember && editingMember.id && (
+                <div className="border-t border-gray-200 pt-6">
+                  <TeamUnavailabilityManager
+                    teamMemberId={editingMember.id}
+                    teamMemberName={editingMember.name}
+                  />
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
                 <button

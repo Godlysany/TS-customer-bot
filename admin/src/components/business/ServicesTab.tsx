@@ -14,6 +14,7 @@ interface Service {
   bufferTimeAfter: number;
   color: string;
   isActive: boolean;
+  alwaysFollowBusinessHours?: boolean;
   requiresPayment: boolean;
   depositAmount: number;
   maxAdvanceBookingDays: number;
@@ -89,6 +90,7 @@ const ServicesTab = () => {
         bufferTimeAfter: 10,
         color: '#3B82F6',
         isActive: true,
+        alwaysFollowBusinessHours: true,
         requiresPayment: false,
         depositAmount: 0,
         maxAdvanceBookingDays: 90,
@@ -439,6 +441,25 @@ const ServicesTab = () => {
                     <label className="text-sm font-medium text-gray-700">
                       Service is Active (available for booking)
                     </label>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.alwaysFollowBusinessHours !== false}
+                      onChange={(e) => setFormData({ ...formData, alwaysFollowBusinessHours: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 mt-0.5"
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Always follow business hours
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        When enabled, appointments for this service can only be booked within the business opening hours configured in Business Details. Prevents bookings during closed periods or break times (e.g., lunch breaks).
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

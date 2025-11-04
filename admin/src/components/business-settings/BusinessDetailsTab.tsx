@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '../../lib/api';
-import { Save, Building2, MapPin, Phone, Mail, Clock, Navigation } from 'lucide-react';
+import { Save, Building2, MapPin, Phone, Mail, Navigation } from 'lucide-react';
 import toast from 'react-hot-toast';
+import OpeningHoursEditor from './OpeningHoursEditor';
 
 const BusinessDetailsTab = () => {
   const queryClient = useQueryClient();
@@ -13,7 +14,6 @@ const BusinessDetailsTab = () => {
     business_email: '',
     business_location: '',
     business_directions: '',
-    opening_hours: '',
   });
 
   const { data: settings } = useQuery({
@@ -38,7 +38,6 @@ const BusinessDetailsTab = () => {
         business_email: getSetting('business_email'),
         business_location: getSetting('business_location'),
         business_directions: getSetting('business_directions'),
-        opening_hours: getSetting('opening_hours'),
       });
     }
   }, [settings]);
@@ -181,33 +180,7 @@ const BusinessDetailsTab = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-blue-600" />
-          Opening Hours
-        </h3>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Business Hours *
-          </label>
-          <textarea
-            value={formData.opening_hours}
-            onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
-            placeholder="Monday-Friday: 09:00-18:00&#10;Saturday: 09:00-14:00&#10;Sunday: Closed"
-            rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Generic business hours information shown to customers. For booking restrictions, configure each service individually in the Booking Configuration tab.
-          </p>
-        </div>
-
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Context Information Only:</strong> These hours are provided to customers as general business information. 
-            To control when specific services can be booked, use the Booking Configuration tab to set booking windows per service.
-          </p>
-        </div>
+        <OpeningHoursEditor />
       </div>
 
       <div className="flex justify-end">
