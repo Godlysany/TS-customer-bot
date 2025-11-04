@@ -165,6 +165,103 @@ router.get('/:id/analytics', async (req, res) => {
   }
 });
 
+// Get customer sentiment data (NEW - gracefully handles missing sentiment columns)
+router.get('/:id/sentiment', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return res.status(400).json({ error: 'Invalid customer ID format' });
+    }
+
+    // Get contact language data (gracefully handle missing columns)
+    let contact: any = null;
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('preferred_language, language_confirmed, language_confirmation_date, pending_language_change')
+        .eq('id', id)
+        .single();
+      
+      if (error && !error.message.includes('column') && !error.code?.startsWith('42')) {
+        // Only throw if it's NOT a missing column error (PostgreSQL code 42xxx)
+        throw error;
+      }
+      contact = data;
+    } catch (err: any) {
+      // Gracefully degrade if language confirmation columns don't exist yet
+      console.log('ℹ️ Language confirmation columns not available yet, using safe defaults');
+      const { data } = await supabase
+        .from('contacts')
+        .select('preferred_language')
+        .eq('id', id)
+        .single();
+      contact = data;
+    }
+
+    // Get latest conversation sentiment data (gracefully handle missing columns)
+    let conversation: any = null;
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('sentiment_score, frustration_level, confusion_level, satisfaction_level, sentiment_trend, escalation_status, escalation_reason, last_sentiment_analysis')
+        .eq('contact_id', id)
+        .order('last_message_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (error && !error.message.includes('column') && !error.code?.startsWith('42')) {
+        // Only throw if it's NOT a missing column error
+        throw error;
+      }
+      conversation = data;
+    } catch (err: any) {
+      // Gracefully degrade if sentiment columns don't exist yet
+      console.log('ℹ️ Sentiment columns not available yet, returning safe defaults');
+    }
+
+    // Return safe defaults for all sentiment fields
+    const response = {
+      sentimentScore: conversation?.sentiment_score || 0,
+      frustrationLevel: conversation?.frustration_level || 0,
+      confusionLevel: conversation?.confusion_level || 0,
+      satisfactionLevel: conversation?.satisfaction_level || 0,
+      sentimentTrend: conversation?.sentiment_trend || 'stable',
+      escalationStatus: conversation?.escalation_status || 'none',
+      escalationReason: conversation?.escalation_reason || null,
+      lastAnalysis: conversation?.last_sentiment_analysis || null,
+      language: {
+        preferred: contact?.preferred_language || null,
+        confirmed: contact?.language_confirmed || false,
+        confirmationDate: contact?.language_confirmation_date || null,
+        pending: contact?.pending_language_change || null,
+      },
+    };
+
+    res.json(response);
+  } catch (error: any) {
+    console.error('Error fetching customer sentiment:', error);
+    // Still return safe defaults instead of 500 error
+    res.json({
+      sentimentScore: 0,
+      frustrationLevel: 0,
+      confusionLevel: 0,
+      satisfactionLevel: 0,
+      sentimentTrend: 'stable',
+      escalationStatus: 'none',
+      escalationReason: null,
+      lastAnalysis: null,
+      language: {
+        preferred: null,
+        confirmed: false,
+        confirmationDate: null,
+        pending: null,
+      },
+    });
+  }
+});
+
 // Get customer service/booking history
 router.get('/:id/service-history', async (req, res) => {
   try {

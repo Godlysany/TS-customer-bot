@@ -588,10 +588,52 @@ async function handleMessage(msg) {
             // Conversation and message are already saved - just return without sending a reply
             return;
         }
-        // Check if human approval is required based on confidence threshold
+        // Check if human approval is required based on confidence threshold OR sentiment
         const botConfig = await botConfigService.getConfig();
-        const needsApproval = botConfig.require_approval_low_confidence &&
-            intentConfidence < botConfig.confidence_threshold;
+        // Get conversation sentiment data for approval decision
+        let sentimentData = null;
+        try {
+            const { data } = await supabase_1.supabase
+                .from('conversations')
+                .select('sentiment_score, frustration_level, confusion_level, escalation_status')
+                .eq('id', conversation.id)
+                .single();
+            sentimentData = data;
+        }
+        catch (err) {
+            console.log('ℹ️ Could not fetch sentiment data (columns may not exist yet)');
+        }
+        // Approval triggers (only if approval system is enabled)
+        let needsApproval = false;
+        let approvalReason = '';
+        if (botConfig.require_approval_low_confidence) {
+            // TRIGGER 1: Low confidence reply
+            if (intentConfidence < botConfig.confidence_threshold) {
+                needsApproval = true;
+                approvalReason = `Low confidence (${(intentConfidence * 100).toFixed(0)}%)`;
+            }
+            // TRIGGER 2: High frustration detected (brand protection)
+            if (sentimentData?.frustration_level && sentimentData.frustration_level >= (botConfig.frustration_approval_threshold || 0.8)) {
+                needsApproval = true;
+                approvalReason = approvalReason
+                    ? `${approvalReason}, High frustration (${(sentimentData.frustration_level * 100).toFixed(0)}%)`
+                    : `High frustration detected (${(sentimentData.frustration_level * 100).toFixed(0)}%)`;
+            }
+            // TRIGGER 3: Very negative sentiment (brand protection)
+            if (sentimentData?.sentiment_score && sentimentData.sentiment_score <= (botConfig.sentiment_approval_threshold || -0.6)) {
+                needsApproval = true;
+                approvalReason = approvalReason
+                    ? `${approvalReason}, Negative sentiment (${sentimentData.sentiment_score.toFixed(2)})`
+                    : `Negative sentiment detected (${sentimentData.sentiment_score.toFixed(2)})`;
+            }
+            // TRIGGER 4: Already escalated conversation
+            if (sentimentData?.escalation_status === 'pending' || sentimentData?.escalation_status === 'escalated') {
+                needsApproval = true;
+                approvalReason = approvalReason
+                    ? `${approvalReason}, Escalated conversation`
+                    : `Conversation escalated - requires human review`;
+            }
+        }
         const messageRecord = await MessageService_1.default.createMessage({
             conversationId: conversation.id,
             content: replyText,
@@ -601,7 +643,7 @@ async function handleMessage(msg) {
             approvalStatus: needsApproval ? 'pending_approval' : 'approved',
         });
         if (needsApproval) {
-            console.log('⏸️  Message created, pending human approval before sending to WhatsApp');
+            console.log(`⏸️  Message requires human approval: ${approvalReason}`);
             await MessageService_1.default.updateConversationLastMessage(conversation.id);
             return;
         }

@@ -65,6 +65,8 @@ interface BotConfig {
   enable_multi_session_booking: boolean;
   confidence_threshold: number;
   require_approval_low_confidence: boolean;
+  frustration_approval_threshold: number; // NEW: Sentiment-based approval trigger
+  sentiment_approval_threshold: number; // NEW: Negative sentiment approval trigger
   max_auto_discount_chf: number;
   fallback_message: string;
   escalate_on_uncertainty: boolean;
@@ -193,6 +195,8 @@ export class BotConfigService {
       enable_multi_session_booking: getSetting('enable_multi_session_booking', true),
       confidence_threshold: getSetting('confidence_threshold', 0.7),
       require_approval_low_confidence: getSetting('require_approval_low_confidence', true),
+      frustration_approval_threshold: getSetting('frustration_approval_threshold', 0.8),
+      sentiment_approval_threshold: getSetting('sentiment_approval_threshold', -0.6),
       max_auto_discount_chf: getSetting('max_auto_discount_chf', 20),
       fallback_message: getSetting('fallback_message', 
         "I'm not entirely sure I understood that correctly. Let me connect you with our team who can help you better."),

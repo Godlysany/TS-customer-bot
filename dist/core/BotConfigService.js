@@ -102,6 +102,8 @@ class BotConfigService {
             enable_multi_session_booking: getSetting('enable_multi_session_booking', true),
             confidence_threshold: getSetting('confidence_threshold', 0.7),
             require_approval_low_confidence: getSetting('require_approval_low_confidence', true),
+            frustration_approval_threshold: getSetting('frustration_approval_threshold', 0.8),
+            sentiment_approval_threshold: getSetting('sentiment_approval_threshold', -0.6),
             max_auto_discount_chf: getSetting('max_auto_discount_chf', 20),
             fallback_message: getSetting('fallback_message', "I'm not entirely sure I understood that correctly. Let me connect you with our team who can help you better."),
             escalate_on_uncertainty: getSetting('escalate_on_uncertainty', true),

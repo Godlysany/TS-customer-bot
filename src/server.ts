@@ -22,6 +22,7 @@ import uploadsRoutes from './api/uploads';
 import teamMemberRoutes from './api/team-member-routes';
 import recurringRemindersRoutes from './api/recurring-reminders';
 import multisessionBookingsRoutes from './api/multisession-bookings';
+import analyticsRoutes from './api/analytics';
 import { reminderScheduler } from './core/ReminderScheduler';
 import { startEngagementScheduler, stopEngagementScheduler } from './core/EngagementScheduler';
 import { startRecurringScheduler, stopRecurringScheduler } from './core/RecurringAppointmentScheduler';
@@ -94,6 +95,7 @@ app.use('/api/uploads', uploadsRoutes);
 app.use('/api', teamMemberRoutes);
 app.use('/api/recurring-reminders', recurringRemindersRoutes);
 app.use('/api/multisession-bookings', multisessionBookingsRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use(routes);
 
 const adminDistPath = path.join(__dirname, '../admin/dist');

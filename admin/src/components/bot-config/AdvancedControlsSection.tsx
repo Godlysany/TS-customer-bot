@@ -19,6 +19,8 @@ const AdvancedControlsSection = () => {
     // Safety Safeguards
     confidence_threshold: 0.7,
     require_approval_low_confidence: true,
+    frustration_approval_threshold: 0.8,
+    sentiment_approval_threshold: -0.6,
     max_auto_discount_chf: 20,
     fallback_message: '',
     escalate_on_uncertainty: true,
@@ -70,6 +72,8 @@ const AdvancedControlsSection = () => {
         
         confidence_threshold: getSetting('confidence_threshold', 0.7),
         require_approval_low_confidence: getSetting('require_approval_low_confidence', true),
+        frustration_approval_threshold: getSetting('frustration_approval_threshold', 0.8),
+        sentiment_approval_threshold: getSetting('sentiment_approval_threshold', -0.6),
         max_auto_discount_chf: getSetting('max_auto_discount_chf', 20),
         fallback_message: getSetting('fallback_message', 
           "I'm not entirely sure I understood that correctly. Let me connect you with our team who can help you better."),
@@ -266,10 +270,65 @@ const AdvancedControlsSection = () => {
             <div>
               <span className="text-sm text-gray-700 font-medium">Require approval for low-confidence responses</span>
               <p className="text-xs text-gray-500">
-                Bot will ask agent to review messages before sending if confidence is low
+                Bot will ask agent to review messages before sending if confidence is low, frustration is high, or sentiment is negative
               </p>
             </div>
           </label>
+
+          {/* Frustration Approval Threshold - Only visible if approval is enabled */}
+          {formData.require_approval_low_confidence && (
+            <div className="ml-6 border-l-2 border-orange-300 pl-4 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Frustration Approval Threshold (Brand Protection)
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={formData.frustration_approval_threshold}
+                    onChange={(e) =>
+                      setFormData({ ...formData, frustration_approval_threshold: parseFloat(e.target.value) })
+                    }
+                    className="flex-1"
+                  />
+                  <span className="font-semibold text-orange-600 min-w-[60px]">
+                    {(formData.frustration_approval_threshold * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Require approval when customer frustration exceeds this level (Default: 80%)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Negative Sentiment Approval Threshold
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="-1"
+                    max="0"
+                    step="0.1"
+                    value={formData.sentiment_approval_threshold}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sentiment_approval_threshold: parseFloat(e.target.value) })
+                    }
+                    className="flex-1"
+                  />
+                  <span className="font-semibold text-red-600 min-w-[60px]">
+                    {formData.sentiment_approval_threshold.toFixed(1)}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Require approval when sentiment score drops below this value (Default: -0.6, Range: -1.0 to 0)
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Escalate on Uncertainty */}
           <label className="flex items-center gap-2">
