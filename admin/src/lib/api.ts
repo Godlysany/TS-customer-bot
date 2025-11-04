@@ -199,6 +199,7 @@ export const customersApi = {
   getTransactions: (id: string) => api.get(`/customers/${id}/transactions`),
   getPaymentEscalations: (id: string) => api.get(`/customers/${id}/payment-escalations`),
   getOutstandingBalances: () => api.get('/customers/admin/outstanding-balances'),
+  getSentiment: (id: string) => api.get(`/customers/${id}/sentiment`),
 };
 
 export const questionnaireResponsesApi = {

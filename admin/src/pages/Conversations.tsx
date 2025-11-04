@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { conversationsApi, messageApprovalApi, authApi, settingsApi } from '../lib/api';
+import { conversationsApi, messageApprovalApi, authApi, settingsApi, customersApi } from '../lib/api';
 import type { Conversation, Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, CheckCircle, User, FileText, Check, X } from 'lucide-react';
+import { Send, CheckCircle, User, FileText, Check, X, TrendingDown, Minus, AlertCircle, HelpCircle, Smile } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -87,6 +87,20 @@ const Conversations = () => {
       return res.data;
     },
     refetchInterval: 10000,
+  });
+
+  // Get current conversation to extract contact ID
+  const currentConversation = conversations?.find((c: Conversation) => c.id === selectedConv);
+
+  const { data: sentimentData } = useQuery({
+    queryKey: ['customer-sentiment', currentConversation?.contactId],
+    queryFn: async () => {
+      if (!currentConversation?.contactId) return null;
+      const res = await customersApi.getSentiment(currentConversation.contactId);
+      return res.data;
+    },
+    enabled: !!currentConversation?.contactId,
+    refetchInterval: 30000, // Refresh every 30s
   });
 
   const isWhatsAppConnected = whatsappStatus?.connected || false;
@@ -179,7 +193,6 @@ const Conversations = () => {
     }
   };
 
-  const currentConversation = conversations?.find((c: Conversation) => c.id === selectedConv);
   const isEscalated = currentConversation?.status === 'escalated';
 
   return (
@@ -241,10 +254,10 @@ const Conversations = () => {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {currentConversation?.contact?.name || currentConversation?.contact?.phone || 'Chat'}
-                    </h3>
-                    <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {currentConversation?.contact?.name || currentConversation?.contact?.phone || 'Chat'}
+                      </h3>
                       <Link
                         to={`/customers/${currentConversation?.contactId}`}
                         className="text-gray-600 hover:text-blue-600 transition-colors"
@@ -252,13 +265,61 @@ const Conversations = () => {
                       >
                         <User className="w-4 h-4" />
                       </Link>
-                      <Link
-                        to="/questionnaires"
-                        className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1.5"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Questionnaires
-                      </Link>
+                    </div>
+                    
+                    {/* Sentiment Analytics Bar */}
+                    <div className="flex items-center gap-3 mt-2">
+                      {/* Overall Sentiment */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
+                        {sentimentData?.sentimentScore !== undefined && sentimentData.sentimentScore >= 0.3 ? (
+                          <Smile className="w-3.5 h-3.5 text-green-600" />
+                        ) : sentimentData?.sentimentScore !== undefined && sentimentData.sentimentScore <= -0.3 ? (
+                          <TrendingDown className="w-3.5 h-3.5 text-red-600" />
+                        ) : (
+                          <Minus className="w-3.5 h-3.5 text-gray-500" />
+                        )}
+                        <span className="text-xs font-medium text-gray-700">
+                          {sentimentData?.sentimentScore !== undefined 
+                            ? sentimentData.sentimentScore >= 0.3 ? 'Positive' : sentimentData.sentimentScore <= -0.3 ? 'Negative' : 'Neutral'
+                            : 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* Frustration Level */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
+                        <AlertCircle className={`w-3.5 h-3.5 ${
+                          sentimentData?.frustrationLevel > 0.6 ? 'text-red-600' :
+                          sentimentData?.frustrationLevel > 0.3 ? 'text-orange-500' : 'text-gray-400'
+                        }`} />
+                        <span className="text-xs font-medium text-gray-700">
+                          Frustration: {sentimentData?.frustrationLevel !== undefined 
+                            ? (sentimentData.frustrationLevel * 100).toFixed(0)+'%'
+                            : 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* Confusion Level */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-gray-200 rounded-lg">
+                        <HelpCircle className={`w-3.5 h-3.5 ${
+                          sentimentData?.confusionLevel > 0.6 ? 'text-purple-600' :
+                          sentimentData?.confusionLevel > 0.3 ? 'text-purple-400' : 'text-gray-400'
+                        }`} />
+                        <span className="text-xs font-medium text-gray-700">
+                          Confusion: {sentimentData?.confusionLevel !== undefined 
+                            ? (sentimentData.confusionLevel * 100).toFixed(0)+'%'
+                            : 'N/A'}
+                        </span>
+                      </div>
+
+                      {/* Escalation Status */}
+                      {sentimentData?.escalationStatus && sentimentData.escalationStatus !== 'none' && (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-lg">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="text-xs font-medium text-amber-700 capitalize">
+                            {sentimentData.escalationStatus.replace('_', ' ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
