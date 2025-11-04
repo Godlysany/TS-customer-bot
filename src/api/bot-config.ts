@@ -522,16 +522,56 @@ router.post('/ai-generate-prompt', async (req, res) => {
     const getOpenAI = (await import('../infrastructure/openai')).default;
     const openai = await getOpenAI();
     
-    const systemPrompt = `You are an expert at writing AI assistant system prompts for customer service bots. 
-Generate a professional, effective business prompt based on the admin's instruction.
-Focus on tone, personality, and customer service best practices.
-Return ONLY the prompt text, no explanations.`;
+    const systemPrompt = `You are an expert at writing Business Fine-Tuning Prompts for sophisticated AI customer service bots.
 
-    const userMessage = `Create a business prompt for our WhatsApp customer service bot based on this instruction:
+CRITICAL: This is a Business Fine-Tuning Prompt that layers on top of a Master System Prompt containing core booking logic, escalation rules, and CRM functionality.
 
+Your job: Generate a structured, professional prompt that defines the bot's PERSONALITY, TONE, CULTURAL NUANCES, and BUSINESS-SPECIFIC BEHAVIOR.
+
+Required Structure (use emojis for visual clarity):
+
+## Rolle & Identität
+🏢 Business Context: (what type of business, location, specialization)
+👤 Role: (how bot introduces itself - receptionist, assistant, etc.)
+🇨🇭 Language: (formal/informal, regional variations, multiple languages)
+😊 Emotional Tone: (empathetic, professional, warm, etc.)
+
+## Kommunikationsstil
+- Bullet points defining communication rules
+- How to handle sensitive topics (e.g., dental anxiety, medical concerns)
+- Cultural considerations (Swiss German vs High German, formality levels)
+- When to be brief vs detailed
+- How to show empathy and understanding
+
+## Sentiment & Escalation Awareness
+- How to respond when detecting frustration or confusion
+- De-escalation strategies specific to this business
+- When to acknowledge customer emotions
+- Phrases to use when customers are upset
+
+## Spezielle Hinweise
+- Industry-specific knowledge or protocols
+- Common customer concerns and how to address them
+- Unique selling points to mention naturally
+- Emergency/urgent case handling
+- Any regulatory or compliance notes
+
+IMPORTANT RULES:
+1. Write in the primary language of the business (detect from instruction)
+2. Use formal "Sie" for German unless explicitly told otherwise
+3. Include specific examples of how to phrase things
+4. Make it actionable - not just "be friendly" but HOW to be friendly
+5. Consider the emotional context of the industry (dentist = anxiety, spa = relaxation)
+6. Include sentiment handling - the bot tracks frustration/confusion, so guide how to respond
+7. NO generic welcome messages - focus on CHARACTER and BEHAVIORAL GUIDELINES
+8. Return ONLY the prompt text, no meta-commentary`;
+
+    const userMessage = `Create a Business Fine-Tuning Prompt for our WhatsApp customer service bot.
+
+Business Context/Instruction:
 ${instruction}
 
-Generate a clear, professional prompt that sets the right tone and behavior.`;
+Generate a comprehensive, structured prompt following the required format. Include emotional intelligence, cultural nuances, and specific behavioral guidelines.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -556,17 +596,31 @@ router.post('/ai-improve-prompt', async (req, res) => {
     const getOpenAI = (await import('../infrastructure/openai')).default;
     const openai = await getOpenAI();
     
-    const systemPrompt = `You are an expert at improving AI assistant system prompts for customer service bots.
-Improve the given prompt based on the admin's feedback while maintaining its core intent.
-Return ONLY the improved prompt text, no explanations.`;
+    const systemPrompt = `You are an expert at improving Business Fine-Tuning Prompts for sophisticated AI customer service bots.
 
-    const userMessage = `Current prompt:
+CONTEXT: The prompt you're improving defines bot personality, tone, and business-specific behavior. It layers on top of a Master System Prompt containing core logic.
+
+Your job: Improve the prompt based on feedback while maintaining:
+- The structured format (Rolle & Identität, Kommunikationsstil, Sentiment & Escalation Awareness, Spezielle Hinweise)
+- Clear, actionable behavioral guidelines (not vague advice)
+- Cultural and linguistic nuances
+- Emotional intelligence and sentiment handling
+- Industry-specific context
+
+IMPORTANT:
+1. Keep the same language as the original prompt
+2. Preserve emoji visual markers for sections
+3. Make improvements specific and actionable
+4. If adding sentiment handling, show HOW to respond to frustration/confusion
+5. Return ONLY the improved prompt text, no explanations or meta-commentary`;
+
+    const userMessage = `Current Business Fine-Tuning Prompt:
 ${currentPrompt}
 
-Improvement instruction:
+Improvement Request:
 ${instruction}
 
-Return the improved version of the prompt.`;
+Return the improved version maintaining structure and actionability.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
