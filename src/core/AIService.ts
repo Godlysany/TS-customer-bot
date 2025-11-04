@@ -36,15 +36,40 @@ export class AIService {
           const { BookingChatHandler } = await import('./BookingChatHandler');
           const bookingHandler = new BookingChatHandler();
           
-          // Detect service from message
+          // Detect service from message or intent entities
           const { data: services } = await supabase
             .from('services')
             .select('id, name')
             .eq('is_active', true);
           
-          const serviceMentioned = services?.find(s => 
-            currentMessage.toLowerCase().includes(s.name.toLowerCase())
-          );
+          // Tightened service detection: exact match or multi-word match
+          const lowerMessage = currentMessage.toLowerCase();
+          
+          // Common stopwords to ignore in fuzzy matching
+          const stopwords = ['service', 'clinic', 'therapy', 'appointment', 'booking', 'treatment', 'care', 'center', 'studio'];
+          
+          const serviceMentioned = services?.find(s => {
+            const serviceName = s.name.toLowerCase();
+            
+            // Exact match (preferred)
+            if (lowerMessage.includes(serviceName)) return true;
+            
+            // Multi-word match: require at least 2 meaningful words from service name
+            const serviceWords = serviceName.split(' ')
+              .filter((word: string) => word.length > 3 && !stopwords.includes(word));
+            
+            if (serviceWords.length >= 2) {
+              const matchCount = serviceWords.filter((word: string) => lowerMessage.includes(word)).length;
+              return matchCount >= 2; // Require at least 2 words to match
+            }
+            
+            // Single unique word match (only if service has one distinctive word)
+            if (serviceWords.length === 1) {
+              return lowerMessage.includes(serviceWords[0]);
+            }
+            
+            return false;
+          });
           
           if (serviceMentioned) {
             const availability = await bookingHandler.getServiceAvailability(serviceMentioned.id);
@@ -54,9 +79,14 @@ export class AIService {
             } else {
               availabilityContext = `\n\n**IMPORTANT:** No team members are currently assigned to ${availability.serviceName}. Apologize and ask customer to contact us directly.`;
             }
+          } else {
+            // Fallback: General anti-hallucination instruction when service not detected
+            availabilityContext = `\n\n**CRITICAL RULE:** NEVER invent or make up team member names. Only mention team members if you have been explicitly provided with their names in this context.`;
           }
         } catch (error) {
           console.error('⚠️ Failed to fetch team member availability:', error);
+          // Fallback instruction even on error
+          availabilityContext = `\n\n**CRITICAL RULE:** NEVER invent or make up team member names. Only mention team members if you have been explicitly provided with their names in this context.`;
         }
       }
 

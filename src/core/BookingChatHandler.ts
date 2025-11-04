@@ -100,7 +100,7 @@ export class BookingChatHandler {
       }
 
       const activeMembers = teamMembers
-        .map((tm: any) => toCamelCase(tm.teamMembers))
+        .map((tm: any) => toCamelCase(tm.team_members))
         .filter((tm: any) => tm.isActive);
 
       return {
