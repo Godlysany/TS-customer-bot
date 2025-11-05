@@ -18,7 +18,7 @@ const Layout = () => {
     { path: '/bookings', label: 'Bookings', icon: Calendar, roles: ['master', 'operator', 'support'], visible: visibility.showBookings },
     { path: '/escalations', label: 'Escalations', icon: AlertCircle, roles: ['master', 'operator', 'support'], visible: true },
     { path: '/customers-management', label: 'Customer Management', icon: UserCog, roles: ['master', 'operator', 'support'], visible: true },
-    { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master'], visible: visibility.showNurturing },
+    { path: '/nurturing', label: 'Nurturing', icon: Heart, roles: ['master', 'operator', 'support'], visible: visibility.showNurturing },
     { path: '/business-settings', label: 'Business Settings', icon: Briefcase, roles: ['master', 'operator'], visible: true },
     { path: '/bot-config', label: 'Bot Configuration', icon: Bot, roles: ['master'], visible: true },
     { path: '/admin', label: 'Admin Management', icon: Shield, roles: ['master'], visible: true },
