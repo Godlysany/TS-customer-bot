@@ -104,14 +104,17 @@ router.post('/prompt-config', async (req, res) => {
   }
 });
 
-// Master Prompt (read-only)
+// Master Prompt (read-only, served as plain text for browser viewing)
 router.get('/master-prompt', async (req, res) => {
   try {
     const fs = await import('fs/promises');
     const path = await import('path');
     const promptPath = path.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
     const content = await fs.readFile(promptPath, 'utf-8');
-    res.json({ content });
+    
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(content);
   } catch (error: any) {
     console.error('Error reading master prompt:', error);
     res.status(500).json({ error: 'Failed to read master prompt' });

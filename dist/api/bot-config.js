@@ -128,14 +128,16 @@ router.post('/prompt-config', async (req, res) => {
         res.status(500).json({ error: 'Failed to save prompt config' });
     }
 });
-// Master Prompt (read-only)
+// Master Prompt (read-only, served as plain text for browser viewing)
 router.get('/master-prompt', async (req, res) => {
     try {
         const fs = await Promise.resolve().then(() => __importStar(require('fs/promises')));
         const path = await Promise.resolve().then(() => __importStar(require('path')));
         const promptPath = path.join(process.cwd(), 'MASTER_SYSTEM_PROMPT.md');
         const content = await fs.readFile(promptPath, 'utf-8');
-        res.json({ content });
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.send(content);
     }
     catch (error) {
         console.error('Error reading master prompt:', error);

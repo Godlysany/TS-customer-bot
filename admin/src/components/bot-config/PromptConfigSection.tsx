@@ -138,7 +138,7 @@ You are an intelligent customer service assistant for {BUSINESS_NAME}, handling 
 For full details, see: MASTER_SYSTEM_PROMPT.md (494 lines)
               `}</pre>
               <a
-                href="/MASTER_SYSTEM_PROMPT.md"
+                href="/api/bot-config/master-prompt"
                 target="_blank"
                 className="text-blue-600 hover:underline text-sm mt-2 inline-block"
               >
