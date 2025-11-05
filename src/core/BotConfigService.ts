@@ -313,10 +313,10 @@ export class BotConfigService {
         .eq('contact_id', contactId)
         .single();
 
-      // Fetch recent bookings
+      // Fetch recent bookings WITH DETAILED INFO (team members, exact times)
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, start_time, status, services(name)')
+        .select('id, start_time, end_time, status, title, services(name), team_members(name, role)')
         .eq('contact_id', contactId)
         .in('status', ['confirmed', 'pending', 'completed'])
         .order('start_time', { ascending: false })
@@ -327,7 +327,7 @@ export class BotConfigService {
       }
 
       let context = '';
-      const MAX_CONTEXT_LENGTH = 2500; // Professional B2B context needs comprehensive customer intelligence
+      const MAX_CONTEXT_LENGTH = 3500; // Increased for detailed booking data
 
       if (analytics) {
         context += `**Customer Sentiment**: ${analytics.sentiment_score >= 0.3 ? 'Positive 😊' : analytics.sentiment_score >= -0.3 ? 'Neutral 😐' : 'Negative 😞'} (Score: ${analytics.sentiment_score?.toFixed(2) || 'N/A'})\n`;
@@ -357,13 +357,41 @@ export class BotConfigService {
       }
 
       if (bookings && bookings.length > 0) {
-        context += `\n**Recent Bookings**:\n`;
+        context += `\n**🔍 VERIFIED BOOKING DATABASE RECORDS (NEVER INVENT OR MODIFY THIS DATA)**:\n`;
+        context += `\n⚠️ CRITICAL: When customer asks about their bookings, appointments, or team members, you MUST ONLY reference the exact data below. DO NOT invent times, team members, or dates.\n\n`;
+        
         // Limit to 3 most recent to avoid token overflow
-        bookings.slice(0, 3).forEach((booking: any) => {
-          const date = new Date(booking.start_time).toLocaleDateString();
+        bookings.slice(0, 3).forEach((booking: any, index: number) => {
+          const startTime = new Date(booking.start_time);
+          const endTime = new Date(booking.end_time);
+          const date = startTime.toLocaleDateString('en-GB', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          });
+          const time = startTime.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false
+          });
+          const endTimeStr = endTime.toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false
+          });
           const service = booking.services?.name || 'Unknown Service';
-          context += `- ${service} on ${date} (${booking.status})\n`;
+          const teamMember = booking.team_members?.name || 'No team member assigned';
+          const teamRole = booking.team_members?.role || '';
+          
+          context += `${index + 1}. **${service}** (${booking.status.toUpperCase()})\n`;
+          context += `   - Date: ${date}\n`;
+          context += `   - Time: ${time} - ${endTimeStr}\n`;
+          context += `   - Team Member: ${teamMember}${teamRole ? ` (${teamRole})` : ''}\n`;
+          context += `   - Booking ID: ${booking.id}\n\n`;
         });
+        
+        context += `\n**VERIFICATION RULE**: If customer asks "when is my booking" or "who is my booking with", you MUST reference the EXACT data above. Do NOT guess, invent, or modify any booking details.\n`;
       }
 
       // Safety: Trim if exceeds max length
