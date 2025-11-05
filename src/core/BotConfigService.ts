@@ -60,6 +60,11 @@ interface BotConfig {
   enable_booking: boolean;
   enable_questionnaires: boolean;
   enable_promotions: boolean;
+  enable_campaigns: boolean;
+  enable_birthday_wishes: boolean;
+  enable_testimonials: boolean;
+  enable_service_documents: boolean;
+  enable_recurring_reminders: boolean;
   enable_payment_links: boolean;
   enable_crm_extraction: boolean;
   enable_multi_session_booking: boolean;
@@ -190,6 +195,11 @@ export class BotConfigService {
       enable_booking: getSetting('enable_booking', true),
       enable_questionnaires: getSetting('enable_questionnaires', true),
       enable_promotions: getSetting('enable_promotions', true),
+      enable_campaigns: getSetting('enable_campaigns', true),
+      enable_birthday_wishes: getSetting('enable_birthday_wishes', true),
+      enable_testimonials: getSetting('enable_testimonials', true),
+      enable_service_documents: getSetting('enable_service_documents', true),
+      enable_recurring_reminders: getSetting('enable_recurring_reminders', true),
       enable_payment_links: getSetting('enable_payment_links', true),
       enable_crm_extraction: getSetting('enable_crm_extraction', true),
       enable_multi_session_booking: getSetting('enable_multi_session_booking', true),
