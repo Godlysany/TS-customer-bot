@@ -233,6 +233,44 @@ ${sentiment.repeatedConcerns.length > 0 ? `Repeated Concerns: ${sentiment.repeat
             console.log(`⚙️  Tone: ${config.tone_of_voice}, Style: ${config.response_style}`);
             console.log(`🌍 Language: ${languageName} (STRICT enforcement enabled)`);
             console.log(`📊 Sentiment: ${sentiment.overallSentiment} (frustration: ${sentiment.frustrationLevel}, confusion: ${sentiment.confusionLevel})`);
+            // PRODUCTION LOGGING: Show exact data submitted to GPT for verification
+            console.log('\n🔍 ========== GPT INPUT DATA VERIFICATION ==========');
+            console.log('📤 CURRENT CUSTOMER MESSAGE:', {
+                message: currentMessage,
+                length: currentMessage.length,
+                intent: intent || 'none detected',
+                contactId: contactId || 'anonymous',
+            });
+            console.log('\n📋 SYSTEM PROMPT SUMMARY:', {
+                totalLength: systemPrompt.length,
+                includesBusinessDetails: systemPrompt.includes('BUSINESS DETAILS'),
+                includesCustomerContext: systemPrompt.includes('CUSTOMER CONTEXT'),
+                includesBookingData: systemPrompt.includes('VERIFIED BOOKING DATABASE RECORDS'),
+                includesTeamMemberData: systemPrompt.includes('FACTUAL TEAM MEMBER DATA'),
+                includesVerificationRules: systemPrompt.includes('VERIFICATION RULE'),
+                languageEnforcement: languageName,
+            });
+            // Extract and log customer context section if present
+            const customerContextMatch = systemPrompt.match(/## CUSTOMER CONTEXT[\s\S]*?(?=\n\n---|\n\n##|$)/);
+            if (customerContextMatch) {
+                console.log('\n👤 CUSTOMER CONTEXT PROVIDED TO GPT:');
+                console.log(customerContextMatch[0].substring(0, 1000)); // First 1000 chars
+                if (customerContextMatch[0].length > 1000) {
+                    console.log(`... (context continues, total ${customerContextMatch[0].length} chars)`);
+                }
+            }
+            else {
+                console.log('\n⚠️  NO CUSTOMER CONTEXT PROVIDED (customer may be new or no booking history)');
+            }
+            console.log('\n📊 MESSAGE PAYLOAD TO GPT:', {
+                model: 'gpt-4o',
+                temperature: 0.7,
+                maxTokens: config.max_response_length,
+                systemPromptLength: systemPrompt.length,
+                conversationHistoryMessages: messageHistory.slice(-30).length,
+                totalMessagesInPayload: messages.length,
+            });
+            console.log('🔍 ========== GPT INPUT VERIFICATION COMPLETE ==========\n');
             // CHECK FOR ESCALATION: Use sophisticated sentiment analysis instead of simple confidence
             if (sentiment.escalationRecommended) {
                 console.log(`🚨 ESCALATION RECOMMENDED:`, sentiment.escalationReasons);
