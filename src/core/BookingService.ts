@@ -142,20 +142,23 @@ export class BookingService {
       }
     }
 
-    // Fetch service buffers if service provided
+    // Fetch service buffers and business hours flag if service provided
     let bufferTimeBefore = 0;
     let bufferTimeAfter = 0;
+    let alwaysFollowBusinessHours = true; // Default to enforcing business hours
 
     if (options?.serviceId) {
       const { data: service } = await supabase
         .from('services')
-        .select('buffer_time_before, buffer_time_after')
+        .select('buffer_time_before, buffer_time_after, always_follow_business_hours')
         .eq('id', options.serviceId)
         .single();
 
       if (service) {
         bufferTimeBefore = service.buffer_time_before || 0;
         bufferTimeAfter = service.buffer_time_after || 0;
+        // Use service flag, default to true if not set
+        alwaysFollowBusinessHours = service.always_follow_business_hours !== false;
       }
     }
 
@@ -167,7 +170,8 @@ export class BookingService {
     actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferTimeAfter);
 
     // Check configuration restrictions (opening hours, emergency blockers, service restrictions)
-    await this.checkConfigurationRestrictions(event, options?.serviceId);
+    // OPTION B: Only enforce business hours if service requires it
+    await this.checkConfigurationRestrictions(event, options?.serviceId, alwaysFollowBusinessHours);
 
     // Check buffered conflicts
     await this.checkBufferedConflicts(
@@ -681,7 +685,11 @@ export class BookingService {
     }
   }
 
-  private async checkConfigurationRestrictions(event: CalendarEvent, serviceId?: string): Promise<void> {
+  private async checkConfigurationRestrictions(
+    event: CalendarEvent, 
+    serviceId?: string, 
+    alwaysFollowBusinessHours: boolean = true
+  ): Promise<void> {
     const config = await botConfigService.getConfig();
 
     // Check if booking feature is enabled
@@ -725,46 +733,51 @@ export class BookingService {
     }
 
     // CRITICAL: Check ENTIRE BUFFERED interval falls within business hours
-    // This prevents bookings with buffers from spanning breaks or crossing closing/opening boundaries
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayOfWeek = actualStartTime.getDay();
-    const dayName = dayNames[dayOfWeek];
-    
-    // Get available windows for this day (excludes breaks and closed periods)
-    const availableWindows = await businessHoursService.getAvailableWindows(dayOfWeek);
-    
-    if (availableWindows.length === 0) {
-      throw new Error(`We are closed on ${dayName}. Please choose a different day.`);
-    }
-
-    // Convert BUFFERED booking times to minutes-since-midnight for accurate comparison
-    const actualStartMinutes = actualStartTime.getHours() * 60 + actualStartTime.getMinutes();
-    const actualEndMinutes = actualEndTime.getHours() * 60 + actualEndTime.getMinutes();
-
-    // Check if ENTIRE BUFFERED interval falls within at least one available window
-    const fitsInWindow = availableWindows.some(window => {
-      // Convert window times to minutes-since-midnight
-      const [windowStartHour, windowStartMin] = window.start.split(':').map(Number);
-      const [windowEndHour, windowEndMin] = window.end.split(':').map(Number);
-      const windowStartMinutes = windowStartHour * 60 + windowStartMin;
-      const windowEndMinutes = windowEndHour * 60 + windowEndMin;
+    // OPTION B: Only enforce if service requires it (alwaysFollowBusinessHours=true)
+    // This allows team members to work outside business hours or during breaks if service permits
+    if (alwaysFollowBusinessHours) {
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayOfWeek = actualStartTime.getDay();
+      const dayName = dayNames[dayOfWeek];
       
-      return actualStartMinutes >= windowStartMinutes && actualEndMinutes <= windowEndMinutes;
-    });
-
-    if (!fitsInWindow) {
-      // Provide helpful error message
-      const bufferNote = (bufferBefore > 0 || bufferAfter > 0) 
-        ? ` (including ${bufferBefore}min setup + ${bufferAfter}min cleanup time)` 
-        : '';
+      // Get available windows for this day (excludes breaks and closed periods)
+      const availableWindows = await businessHoursService.getAvailableWindows(dayOfWeek);
       
-      if (availableWindows.length === 1) {
-        throw new Error(`Your appointment${bufferNote} must be scheduled within our business hours: ${availableWindows[0].start}-${availableWindows[0].end} on ${dayName}.`);
-      } else {
-        // Multiple windows (has a break)
-        const windowsText = availableWindows.map(w => `${w.start}-${w.end}`).join(' and ');
-        throw new Error(`Your appointment${bufferNote} must fit within our available hours on ${dayName}: ${windowsText}. Please avoid scheduling across our break period.`);
+      if (availableWindows.length === 0) {
+        throw new Error(`We are closed on ${dayName}. Please choose a different day.`);
       }
+
+      // Convert BUFFERED booking times to minutes-since-midnight for accurate comparison
+      const actualStartMinutes = actualStartTime.getHours() * 60 + actualStartTime.getMinutes();
+      const actualEndMinutes = actualEndTime.getHours() * 60 + actualEndTime.getMinutes();
+
+      // Check if ENTIRE BUFFERED interval falls within at least one available window
+      const fitsInWindow = availableWindows.some(window => {
+        // Convert window times to minutes-since-midnight
+        const [windowStartHour, windowStartMin] = window.start.split(':').map(Number);
+        const [windowEndHour, windowEndMin] = window.end.split(':').map(Number);
+        const windowStartMinutes = windowStartHour * 60 + windowStartMin;
+        const windowEndMinutes = windowEndHour * 60 + windowEndMin;
+        
+        return actualStartMinutes >= windowStartMinutes && actualEndMinutes <= windowEndMinutes;
+      });
+
+      if (!fitsInWindow) {
+        // Provide helpful error message
+        const bufferNote = (bufferBefore > 0 || bufferAfter > 0) 
+          ? ` (including ${bufferBefore}min setup + ${bufferAfter}min cleanup time)` 
+          : '';
+        
+        if (availableWindows.length === 1) {
+          throw new Error(`Your appointment${bufferNote} must be scheduled within our business hours: ${availableWindows[0].start}-${availableWindows[0].end} on ${dayName}.`);
+        } else {
+          // Multiple windows (has a break)
+          const windowsText = availableWindows.map(w => `${w.start}-${w.end}`).join(' and ');
+          throw new Error(`Your appointment${bufferNote} must fit within our available hours on ${dayName}: ${windowsText}. Please avoid scheduling across our break period.`);
+        }
+      }
+    } else {
+      console.log('⏭️  Skipping business hours validation - service allows flexible scheduling');
     }
     
     // Check emergency blocker slots
