@@ -313,15 +313,72 @@ export class BookingService {
       throw new Error('Calendar provider not initialized');
     }
 
+    // PRODUCTION LOGGING: Complete booking creation context for transparency
+    console.log('📅 ========== BOOKING CREATION STARTED ==========');
+    console.log('📋 BOOKING CONTEXT:', {
+      contactId: context.contactId,
+      contactName: context.contactName,
+      contactEmail: context.contactEmail,
+      conversationId: context.conversationId,
+      serviceId: context.serviceId,
+      teamMemberId: context.teamMemberId,
+      sessionInfo: context.sessionGroupId ? {
+        sessionGroupId: context.sessionGroupId,
+        sessionNumber: context.sessionNumber,
+        totalSessions: context.totalSessions,
+      } : null,
+    });
+    
+    console.log('📅 EVENT DETAILS:', {
+      title: context.event.title,
+      description: context.event.description,
+      startTime: context.event.startTime.toISOString(),
+      endTime: context.event.endTime.toISOString(),
+      duration: `${(context.event.endTime.getTime() - context.event.startTime.getTime()) / 60000} minutes`,
+      attendees: context.event.attendees,
+    });
+    
+    console.log('⏰ BUFFER & TIMING:', {
+      bufferBefore: context.bufferTimeBefore,
+      bufferAfter: context.bufferTimeAfter,
+      actualStartTime: context.actualStartTime.toISOString(),
+      actualEndTime: context.actualEndTime.toISOString(),
+      totalBlockedDuration: `${(context.actualEndTime.getTime() - context.actualStartTime.getTime()) / 60000} minutes`,
+    });
+    
+    if (context.teamMemberId) {
+      console.log('👤 TEAM MEMBER ASSIGNMENT:', {
+        teamMemberId: context.teamMemberId,
+        calendarId: context.teamMemberCalendarId || 'default',
+      });
+    }
+    
+    if (context.discountCode || context.promoVoucher) {
+      console.log('💰 DISCOUNTS APPLIED:', {
+        discountCode: context.discountCode,
+        discountAmount: context.discountAmount,
+        promoVoucher: context.promoVoucher,
+      });
+    }
+
     // Create calendar event (with team member's calendar ID if specified)
     const calendarEvent = {
       ...context.event,
       calendarId: context.teamMemberCalendarId,
     };
     
+    console.log('🗓️  INJECTING TO CALENDAR:', {
+      calendarId: context.teamMemberCalendarId || 'primary',
+      eventTitle: calendarEvent.title,
+      startTime: calendarEvent.startTime.toISOString(),
+      endTime: calendarEvent.endTime.toISOString(),
+    });
+    
     const calendarEventId = await this.calendarProvider.createEvent(calendarEvent);
+    console.log('✅ Calendar event created:', calendarEventId);
 
     // Insert booking into database with all metadata
+    console.log('💾 PERSISTING TO DATABASE...');
     const { data, error } = await supabase
       .from('bookings')
       .insert(toSnakeCase({
@@ -351,6 +408,13 @@ export class BookingService {
       .single();
 
     if (error) throw error;
+    
+    console.log('✅ Booking persisted to database:', {
+      bookingId: data.id,
+      status: data.status,
+      calendarEventId: data.calendar_event_id,
+    });
+    console.log('📅 ========== BOOKING CREATION COMPLETE ==========\n');
     
     return toCamelCase(data) as Booking;
   }
