@@ -261,10 +261,10 @@ export class NurturingService {
   async getBirthdayContactsToday(): Promise<any[]> {
     try {
       const today = new Date();
-      const month = today.getMonth() + 1;
-      const day = today.getDate();
+      const todayMonth = today.getMonth() + 1; // 1-12
+      const todayDay = today.getDate(); // 1-31
 
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('contacts')
         .select('*')
         .not('birthdate', 'is', null)
@@ -275,9 +275,11 @@ export class NurturingService {
       // Filter by matching month and day, and exclude already messaged this year
       const thisYear = today.getFullYear();
       return (data || []).filter(contact => {
+        // Parse birthdate as local calendar date (avoid UTC timezone shift)
+        const [year, month, day] = contact.birthdate.split('-').map(Number);
+        
         // Check if birthdate matches today's month and day
-        const birthdate = new Date(contact.birthdate);
-        if (birthdate.getMonth() + 1 !== month || birthdate.getDate() !== day) {
+        if (month !== todayMonth || day !== todayDay) {
           return false;
         }
         
@@ -288,6 +290,59 @@ export class NurturingService {
       });
     } catch (error: any) {
       console.error('❌ Error fetching birthday contacts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get contacts with upcoming birthdays in the next N days
+   */
+  async getUpcomingBirthdays(days: number = 30): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, name, phone_number, email, birthdate, opt_out_birthday_wishes')
+        .not('birthdate', 'is', null)
+        .eq('opt_out_birthday_wishes', false);
+
+      if (error) throw error;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const upcomingContacts = (data || [])
+        .map(contact => {
+          // Parse birthdate as local calendar date (avoid UTC timezone shift)
+          const [year, month, day] = contact.birthdate.split('-').map(Number);
+          const birthMonth = month; // 1-12
+          const birthDay = day; // 1-31
+          
+          // Calculate next birthday this year
+          const thisYear = today.getFullYear();
+          const birthdayThisYear = new Date(thisYear, birthMonth - 1, birthDay);
+          birthdayThisYear.setHours(0, 0, 0, 0);
+          
+          // If birthday already passed this year, calculate for next year
+          const nextBirthday = birthdayThisYear < today 
+            ? new Date(thisYear + 1, birthMonth - 1, birthDay)
+            : birthdayThisYear;
+
+          // Calculate days until birthday
+          const msPerDay = 1000 * 60 * 60 * 24;
+          const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / msPerDay);
+
+          return {
+            ...contact,
+            nextBirthday,
+            daysUntil,
+          };
+        })
+        .filter(contact => contact.daysUntil >= 0 && contact.daysUntil <= days)
+        .sort((a, b) => a.daysUntil - b.daysUntil);
+
+      return upcomingContacts;
+    } catch (error: any) {
+      console.error('❌ Error fetching upcoming birthdays:', error);
       return [];
     }
   }

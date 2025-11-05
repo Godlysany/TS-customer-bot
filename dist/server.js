@@ -61,6 +61,8 @@ const team_member_routes_1 = __importDefault(require("./api/team-member-routes")
 const recurring_reminders_1 = __importDefault(require("./api/recurring-reminders"));
 const multisession_bookings_1 = __importDefault(require("./api/multisession-bookings"));
 const analytics_1 = __importDefault(require("./api/analytics"));
+const business_hours_routes_1 = __importDefault(require("./api/business-hours-routes"));
+const team_unavailability_routes_1 = __importDefault(require("./api/team-unavailability-routes"));
 const ReminderScheduler_1 = require("./core/ReminderScheduler");
 const EngagementScheduler_1 = require("./core/EngagementScheduler");
 const RecurringAppointmentScheduler_1 = require("./core/RecurringAppointmentScheduler");
@@ -124,6 +126,8 @@ app.use('/api', team_member_routes_1.default);
 app.use('/api/recurring-reminders', recurring_reminders_1.default);
 app.use('/api/multisession-bookings', multisession_bookings_1.default);
 app.use('/api/analytics', analytics_1.default);
+app.use('/api', business_hours_routes_1.default);
+app.use('/api', team_unavailability_routes_1.default);
 app.use(routes_1.default);
 const adminDistPath = path_1.default.join(__dirname, '../admin/dist');
 // Serve static files with no-cache headers to prevent Railway CDN caching

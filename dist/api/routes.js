@@ -449,14 +449,88 @@ router.post('/api/bookings/manual', auth_1.authMiddleware, async (req, res) => {
                 throw convError;
             conversationId = newConv.id;
         }
-        // Get service details
+        // Get service details INCLUDING BUFFERS (critical for availability validation)
         const { data: service, error: serviceError } = await supabase_1.supabase
             .from('services')
-            .select('name, duration_minutes')
+            .select('name, duration_minutes, buffer_time_before, buffer_time_after')
             .eq('id', serviceId)
             .single();
-        if (serviceError)
+        if (serviceError) {
+            if (serviceError.code === 'PGRST116') {
+                throw new Error('Service not found');
+            }
             throw serviceError;
+        }
+        // CRITICAL: Calculate buffered times (must match BookingService.validateAndPrepare logic)
+        const bufferTimeBefore = service.buffer_time_before || 0;
+        const bufferTimeAfter = service.buffer_time_after || 0;
+        const requestedStart = new Date(startTime);
+        const requestedEnd = new Date(endTime);
+        // Apply service buffers to get actual booking window
+        const actualStartTime = new Date(requestedStart);
+        actualStartTime.setMinutes(actualStartTime.getMinutes() - bufferTimeBefore);
+        const actualEndTime = new Date(requestedEnd);
+        actualEndTime.setMinutes(actualEndTime.getMinutes() + bufferTimeAfter);
+        // CRITICAL: If no team member specified, intelligently select one
+        let selectedTeamMemberId = teamMemberId;
+        if (!selectedTeamMemberId) {
+            // Get all team members assigned to this service with their buffers
+            const { data: assignedMembers, error: membersError } = await supabase_1.supabase
+                .from('service_team_members')
+                .select('team_member:team_members(id, name, is_active, availability_schedule, default_buffer_before_minutes, default_buffer_after_minutes)')
+                .eq('service_id', serviceId);
+            if (membersError)
+                throw membersError;
+            // Filter to active team members only
+            const activeMembers = assignedMembers
+                ?.map((m) => m.team_member)
+                .filter((tm) => tm && tm.is_active) || [];
+            if (activeMembers.length === 0) {
+                throw new Error('No active team members are assigned to this service. Please assign team members in the Services tab before creating bookings.');
+            }
+            // Check which team members are available at the BUFFERED time
+            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const dayOfWeek = dayNames[actualStartTime.getDay()];
+            // Use buffered times for availability check
+            const startHours = String(actualStartTime.getHours()).padStart(2, '0');
+            const startMinutes = String(actualStartTime.getMinutes()).padStart(2, '0');
+            const startTimeStr = `${startHours}:${startMinutes}`;
+            const endHours = String(actualEndTime.getHours()).padStart(2, '0');
+            const endMinutes = String(actualEndTime.getMinutes()).padStart(2, '0');
+            const endTimeStr = `${endHours}:${endMinutes}`;
+            // Find available team members (checking availability with buffered times)
+            const availableMembers = activeMembers.filter((tm) => {
+                const schedule = tm.availability_schedule?.[dayOfWeek] || [];
+                if (schedule.length === 0)
+                    return false;
+                // CRITICAL: Entire buffered booking must fall within at least one availability window
+                return schedule.some((window) => {
+                    return startTimeStr >= window.start && endTimeStr <= window.end;
+                });
+            });
+            if (availableMembers.length === 0) {
+                throw new Error(`No team members are available at ${startTimeStr}-${endTimeStr} on ${dayOfWeek}s (including ${bufferTimeBefore}min before + ${bufferTimeAfter}min after buffers). Please choose a different time or adjust team member availability.`);
+            }
+            // Check for booking conflicts using BUFFERED times (actual_start_time/actual_end_time)
+            for (const member of availableMembers) {
+                const { data: conflicts } = await supabase_1.supabase
+                    .from('bookings')
+                    .select('id, title')
+                    .eq('team_member_id', member.id)
+                    .in('status', ['confirmed', 'pending'])
+                    .lt('actual_start_time', actualEndTime.toISOString())
+                    .gt('actual_end_time', actualStartTime.toISOString());
+                // If no conflicts, select this team member
+                if (!conflicts || conflicts.length === 0) {
+                    selectedTeamMemberId = member.id;
+                    console.log(`✅ Auto-selected available team member: ${member.name} (${member.id}) - checked with buffers (${bufferTimeBefore}m before, ${bufferTimeAfter}m after)`);
+                    break;
+                }
+            }
+            if (!selectedTeamMemberId) {
+                throw new Error('All team members assigned to this service are booked at the requested time (including buffer periods). Please choose a different time.');
+            }
+        }
         // Create the booking using BookingService
         const event = {
             title: service.name,
@@ -465,7 +539,7 @@ router.post('/api/bookings/manual', auth_1.authMiddleware, async (req, res) => {
         };
         const booking = await BookingService_1.default.createBooking(contactId, conversationId, event, {
             serviceId,
-            teamMemberId: teamMemberId || undefined,
+            teamMemberId: selectedTeamMemberId,
         });
         res.json({ booking });
     }

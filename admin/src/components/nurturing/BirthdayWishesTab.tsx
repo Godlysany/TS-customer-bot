@@ -222,20 +222,26 @@ const BirthdayWishesTab = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {birthdayContacts.map((contact: any) => (
-                  <tr key={contact.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{contact.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{contact.phone_number}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {new Date(contact.birthdate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                        {contact.daysUntil} days
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {birthdayContacts.map((contact: any) => {
+                  // Parse birthdate as local calendar date (avoid UTC timezone shift)
+                  const [year, month, day] = contact.birthdate.split('-').map(Number);
+                  const birthDate = new Date(year, month - 1, day);
+                  
+                  return (
+                    <tr key={contact.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{contact.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{contact.phone_number}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {birthDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                          {contact.daysUntil} days
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

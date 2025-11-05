@@ -119,7 +119,7 @@ router.put('/nurturing/contacts/:contactId/preferences', auth_1.authMiddleware, 
 });
 router.get('/nurturing/birthday-contacts', auth_1.authMiddleware, async (req, res) => {
     try {
-        const contacts = await NurturingService_1.default.getBirthdayContactsToday();
+        const contacts = await NurturingService_1.default.getUpcomingBirthdays(30);
         res.json(contacts);
     }
     catch (error) {

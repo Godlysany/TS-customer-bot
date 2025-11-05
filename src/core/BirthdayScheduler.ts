@@ -67,7 +67,7 @@ export class BirthdayScheduler {
       console.log(`🎂 Found ${birthdayContacts.length} birthday(s) today`);
 
       // Get settings
-      const messageTemplate = await this.nurturingService.getSetting('birthday_message_template') || 
+      const messageTemplate = await this.nurturingService.getSetting('birthday_wish_template') || 
         'Happy Birthday {{name}}! 🎉 Wishing you a wonderful day filled with joy and happiness!';
       const enablePromotion = await this.nurturingService.getSetting('birthday_enable_promotion') === 'true';
       const promotionId = await this.nurturingService.getSetting('birthday_promotion_id') || undefined;
@@ -109,7 +109,8 @@ export class BirthdayScheduler {
     // Calculate age if birthdate is complete
     let age: number | undefined;
     if (contact.birthdate) {
-      const birthYear = new Date(contact.birthdate).getFullYear();
+      // Parse birthdate as local calendar date (avoid UTC timezone shift)
+      const [birthYear] = contact.birthdate.split('-').map(Number);
       const currentYear = new Date().getFullYear();
       if (birthYear > 1900) { // Valid birth year
         age = currentYear - birthYear;

@@ -70,6 +70,34 @@ class ServiceAvailabilityService {
      * Deletes all existing windows and creates new ones
      */
     async replaceBookingWindows(serviceId, windows) {
+        // Validate ALL windows before making any database changes
+        for (const window of windows) {
+            if (window.dayOfWeek === undefined || window.dayOfWeek === null) {
+                throw new Error('All booking windows must have a day of week');
+            }
+            // Validate dayOfWeek is in valid range (0=Sunday, 6=Saturday)
+            if (window.dayOfWeek < 0 || window.dayOfWeek > 6 || !Number.isInteger(window.dayOfWeek)) {
+                throw new Error('Day of week must be a number between 0 (Sunday) and 6 (Saturday)');
+            }
+            if (!window.startTime || window.startTime.trim() === '') {
+                throw new Error(`Booking window for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][window.dayOfWeek]} is missing start time`);
+            }
+            if (!window.endTime || window.endTime.trim() === '') {
+                throw new Error(`Booking window for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][window.dayOfWeek]} is missing end time`);
+            }
+            // Validate time format (HH:MM)
+            const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            if (!timeRegex.test(window.startTime)) {
+                throw new Error(`Invalid start time format for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][window.dayOfWeek]}: ${window.startTime}. Expected HH:MM format.`);
+            }
+            if (!timeRegex.test(window.endTime)) {
+                throw new Error(`Invalid end time format for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][window.dayOfWeek]}: ${window.endTime}. Expected HH:MM format.`);
+            }
+            // Validate start < end
+            if (window.startTime >= window.endTime) {
+                throw new Error(`Start time must be before end time for ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][window.dayOfWeek]}`);
+            }
+        }
         // Delete all existing windows for this service
         const { error: deleteError } = await supabase_1.supabase
             .from('service_booking_windows')
@@ -83,9 +111,27 @@ class ServiceAvailabilityService {
         if (windows.length === 0) {
             return [];
         }
+        // Prepare windows for insertion - filter out any undefined/null fields
+        const validWindows = windows.map(w => {
+            const windowData = {
+                service_id: serviceId,
+                day_of_week: w.dayOfWeek,
+                start_time: w.startTime,
+                end_time: w.endTime,
+                is_active: w.isActive !== undefined ? w.isActive : true,
+            };
+            // Only add optional fields if they're defined
+            if (w.validFrom)
+                windowData.valid_from = w.validFrom;
+            if (w.validUntil)
+                windowData.valid_until = w.validUntil;
+            if (w.notes)
+                windowData.notes = w.notes;
+            return windowData;
+        });
         const { data, error } = await supabase_1.supabase
             .from('service_booking_windows')
-            .insert(windows.map(w => (0, mapper_1.toSnakeCase)({ ...w, serviceId })))
+            .insert(validWindows)
             .select();
         if (error) {
             console.error('Error creating booking windows:', error);

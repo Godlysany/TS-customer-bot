@@ -124,7 +124,7 @@ router.put('/nurturing/contacts/:contactId/preferences', authMiddleware, async (
 
 router.get('/nurturing/birthday-contacts', authMiddleware, async (req, res) => {
   try {
-    const contacts = await NurturingService.getBirthdayContactsToday();
+    const contacts = await NurturingService.getUpcomingBirthdays(30);
     res.json(contacts);
   } catch (error: any) {
     console.error('Error fetching birthday contacts:', error);
