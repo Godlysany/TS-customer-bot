@@ -52,7 +52,7 @@ export class NoShowService {
     let penaltyFee = 0;
     if (penaltyEnabled) {
       penaltyFee = penaltyType === 'percentage' 
-        ? (booking.total_cost || 0) * (penaltyAmount / 100)
+        ? (booking.payment_amount_chf || 0) * (penaltyAmount / 100)
         : penaltyAmount;
     }
 

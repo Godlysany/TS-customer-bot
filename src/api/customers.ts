@@ -279,7 +279,7 @@ router.get('/:id/service-history', async (req, res) => {
         id,
         start_time,
         status,
-        total_cost,
+        payment_amount_chf,
         notes,
         created_at,
         services:service_id (
@@ -307,7 +307,7 @@ router.get('/:id/service-history', async (req, res) => {
       id: booking.id,
       scheduledTime: booking.start_time,
       status: booking.status,
-      cost: booking.total_cost,
+      cost: booking.payment_amount_chf,
       notes: booking.notes,
       createdAt: booking.created_at,
       service: booking.services ? {

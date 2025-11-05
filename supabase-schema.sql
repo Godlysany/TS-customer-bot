@@ -664,6 +664,9 @@ CREATE INDEX idx_team_members_active ON team_members(is_active) WHERE is_active 
 CREATE INDEX idx_team_members_calendar_id ON team_members(calendar_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_booking_link ON team_members(booking_link) WHERE booking_link IS NOT NULL;
 
+-- Add color column for existing team_members tables (backward compatibility)
+ALTER TABLE team_members ADD COLUMN IF NOT EXISTS color VARCHAR(7);
+
 COMMENT ON TABLE team_members IS 'Team members with individual calendars within the configured calendar provider';
 COMMENT ON COLUMN team_members.calendar_id IS 'Provider-specific calendar identifier (Google: primary or calendar ID, O365: calendar ID, Custom API: member ID)';
 COMMENT ON COLUMN team_members.booking_link IS 'Optional Calendly-style booking link as fallback when calendar integration is unavailable. Used for KPI tracking without conversion attribution.';
