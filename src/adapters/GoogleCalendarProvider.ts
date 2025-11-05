@@ -9,7 +9,17 @@ export class GoogleCalendarProvider implements CalendarProvider {
   }
 
   async createEvent(event: CalendarEvent): Promise<string> {
-    // TODO: Implement Google Calendar API call
+    // PRODUCTION LOGGING: Calendar injection transparency
+    console.log('🗓️  ========== GOOGLE CALENDAR INJECTION ==========');
+    console.log('📝 RAW EVENT DATA:', {
+      title: event.title,
+      description: event.description,
+      startTime: event.startTime.toISOString(),
+      endTime: event.endTime.toISOString(),
+      calendarId: (event as any).calendarId || 'primary (default)',
+      attendees: event.attendees || [],
+    });
+    
     const googleEvent = {
       summary: event.title,
       description: event.description,
@@ -24,11 +34,26 @@ export class GoogleCalendarProvider implements CalendarProvider {
       attendees: event.attendees?.map(email => ({ email })),
     };
 
+    console.log('📤 GOOGLE CALENDAR API PAYLOAD:', {
+      targetCalendar: (event as any).calendarId || 'primary',
+      summary: googleEvent.summary,
+      description: googleEvent.description,
+      startDateTime: googleEvent.start.dateTime,
+      endDateTime: googleEvent.end.dateTime,
+      timeZone: googleEvent.start.timeZone,
+      attendeeCount: googleEvent.attendees?.length || 0,
+      attendees: googleEvent.attendees,
+    });
+
     // const response = await this.calendarClient.events.insert({ calendarId: 'primary', resource: googleEvent });
     // return response.data.id;
     
     // Placeholder for now
-    return `event_${Date.now()}`;
+    const eventId = `event_${Date.now()}`;
+    console.log('✅ Calendar event created (placeholder):', eventId);
+    console.log('🗓️  ========== CALENDAR INJECTION COMPLETE ==========\n');
+    
+    return eventId;
   }
 
   async updateEvent(eventId: string, event: Partial<CalendarEvent>): Promise<void> {
