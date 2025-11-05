@@ -12,6 +12,11 @@ const AdvancedControlsSection = () => {
     enable_booking: true,
     enable_questionnaires: true,
     enable_promotions: true,
+    enable_campaigns: true,
+    enable_birthday_wishes: true,
+    enable_testimonials: true,
+    enable_service_documents: true,
+    enable_recurring_reminders: true,
     enable_payment_links: true,
     enable_crm_extraction: true,
     enable_multi_session_booking: true,
@@ -66,6 +71,11 @@ const AdvancedControlsSection = () => {
         enable_booking: getSetting('enable_booking', true),
         enable_questionnaires: getSetting('enable_questionnaires', true),
         enable_promotions: getSetting('enable_promotions', true),
+        enable_campaigns: getSetting('enable_campaigns', true),
+        enable_birthday_wishes: getSetting('enable_birthday_wishes', true),
+        enable_testimonials: getSetting('enable_testimonials', true),
+        enable_service_documents: getSetting('enable_service_documents', true),
+        enable_recurring_reminders: getSetting('enable_recurring_reminders', true),
         enable_payment_links: getSetting('enable_payment_links', true),
         enable_crm_extraction: getSetting('enable_crm_extraction', true),
         enable_multi_session_booking: getSetting('enable_multi_session_booking', true),
@@ -174,6 +184,71 @@ const AdvancedControlsSection = () => {
               type="checkbox"
               checked={formData.enable_promotions}
               onChange={(e) => setFormData({ ...formData, enable_promotions: e.target.checked })}
+              className="w-5 h-5"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div>
+              <p className="font-medium text-gray-900">Campaigns</p>
+              <p className="text-sm text-gray-600">Send marketing campaigns to customers</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.enable_campaigns}
+              onChange={(e) => setFormData({ ...formData, enable_campaigns: e.target.checked })}
+              className="w-5 h-5"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div>
+              <p className="font-medium text-gray-900">Birthday Wishes</p>
+              <p className="text-sm text-gray-600">Automated birthday messages with promotions</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.enable_birthday_wishes}
+              onChange={(e) => setFormData({ ...formData, enable_birthday_wishes: e.target.checked })}
+              className="w-5 h-5"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div>
+              <p className="font-medium text-gray-900">Testimonials</p>
+              <p className="text-sm text-gray-600">Request and manage customer testimonials</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.enable_testimonials}
+              onChange={(e) => setFormData({ ...formData, enable_testimonials: e.target.checked })}
+              className="w-5 h-5"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div>
+              <p className="font-medium text-gray-900">Service Documents</p>
+              <p className="text-sm text-gray-600">Deliver documents at specific booking stages</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.enable_service_documents}
+              onChange={(e) => setFormData({ ...formData, enable_service_documents: e.target.checked })}
+              className="w-5 h-5"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div>
+              <p className="font-medium text-gray-900">Recurring Reminders</p>
+              <p className="text-sm text-gray-600">Remind customers about recurring services</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={formData.enable_recurring_reminders}
+              onChange={(e) => setFormData({ ...formData, enable_recurring_reminders: e.target.checked })}
               className="w-5 h-5"
             />
           </label>
